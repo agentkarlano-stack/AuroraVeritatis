@@ -1,0 +1,45 @@
+{
+  "name": "aurora-veritatis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aurora Veritatis — global analysis & strategic insight platform (Cloudflare Workers + Supabase).",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:ci": "node scripts/build.mjs --require-basemap",
+    "watch": "node scripts/build.mjs --watch",
+    "preview": "node scripts/serve.mjs",
+    "dev": "npm run build -- --dev && node scripts/serve.mjs",
+    "dev:worker": "npm run build && wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build",
+    "deploy:preview": "npm run build:ci && wrangler versions upload",
+    "deploy:production": "npm run build:ci && wrangler deploy"
+  },
+  "dependencies": {
+    "d3-geo": "^3.1.1",
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250901.0",
+    "@types/d3-geo": "^3.1.0",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.1.7",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.3",
+    "world-atlas": "^2.0.2",
+    "wrangler": "^4.40.0"
+  }
+}

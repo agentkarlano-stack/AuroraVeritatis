@@ -1,0 +1,5 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit .dev.vars.
+# Public Supabase values (Project Settings → API). The anon key is public by design.
+SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+SUPABASE_ANON_KEY=your-public-anon-key
+# Never place the service_role key in the browser, in wrangler.jsonc, or in this file.
