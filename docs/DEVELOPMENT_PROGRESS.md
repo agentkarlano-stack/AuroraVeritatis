@@ -7,16 +7,17 @@
 | Project phase | Phase 1, Foundation: v0.1 built, hardening toward v0.2 |
 | Current branch | `dev/v0.1-foundation` |
 | Pull request | [#1](https://github.com/agentkarlano-stack/AuroraVeritatis/pull/1), open, awaiting review |
-| Latest successful build | 2026-10-21, local sandbox: `npm test` 21/21 and `npm run build` OK. CI on GitHub: see PR checks |
-| Next recommended action | AV-001: get CI green with a real `npm install`, then commit `package-lock.json` |
+| Latest successful build | 2026-10-21, GitHub Actions CI green on `c2b5de0`: real `npm install`, `tsc` with real @types/react, 21/21 tests, `build:ci` with the world-atlas basemap |
+| Next recommended action | Owner: read the Workers Builds log (see Known defects). Dev: AV-001 (commit `package-lock.json`), then AV-002 |
 
 **Completed:** see the session log below and the `done` rows in [BACKLOG.md](BACKLOG.md).
 **Remaining work:** the `todo` rows in [BACKLOG.md](BACKLOG.md).
 
 **Known defects**
-- Not yet verified with real dependencies: full type check (AV-001), real basemap (AV-002), live World Bank call (AV-003).
+- Real basemap rendering (AV-002) and the live World Bank call (AV-003) are not yet verified in a browser. The type check now passes in CI.
+- **Cloudflare Workers Builds check fails** (builds 57c3db85…). The log is visible only in the Cloudflare dashboard. Likely causes: no lockfile, or the dashboard build/deploy commands. Recommended dashboard settings: build command empty (wrangler's `build.command` runs `npm run build:ci`), deploy command `npx wrangler deploy`, non-production deploy command `npx wrangler versions upload`.
+- No `package-lock.json`: the dev sandbox cannot reach the npm registry. Either allow package managers for Claude sessions (claude.ai → Settings → Capabilities) or generate the lockfile locally with `npm install`.
 - Supabase email-confirmation and password-recovery redirects are not handled (AV-004).
-- The Cloudflare Workers Builds check failed on the first push, probably because of the Worker name mismatch (fixed: `auroraveritatis`) and no build step (fixed: `build.command`). Re-check on the next push.
 
 **Required environment variables (names only)**
 - Worker: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (public), `APP_ENV`, `APP_VERSION` (set in `wrangler.jsonc`)

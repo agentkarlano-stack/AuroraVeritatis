@@ -8,7 +8,7 @@ Goal of the current milestone: **initial functional version of aurorav.app (v0.2
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| AV-001 | Run `npm install`, commit `package-lock.json`, and get CI green with real `@types/react`; fix any type errors | todo | v0.1 was type-checked against a minimal React shim only |
+| AV-001 | Commit `package-lock.json` (CI is already green with real `@types/react`) | todo | Needs npm registry access in the session, or the owner runs `npm install` locally and commits |
 | AV-002 | Verify the real world-atlas basemap: rendering, antimeridian countries (Russia, Fiji), click-to-profile for all 33 registry ids | todo | v0.1 was browser-tested with a synthetic three-shape topology |
 | AV-003 | Verify live World Bank indicator fetch end to end in `wrangler dev` (latest values, history charts, Cache API) | todo | The sandbox could not reach api.worldbank.org |
 | AV-004 | Handle Supabase email-confirmation and password-recovery redirects (tokens in the URL hash on `/account`), plus a "set new password" form | todo | Required before enabling accounts publicly |
