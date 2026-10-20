@@ -4,13 +4,13 @@ import { useApi } from './api';
 
 /** Marker colours per event category, shared by the map, lists and chart annotations. */
 export const CATEGORY_COLOR: Record<EventCategory, string> = {
-  conflict: '#d26a6a',
-  security: '#d98c5f',
-  political: '#c8a96b',
-  humanitarian: '#b58fd1',
-  'natural-disaster': '#6c9bd2',
-  economic: '#5fb38a',
-  energy: '#e0c35a',
+  conflict: '#c2605b',
+  security: '#c98a5a',
+  political: '#c9a35a',
+  humanitarian: '#9d8bb8',
+  'natural-disaster': '#7d9cc0',
+  economic: '#5e9f7e',
+  energy: '#d8c27a',
 };
 
 export const CATEGORY_LABEL: Record<GeoEvent['category'], string> = {

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" width="1600" height="640">
+  <title>Aurora Veritatis — Global Analysis &amp; Strategic Insight</title>
+  <!-- Text uses Montserrat (bold / medium). For print, use the PNG exports or outline the text in a vector editor. -->
+  <rect width="1600" height="640" fill="#303030"/>
+  <g transform="translate(669.5 92) scale(1.5)"><path d="M0 100 L40 0 L60 0 L100 100 L76 100 L68.4 81 L31.6 81 L24 100 Z M38.4 64 L61.6 64 L50 35 Z" fill="#C9A35A" fill-rule="evenodd"/><path d="M74 0 L98 0 L124 65 L150 0 L174 0 L134 100 L114 100 Z" fill="#C9A35A"/></g>
+  <text x="800" y="388" text-anchor="middle" font-family="Montserrat, 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="78" letter-spacing="4.5" fill="#FFFFFF">AURORA VERITATIS</text>
+  <text x="800" y="478" text-anchor="middle" font-family="Montserrat, 'Helvetica Neue', Arial, sans-serif" font-weight="500" font-size="34" letter-spacing="6.8" fill="#C9A35A">GLOBAL ANALYSIS &amp; STRATEGIC INSIGHT</text>
+</svg>

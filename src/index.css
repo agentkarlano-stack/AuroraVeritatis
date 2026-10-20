@@ -1,24 +1,27 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-navy-950: #070c16;
-  --color-navy-900: #0b1220;
-  --color-navy-850: #0f1828;
-  --color-navy-800: #142033;
-  --color-navy-700: #1c2a42;
+  /* Neutral charcoal scale (darkest -> lightest). Warm-neutral, no blue cast. */
+  --color-ink-950: #0d0d0e;
+  --color-ink-900: #151517;
+  --color-ink-850: #1a1a1d;
+  --color-ink-800: #222226;
+  --color-ink-700: #2c2c31;
   --color-charcoal: #303030;
-  --color-graphite: #23272e;
-  --color-line: #233149;
-  --color-gold: #c8a96b;
-  --color-gold-soft: #d9c08e;
-  --color-gold-dim: #8e7748;
-  --color-platinum: #e9eef5;
-  --color-mist: #a7b2c3;
-  --color-slate-dim: #6f7b8f;
-  --color-up: #5fb38a;
-  --color-down: #d26a6a;
-  --color-warn: #d9a441;
-  --color-info: #6c9bd2;
+  --color-graphite: #232327;
+  --color-line: #2f2f35;
+  /* Brand gold, sampled to match the AV logo. */
+  --color-gold: #c9a35a;
+  --color-gold-soft: #ddbf84;
+  --color-gold-dim: #8d7444;
+  --color-platinum: #f1f0ec;
+  --color-mist: #adaba5;
+  --color-slate-dim: #77756f;
+  /* Muted signal colours: legible but restrained. */
+  --color-up: #5e9f7e;
+  --color-down: #c2605b;
+  --color-warn: #d2a043;
+  --color-info: #7d9cc0;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Montserrat', 'Inter', ui-sans-serif, sans-serif;
@@ -27,10 +30,10 @@
 @layer base {
   html {
     color-scheme: dark;
-    background: var(--color-navy-950);
+    background: var(--color-ink-950);
   }
   body {
-    @apply bg-navy-950 text-platinum font-sans antialiased;
+    @apply bg-ink-950 text-platinum font-sans antialiased;
     min-height: 100dvh;
     font-feature-settings: 'cv11', 'ss01';
   }
@@ -54,7 +57,7 @@
 
 /* Component classes are declared as utilities so they can be composed with @apply (Tailwind v4). */
 @utility panel {
-  @apply rounded-xl border border-line bg-navy-900/80;
+  @apply rounded-xl border border-line bg-ink-900/80;
 }
 @utility eyebrow {
   @apply font-display text-[11px] font-semibold tracking-[0.22em] text-gold uppercase;
@@ -63,7 +66,7 @@
   @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45;
 }
 @utility btn-primary {
-  @apply btn bg-gold text-navy-950 hover:bg-gold-soft;
+  @apply btn bg-gold text-ink-950 hover:bg-gold-soft;
 }
 @utility btn-ghost {
   @apply btn border border-line text-platinum hover:border-gold-dim hover:text-gold-soft;
@@ -72,7 +75,7 @@
   @apply btn px-2 py-1 text-mist hover:text-platinum;
 }
 @utility input {
-  @apply w-full rounded-md border border-line bg-navy-950 px-3 py-2 text-sm text-platinum placeholder:text-slate-dim focus:border-gold-dim focus:outline-none;
+  @apply w-full rounded-md border border-line bg-ink-950 px-3 py-2 text-sm text-platinum placeholder:text-slate-dim focus:border-gold-dim focus:outline-none;
 }
 @utility label {
   @apply mb-1 block text-xs font-medium text-mist;
@@ -90,8 +93,8 @@
 /* Intro splash (IntroSplash.tsx). Disabled entirely for prefers-reduced-motion users. */
 @keyframes av-word {
   0% { opacity: 0; letter-spacing: 0.6em; }
-  25% { opacity: 1; letter-spacing: 0.32em; }
-  55% { opacity: 1; letter-spacing: 0.24em; }
+  25% { opacity: 1; letter-spacing: 0.12em; }
+  55% { opacity: 1; letter-spacing: 0.06em; }
   75% { opacity: 0; letter-spacing: 0.02em; transform: scale(0.85); }
   100% { opacity: 0; }
 }

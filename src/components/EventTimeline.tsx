@@ -37,7 +37,7 @@ export function EventTimeline({ events, days, now, selectedDay, onSelectDay }: P
             <g
               key={b.day}
               // The SVG group's native focus outline renders as a solid block; show focus inside the chart instead.
-              className="cursor-pointer outline-none [&:focus-visible>rect:first-of-type]:fill-[rgba(200,169,107,0.22)]"
+              className="cursor-pointer outline-none [&:focus-visible>rect:first-of-type]:fill-[rgba(201,163,90,0.22)]"
               role="button"
               tabIndex={0}
               aria-label={`${b.day}: ${b.total} event${b.total === 1 ? '' : 's'}`}
@@ -46,7 +46,7 @@ export function EventTimeline({ events, days, now, selectedDay, onSelectDay }: P
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelectDay(selected ? null : b.day)}
             >
               <title>{`${b.day}: ${b.total} event${b.total === 1 ? '' : 's'}`}</title>
-              <rect x={i * w} y={0} width={w} height={H} fill={selected ? 'rgba(200,169,107,0.12)' : 'transparent'} />
+              <rect x={i * w} y={0} width={w} height={H} fill={selected ? 'rgba(201,163,90,0.12)' : 'transparent'} />
               {(Object.entries(b.byCategory) as [EventCategory, number][]).map(([cat, n]) => {
                 const h = (n / max) * (H - 4);
                 y -= h;
@@ -55,7 +55,7 @@ export function EventTimeline({ events, days, now, selectedDay, onSelectDay }: P
             </g>
           );
         })}
-        <line x1="0" x2="100" y1={H - 0.25} y2={H - 0.25} stroke="#233149" strokeWidth="0.5" />
+        <line x1="0" x2="100" y1={H - 0.25} y2={H - 0.25} stroke="#2f2f35" strokeWidth="0.5" />
       </svg>
     </div>
   );

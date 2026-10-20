@@ -39,13 +39,13 @@ export function IntroSplash() {
   };
 
   return (
-    <div className="av-intro fixed inset-0 z-[100] flex items-center justify-center bg-navy-950" onClick={skip} role="presentation">
+    <div className="av-intro fixed inset-0 z-[100] flex items-center justify-center bg-ink-950" onClick={skip} role="presentation">
       <div className="relative flex flex-col items-center" aria-hidden>
         <div className="av-intro-mono">
-          <Monogram className="h-24 w-auto md:h-28" />
+          <Monogram className="h-20 w-auto md:h-24" />
         </div>
-        <div className="av-intro-word mt-6 font-display text-xl font-bold text-platinum md:text-2xl">AURORA VERITATIS</div>
-        <div className="av-intro-tag mt-3 font-display text-[10px] font-medium tracking-[0.3em] text-gold md:text-xs">
+        <div className="av-intro-word mt-6 font-display text-2xl font-bold text-platinum md:text-4xl">AURORA VERITATIS</div>
+        <div className="av-intro-tag mt-3 font-display text-[11px] font-medium tracking-[0.2em] text-gold md:text-sm">
           GLOBAL ANALYSIS &amp; STRATEGIC INSIGHT
         </div>
       </div>

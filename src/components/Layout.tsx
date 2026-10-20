@@ -9,6 +9,7 @@ const NAV = [
   { to: '/radar', label: 'Conflict Radar' },
   { to: '/countries', label: 'Countries' },
   { to: '/markets', label: 'Markets' },
+  { to: '/impact', label: 'Impact Radar' },
   { to: '/lab', label: 'Research Lab' },
 ];
 
@@ -45,10 +46,10 @@ export function Layout() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-gold focus:px-3 focus:py-2 focus:text-navy-950">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-gold focus:px-3 focus:py-2 focus:text-ink-950">
         Skip to content
       </a>
-      <header className="sticky top-0 z-40 border-b border-line bg-navy-950/90 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-line bg-ink-950/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
           <Link to="/" aria-label="Aurora Veritatis home">
             <Wordmark />
@@ -74,7 +75,7 @@ export function Layout() {
           </div>
         </div>
         {open && (
-          <nav className="border-t border-line bg-navy-950 px-4 py-3 lg:hidden" aria-label="Mobile">
+          <nav className="border-t border-line bg-ink-950 px-4 py-3 lg:hidden" aria-label="Mobile">
             {[...NAV, { to: '/pricing', label: 'Plans' }, { to: status === 'signed-in' ? '/account' : '/signin', label: status === 'signed-in' ? 'Account' : 'Sign in' }].map((n) => (
               <NavLink key={n.to} to={n.to} className={(s) => `block ${navCls(s)}`}>
                 {n.label}
@@ -88,7 +89,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="mt-16 border-t border-line bg-navy-950">
+      <footer className="mt-16 border-t border-line bg-ink-950">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:grid-cols-[1.4fr_1fr_1fr]">
           <div>
             <Wordmark />

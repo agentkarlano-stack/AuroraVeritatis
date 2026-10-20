@@ -1,7 +1,7 @@
 import { ArrowRight, BarChart3, Building2, FlaskConical, Globe2, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { IntroSplash } from '../components/IntroSplash';
-import { Monogram } from '../components/Logo';
+import { BrandLockup } from '../components/Logo';
 import { ProvenanceBadge } from '../components/ui';
 
 const MODULES = [
@@ -17,7 +17,7 @@ export default function Home() {
     <div>
       <IntroSplash />
       <section className="relative overflow-hidden border-b border-line">
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(200,169,107,0.10),transparent_60%)]" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,163,90,0.10),transparent_60%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 md:py-24 lg:grid-cols-[1.2fr_1fr]">
           <div>
             <div className="eyebrow mb-4">Global Analysis &amp; Strategic Insight</div>
@@ -42,12 +42,8 @@ export default function Home() {
             <p className="mt-6 text-xs text-slate-dim">Early-access preview. Free to explore — no account required.</p>
           </div>
           <div className="hidden justify-center lg:flex">
-            <div className="panel flex aspect-square w-80 flex-col items-center justify-center gap-6 bg-navy-900/60">
-              <Monogram className="h-28 w-auto" />
-              <div className="text-center">
-                <div className="font-display text-lg font-bold tracking-[0.22em] text-platinum">AURORA VERITATIS</div>
-                <div className="mt-2 font-display text-[10px] font-medium tracking-[0.26em] text-gold">GLOBAL ANALYSIS &amp; STRATEGIC INSIGHT</div>
-              </div>
+            <div className="panel flex aspect-[4/3] w-[26rem] items-center justify-center bg-charcoal/40 px-8">
+              <BrandLockup />
             </div>
           </div>
         </div>
@@ -73,14 +69,14 @@ export default function Home() {
           <Link to="/status" className="panel flex flex-col justify-center border-dashed p-5 hover:border-gold-dim">
             <h3 className="text-base font-semibold text-platinum">In development</h3>
             <p className="mt-2 text-sm leading-relaxed text-mist">
-              Market Impact Radar, World Tension Index, Strategy Lab and the EVE &amp; KNOX research assistants. See the
+              Calibrated World Tension Index, Strategy Lab, real geopolitical feeds and the EVE &amp; KNOX research assistants. See the
               platform status page for what works today.
             </p>
           </Link>
         </div>
       </section>
 
-      <section className="border-y border-line bg-navy-900/40">
+      <section className="border-y border-line bg-ink-900/40">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2">
           <div>
             <ShieldCheck className="h-6 w-6 text-gold" aria-hidden />

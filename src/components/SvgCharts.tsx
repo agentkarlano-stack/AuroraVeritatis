@@ -25,10 +25,10 @@ const fmtAxis = (v: number) => (Math.abs(v) >= 1e9 ? `${(v / 1e9).toFixed(1)}B` 
 
 function Axes({ yTicks, y, xLabels }: { yTicks: number[]; y: (v: number) => number; xLabels: { x: number; label: string }[] }) {
   return (
-    <g fontSize="10" fill="#6f7b8f">
+    <g fontSize="10" fill="#77756f">
       {yTicks.map((t) => (
         <g key={t}>
-          <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke="#16233a" />
+          <line x1={PAD.l} x2={W - PAD.r} y1={y(t)} y2={y(t)} stroke="#1f1f23" />
           <text x={PAD.l - 6} y={y(t) + 3} textAnchor="end">
             {fmtAxis(t)}
           </text>
@@ -72,17 +72,17 @@ export function LineChart({ points, format }: { points: { date: string; value: n
         }}
       >
         <Axes yTicks={yt} y={y} xLabels={xl} />
-        <path d={`${d}L${x(points.length - 1)},${H - PAD.b}L${x(0)},${H - PAD.b}Z`} fill="rgba(200,169,107,0.08)" />
-        <path d={d} fill="none" stroke="#c8a96b" strokeWidth="1.8" />
+        <path d={`${d}L${x(points.length - 1)},${H - PAD.b}L${x(0)},${H - PAD.b}Z`} fill="rgba(201,163,90,0.08)" />
+        <path d={d} fill="none" stroke="#c9a35a" strokeWidth="1.8" />
         {h && hover != null && (
           <g>
-            <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={H - PAD.b} stroke="#33445f" />
-            <circle cx={x(hover)} cy={y(h.value)} r="3.5" fill="#c8a96b" />
+            <line x1={x(hover)} x2={x(hover)} y1={PAD.t} y2={H - PAD.b} stroke="#3a3a40" />
+            <circle cx={x(hover)} cy={y(h.value)} r="3.5" fill="#c9a35a" />
           </g>
         )}
       </svg>
       {h && (
-        <div className="absolute right-2 top-1 rounded border border-line bg-navy-900 px-2 py-1 text-xs">
+        <div className="absolute right-2 top-1 rounded border border-line bg-ink-900 px-2 py-1 text-xs">
           <span className="text-mist">{h.date}:</span> <span className="num text-platinum">{format(h.value)}</span>
         </div>
       )}
@@ -105,10 +105,10 @@ export function FanChart({ fan, s0 }: { fan: FanPoint[]; s0: number }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Simulated value percentile fan chart">
       <Axes yTicks={yt} y={y} xLabels={xl} />
-      <path d={band('p05', 'p95')} fill="rgba(200,169,107,0.12)" />
-      <path d={band('p25', 'p75')} fill="rgba(200,169,107,0.25)" />
-      <line x1={PAD.l} x2={W - PAD.r} y1={y(s0)} y2={y(s0)} stroke="#6f7b8f" strokeDasharray="4 3" />
-      <path d={median} fill="none" stroke="#c8a96b" strokeWidth="2" />
+      <path d={band('p05', 'p95')} fill="rgba(201,163,90,0.12)" />
+      <path d={band('p25', 'p75')} fill="rgba(201,163,90,0.25)" />
+      <line x1={PAD.l} x2={W - PAD.r} y1={y(s0)} y2={y(s0)} stroke="#77756f" strokeDasharray="4 3" />
+      <path d={median} fill="none" stroke="#c9a35a" strokeWidth="2" />
     </svg>
   );
 }
@@ -130,14 +130,14 @@ export function HistogramChart({ hist, marker, markerLabel }: { hist: Histogram;
           width={Math.max(0, x(hist.edges[i + 1]!) - x(hist.edges[i]!) - 1)}
           y={y(c)}
           height={H - PAD.b - y(c)}
-          fill={marker != null && hist.edges[i + 1]! <= marker ? 'rgba(210,106,106,0.6)' : 'rgba(200,169,107,0.55)'}
+          fill={marker != null && hist.edges[i + 1]! <= marker ? 'rgba(194,96,91,0.6)' : 'rgba(201,163,90,0.55)'}
         />
       ))}
       {marker != null && (
         <g>
-          <line x1={x(marker)} x2={x(marker)} y1={PAD.t} y2={H - PAD.b} stroke="#d26a6a" strokeDasharray="4 3" />
+          <line x1={x(marker)} x2={x(marker)} y1={PAD.t} y2={H - PAD.b} stroke="#c2605b" strokeDasharray="4 3" />
           {markerLabel && (
-            <text x={x(marker) + 4} y={PAD.t + 10} fontSize="10" fill="#d26a6a">
+            <text x={x(marker) + 4} y={PAD.t + 10} fontSize="10" fill="#c2605b">
               {markerLabel}
             </text>
           )}

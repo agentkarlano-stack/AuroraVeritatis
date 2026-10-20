@@ -45,7 +45,7 @@ export default function Headquarters() {
       </PageHeader>
 
       {editing && (
-        <p className="mb-4 rounded-lg border border-line bg-navy-900 px-3 py-2 text-xs text-mist">
+        <p className="mb-4 rounded-lg border border-line bg-ink-900 px-3 py-2 text-xs text-mist">
           Drag widgets by the handle or use the arrows to reorder. Use the eye icon to show or hide a widget.
         </p>
       )}
@@ -154,7 +154,7 @@ function TensionWidget() {
                 </span>
                 <span className="num text-platinum">{c.score.toFixed(0)}</span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-navy-800">
+              <div className="mt-1 h-1.5 rounded-full bg-ink-800">
                 <div className="h-1.5 rounded-full bg-gold/70" style={{ width: `${c.score}%` }} />
               </div>
             </li>
@@ -314,11 +314,11 @@ function CountriesWidget() {
       <div className="relative mt-3">
         <input className="input" placeholder="Add a country…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search country to add" />
         {results.length > 0 && (
-          <ul className="absolute inset-x-0 top-full z-10 mt-1 rounded-md border border-line bg-navy-900 py-1 shadow-xl">
+          <ul className="absolute inset-x-0 top-full z-10 mt-1 rounded-md border border-line bg-ink-900 py-1 shadow-xl">
             {results.map((c) => (
               <li key={c.iso3}>
                 <button
-                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-navy-800"
+                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-ink-800"
                   onClick={() => {
                     toggleFavorite(c.iso3);
                     setQ('');
@@ -351,7 +351,7 @@ function AlertsWidget() {
           const hit = q ? (a.direction === 'above' ? q.price >= a.level : q.price <= a.level) : false;
           return (
             <li key={a.id} className="flex items-center gap-2 py-1.5 text-sm">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${hit ? 'bg-gold' : 'bg-navy-700'}`} aria-hidden />
+              <span className={`h-2 w-2 shrink-0 rounded-full ${hit ? 'bg-gold' : 'bg-ink-700'}`} aria-hidden />
               <span className="flex-1">
                 {a.symbol} {a.direction} <span className="num">{a.level}</span>
                 <span className={`ml-2 text-xs ${hit ? 'text-gold' : 'text-slate-dim'}`}>{hit ? 'Triggered' : 'Watching'}</span>

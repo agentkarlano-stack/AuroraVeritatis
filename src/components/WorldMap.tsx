@@ -92,7 +92,7 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
   const highlight = new Set(highlightIso3);
 
   return (
-    <div className={`relative overflow-hidden rounded-lg bg-navy-950 ${className}`}>
+    <div className={`relative overflow-hidden rounded-lg bg-ink-950 ${className}`}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
@@ -110,16 +110,16 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
         style={{ cursor: grabbing ? 'grabbing' : 'grab' }}
       >
         <g transform={`translate(${view.x},${view.y}) scale(${view.k})`}>
-          <path d={sphere} fill="#0a1424" />
-          <path d={graticule} fill="none" stroke="#16233a" strokeWidth={0.5 / view.k} />
+          <path d={sphere} fill="#141416" />
+          <path d={graticule} fill="none" stroke="#1f1f23" strokeWidth={0.5 / view.k} />
           {shapes.map((s) => (
             <path
               key={s.key}
               d={s.d}
-              fill={s.iso3 && highlight.has(s.iso3) ? '#2a3a55' : '#1a2638'}
-              stroke="#33445f"
+              fill={s.iso3 && highlight.has(s.iso3) ? '#3b3528' : '#26262a'}
+              stroke="#3a3a40"
               strokeWidth={0.5 / view.k}
-              className={s.iso3 && onCountryClick ? 'cursor-pointer transition-colors hover:fill-[#2c3d5a]' : ''}
+              className={s.iso3 && onCountryClick ? 'cursor-pointer transition-colors hover:fill-[#3a372f]' : ''}
               onMouseMove={(e) => {
                 const p = toSvg(e.clientX, e.clientY);
                 setHover({ label: s.name, x: p.x, y: p.y });
@@ -141,7 +141,7 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
                   r={r}
                   fill={CATEGORY_COLOR[ev.category]}
                   fillOpacity={ev.provenance === 'simulated' ? 0.55 : 0.85}
-                  stroke={selected ? '#e9eef5' : '#070c16'}
+                  stroke={selected ? '#f1f0ec' : '#0d0d0e'}
                   strokeWidth={(selected ? 2 : 0.8) / view.k}
                   strokeDasharray={ev.provenance === 'simulated' ? `${2 / view.k} ${1.5 / view.k}` : undefined}
                   className="cursor-pointer"
@@ -166,7 +166,7 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
       </svg>
       {hover && (
         <div
-          className="pointer-events-none absolute z-10 max-w-64 -translate-x-1/2 -translate-y-full rounded border border-line bg-navy-900/95 px-2 py-1 text-xs text-platinum shadow-lg"
+          className="pointer-events-none absolute z-10 max-w-64 -translate-x-1/2 -translate-y-full rounded border border-line bg-ink-900/95 px-2 py-1 text-xs text-platinum shadow-lg"
           style={{ left: `${(hover.x / W) * 100}%`, top: `calc(${(hover.y / H) * 100}% - 8px)` }}
         >
           {hover.label}
@@ -200,7 +200,7 @@ function MapButton({ label, onClick, children }: { label: string; onClick: () =>
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-md border border-line bg-navy-900/90 text-mist hover:border-gold-dim hover:text-gold-soft"
+      className="flex h-8 w-8 items-center justify-center rounded-md border border-line bg-ink-900/90 text-mist hover:border-gold-dim hover:text-gold-soft"
     >
       {children}
     </button>

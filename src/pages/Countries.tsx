@@ -40,7 +40,7 @@ export default function Countries() {
             <ul className="space-y-1">
               {favorites.map((iso3) => (
                 <li key={iso3}>
-                  <Link to={`/countries/${iso3}`} className="flex justify-between rounded px-2 py-1.5 text-sm hover:bg-navy-800">
+                  <Link to={`/countries/${iso3}`} className="flex justify-between rounded px-2 py-1.5 text-sm hover:bg-ink-800">
                     <span>{countryByIso3(iso3)?.name ?? iso3}</span>
                     <span className="text-xs text-slate-dim">{iso3}</span>
                   </Link>
