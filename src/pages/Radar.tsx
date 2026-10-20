@@ -2,6 +2,7 @@ import { ExternalLink, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { EventCategory, GeoEvent } from '../../shared/types';
+import { EventTimeline } from '../components/EventTimeline';
 import { DemoNotice, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
 import { INSTRUMENT_MAP } from '../data/instruments';
@@ -25,14 +26,16 @@ export default function Radar() {
   const [windowDays, setWindowDays] = useState(30);
   const [selected, setSelected] = useState<GeoEvent | null>(null);
   const [now] = useState(() => Date.now());
+  const [day, setDay] = useState<string | null>(null);
 
   const all = useMemo(() => [...(layers.demo ? demo : []), ...(layers.quakes ? quakes : [])], [layers, demo, quakes]);
-  const filtered = useMemo(() => {
+  const windowed = useMemo(() => {
     return all
       .filter((e) => cats.has(e.category) && e.severity >= minSeverity && now - Date.parse(e.time) <= windowDays * 86_400_000)
       .filter((e) => region === 'all' || regionOf(e.lat, e.lon) === region)
       .sort((a, b) => b.severity - a.severity || Date.parse(b.time) - Date.parse(a.time));
   }, [all, cats, minSeverity, region, windowDays, now]);
+  const filtered = useMemo(() => (day ? windowed.filter((e) => e.time.slice(0, 10) === day) : windowed), [windowed, day]);
 
   const toggleCat = (c: EventCategory) =>
     setCats((s) => {
@@ -112,7 +115,15 @@ export default function Radar() {
                 <span className="label">Time window</span>
                 <div className="flex gap-1.5">
                   {WINDOWS.map((w) => (
-                    <button key={w.label} className="chip" aria-pressed={windowDays === w.days} onClick={() => setWindowDays(w.days)}>
+                    <button
+                      key={w.label}
+                      className="chip"
+                      aria-pressed={windowDays === w.days}
+                      onClick={() => {
+                        setWindowDays(w.days);
+                        setDay(null);
+                      }}
+                    >
                       {w.label}
                     </button>
                   ))}
@@ -138,6 +149,10 @@ export default function Radar() {
             />
             {selected && <EventDrawer event={selected} onClose={() => setSelected(null)} />}
           </div>
+
+          <Panel title="Timeline" eyebrow="Historical view">
+            <EventTimeline events={windowed} days={Math.min(windowDays, 60)} now={now} selectedDay={day} onSelectDay={setDay} />
+          </Panel>
 
           <Panel title={`Events (${filtered.length})`} bodyClass="max-h-96 overflow-y-auto">
             {filtered.length === 0 ? (

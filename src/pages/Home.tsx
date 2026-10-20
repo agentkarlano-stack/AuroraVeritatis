@@ -1,5 +1,6 @@
 import { ArrowRight, BarChart3, Building2, FlaskConical, Globe2, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
+import { IntroSplash } from '../components/IntroSplash';
 import { Monogram } from '../components/Logo';
 import { ProvenanceBadge } from '../components/ui';
 
@@ -14,6 +15,7 @@ const MODULES = [
 export default function Home() {
   return (
     <div>
+      <IntroSplash />
       <section className="relative overflow-hidden border-b border-line">
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(200,169,107,0.10),transparent_60%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 md:py-24 lg:grid-cols-[1.2fr_1fr]">

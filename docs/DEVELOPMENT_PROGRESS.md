@@ -1,54 +1,58 @@
 # Development Progress
 
-_Last updated: 2026-10-20 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-20, session `session_01DABSiCB2yNMA9QbADoheEi` (run 2)_
 
-## ⚠️ Parallel foundation — owner decision required
-Two independent Phase 1 foundations were built at the same time:
-- **PR #1** `dev/v0.1-foundation`: esbuild build, driven by the scheduled task "AV development (every 2h)".
-- **This branch** `claude/phase1-foundation` (draft PR): Vite + `@cloudflare/vite-plugin`, Lightweight Charts, Monte Carlo lab, live USGS layer.
-
-Only one should continue. Until the owner chooses, the scheduled task keeps working on `dev/*` (PR #1), and this branch receives no further work.
-
-## Current phase
-Phase 1 — Foundation: complete on this branch, pending review.
+## Current status
+| Field | Value |
+|---|---|
+| Phase | 1 complete on this branch → starting Phase 2/3 items |
+| Branch / PR | `claude/phase1-foundation` → PR #2 |
+| Competing work | PR #1 `dev/v0.1-foundation` (esbuild). The owner's latest directive prefers Vite + Cloudflare Vite plugin, which is PR #2. **Owner should close one.** |
+| GitHub Actions CI | ✅ passing |
+| Cloudflare Workers Builds | ❌ fails in **0 s** on every commit of every branch, incl. the README-only `main` → failing before clone; dashboard/account issue (see Blockers) |
+| Scheduled task | "AV development (every 2h)" exists but is **paused** (`enabled: false`) |
+| Next recommended action | Owner: fix Workers Builds connection (or add `CLOUDFLARE_API_TOKEN` for the Actions preview workflow); choose PR. Dev: Market Impact Radar page. |
 
 ## Completed
-- Vite 8 + React 19 + TS 6 + Tailwind 4 SPA, served by Worker `auroraveritatis` (`wrangler.jsonc`, `keep_vars`, SPA fallback, `/api/*` run-worker-first)
-- Branding: flat AV monogram (shared A/V stroke), wordmark, favicon, navy/gold/platinum tokens
-- Home, Headquarters (7 widgets, reorder/hide/reset, watchlist, favourites, alerts, notes), Conflict Radar, Countries + Dossier, Markets, Research Lab, Plans, Sign-in, Account, Status, 7 draft legal pages, 404
-- Worker API: `/api/health`, `/api/config`, `/api/countries/:iso3`, `/api/countries/:iso3/series/:indicator`, `/api/events/earthquakes`; edge cache, rate limit, validation, security headers
-- Supabase auth provider (magic link, password, sign-up) enabled by Worker vars; RLS migration (not applied)
-- 25 Vitest tests; ESLint (React Compiler rules) clean; CI workflow
+### Run 2 (2026-10-20)
+- **Deploy config**: reproduced a real failure mode — `wrangler deploy` / `versions upload` without a dashboard build command
+  aborted (`assets.directory` missing). Added `build.command` + `assets.directory`; dry-runs pass for all three setups;
+  `wrangler dev` with wrangler-bundled Worker serves SPA + API.
+- **Preview workflow** `.github/workflows/preview.yml`: `wrangler versions upload --preview-alias pr-N` + PR comment.
+  Inert until `CLOUDFLARE_API_TOKEN` secret and `CLOUDFLARE_ACCOUNT_ID` variable exist.
+- **Entitlements** (`src/lib/entitlements.ts`): plan limits/feature gates from the tier table; Free limits enforced for
+  watchlist (10) and alert rules (2) with notices; Account "Plan & usage" panel with meters; billing placeholders.
+- **Intro animation**: wordmark → AV monogram, ~2.6 s, skippable (button/Esc/click), skipped for reduced motion, once per
+  visitor, replayable from Account. No audio.
+- **Auth**: password reset request, `PASSWORD_RECOVERY` → set-new-password panel, redirect `error_description` surfaced.
+- **Radar timeline**: daily stacked bars by category; click to filter by day.
+### Run 1
+Phase 1 foundation: Home, Headquarters, Conflict Radar, Country dossiers (World Bank), Markets (Lightweight Charts),
+Research Lab (Monte Carlo), Plans, Sign-in/Account, Status, legal drafts, Worker API, RLS migration, CI, docs.
 
-## Verification (this session)
-- `npm run lint` ✅ · `npm run typecheck` ✅ · `npm test` ✅ 25/25 · `npm run build` ✅
-- `vite preview` (workerd): API routes, SPA fallback and CSP headers verified with curl
-- Playwright (Chromium), 13 routes × desktop 1440px + mobile 390px: no horizontal overflow, no console errors besides the
-  expected 502s from blocked upstreams; HQ hide/add, Lab rerun + validation, Markets RSI pane, Radar drawer + filter,
-  mobile menu verified. Data-filled dossier/radar UI verified with mocked API responses.
+## Verification (run 2)
+- `npm run check`: lint ✅ · typecheck ✅ · 29/29 tests ✅ · build ✅
+- Playwright: intro shows/skips/doesn't repeat/absent under reduced motion; timeline filters 14 → 1; alert limit blocks 3rd
+  rule; watchlist stops at 10; reset link present; Account usage panel; 0 console errors.
 
 ## Known defects / unverified
-- Live World Bank and USGS calls not verified (sandbox egress blocked) — unit-tested with mocked payloads only.
-- Cloudflare Workers Builds result for this branch unknown (dashboard-only logs).
-- Rate limiter is per-isolate (best effort).
-- `index` chunk ≈ 278 kB (89 kB gzip); could split further.
+- Live World Bank / USGS responses unverified (sandbox egress blocked; mocked tests only).
+- Workers Builds failing (external). No preview URL yet.
+- Per-isolate rate limiting only. Plan limits are client-side until Supabase sync exists.
 
 ## Required environment variables (names only)
-`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `POSTHOG_KEY`, `POSTHOG_HOST`, `ENVIRONMENT` (optional). Secret: `RESEND_API_KEY` (unused).
+Worker vars: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `POSTHOG_KEY`, `POSTHOG_HOST`, `ENVIRONMENT` (optional).
+Worker secret: `RESEND_API_KEY` (unused). GitHub (optional preview workflow): secret `CLOUDFLARE_API_TOKEN`, variable `CLOUDFLARE_ACCOUNT_ID`.
 
-## Latest successful build
-2026-10-20, local: lint + typecheck + 25 tests + `vite build` on commit `879e89c` + this docs commit.
+## Blockers (owner)
+1. Cloudflare dashboard → Workers & Pages → `auroraveritatis` → Settings → Builds: open a failed build log. 0-second
+   failures usually mean the Git connection/build token is broken — disconnect and reconnect the repository. Settings
+   that work for this repo: build command `npm run build` (or empty), deploy `npx wrangler deploy`, non-production
+   `npx wrangler versions upload`, root `/`.
+2. Choose PR #1 or PR #2; close the other.
+3. Decide whether to re-enable the paused scheduled task.
 
-## Branch / PR
-`claude/phase1-foundation` → draft PR against `main` (see PR list).
-
-## Decision (2026-10-20, delegated by owner)
-The Vite + `@cloudflare/vite-plugin` foundation (PR #2) is the project foundation. PR #1 (esbuild) is closed as superseded.
-Local `npm run build`, `wrangler deploy --dry-run` and `wrangler versions upload --dry-run` pass. The Workers Builds check failed
-within a second of starting, which points to dashboard build settings rather than code; the log is dashboard-only.
-
-## Next recommended action
-1. **Owner (dashboard only)**: Workers & Pages > auroraveritatis > Settings > Builds: build `npm run build`, deploy `npx wrangler deploy`,
-   non-production deploy `npx wrangler versions upload`, Node 22 (`.nvmrc`). Paste the failing log if it still fails.
-2. Verify `/api/countries/DEU` and `/api/events/earthquakes` on a Cloudflare preview.
-3. Then Phase 2 per docs/ROADMAP.md.
+## Next recommended actions (dev)
+1. Market Impact Radar page (event type → transmission channel → assets, evidence classes; correlation matrix on demo data).
+2. Supabase preference sync once auth is configured.
+3. Real geopolitical source evaluation (GDELT/UCDP/ReliefWeb) with provenance mapping.

@@ -116,3 +116,15 @@ export function Change({ value, className = '' }: { value: number | null; classN
   const cls = value > 0 ? 'text-up' : value < 0 ? 'text-down' : 'text-mist';
   return <span className={`num ${cls} ${className}`}>{`${value > 0 ? '+' : ''}${(value * 100).toFixed(2)}%`}</span>;
 }
+
+export function LimitNotice({ what, limit }: { what: string; limit: number }) {
+  return (
+    <p role="status" className="mt-2 text-xs text-warn">
+      Free plan limit reached: {limit} {what}. Higher limits are planned for paid tiers —{' '}
+      <a href="/pricing" className="underline hover:text-gold-soft">
+        see plans
+      </a>
+      .
+    </p>
+  );
+}

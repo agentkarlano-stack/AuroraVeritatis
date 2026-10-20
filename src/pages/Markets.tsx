@@ -2,10 +2,11 @@ import { Star } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { PriceChart, type ChartAnnotation, type ChartOptions } from '../components/PriceChart';
-import { Change, DemoNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
+import { Change, DemoNotice, LimitNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
 import { DEMO_EVENTS } from '../data/demoEvents';
 import { INSTRUMENTS, INSTRUMENT_MAP, type AssetClass } from '../data/instruments';
 import { demoBars, lastQuote } from '../lib/demoMarket';
+import { limitOf, useTier } from '../lib/entitlements';
 import { CATEGORY_COLOR } from '../lib/events';
 import { fmtNumber, fmtPct } from '../lib/format';
 import { annualisedVol, maxDrawdown, periodReturn } from '../lib/technical';
@@ -60,6 +61,8 @@ export default function Markets() {
   const symbol = INSTRUMENT_MAP.has(requested) ? requested : INSTRUMENTS[0]!.symbol;
   const inst = INSTRUMENT_MAP.get(symbol)!;
   const { watchlist, toggleWatch } = usePrefs();
+  const maxWatch = limitOf(useTier(), 'assetsPerWatchlist');
+  const [limitHit, setLimitHit] = useState(false);
   const [filter, setFilter] = useState<'watchlist' | 'all'>('all');
   const [range, setRange] = useState(126);
   const [options, setOptions] = useState<ChartOptions>({ style: 'candles', sma20: true, sma50: false, ema20: false, bollinger: false, volume: true, rsi: false, events: true });
@@ -101,6 +104,11 @@ export default function Markets() {
             </div>
           }
         >
+          {limitHit && (
+            <div className="px-3 pb-2">
+              <LimitNotice what="instruments per watchlist" limit={maxWatch} />
+            </div>
+          )}
           {list.length === 0 && <p className="p-4 text-sm text-slate-dim">Your watchlist is empty. Star instruments to add them.</p>}
           <ul className="max-h-[560px] divide-y divide-line overflow-y-auto">
             {list.map((i) => {
@@ -112,7 +120,7 @@ export default function Markets() {
                     className={`shrink-0 ${watchlist.includes(i.symbol) ? 'text-gold' : 'text-slate-dim hover:text-mist'}`}
                     aria-label={watchlist.includes(i.symbol) ? `Remove ${i.symbol} from watchlist` : `Add ${i.symbol} to watchlist`}
                     aria-pressed={watchlist.includes(i.symbol)}
-                    onClick={() => toggleWatch(i.symbol)}
+                    onClick={() => setLimitHit(!toggleWatch(i.symbol, maxWatch))}
                   >
                     <Star className="h-3.5 w-3.5" fill={watchlist.includes(i.symbol) ? 'currentColor' : 'none'} />
                   </button>

@@ -86,3 +86,29 @@
     @apply border-gold-dim bg-gold/10 text-gold-soft;
   }
 }
+
+/* Intro splash (IntroSplash.tsx). Disabled entirely for prefers-reduced-motion users. */
+@keyframes av-word {
+  0% { opacity: 0; letter-spacing: 0.6em; }
+  25% { opacity: 1; letter-spacing: 0.32em; }
+  55% { opacity: 1; letter-spacing: 0.24em; }
+  75% { opacity: 0; letter-spacing: 0.02em; transform: scale(0.85); }
+  100% { opacity: 0; }
+}
+@keyframes av-mono {
+  0%, 45% { opacity: 0; transform: translateY(18px) scale(0.6); }
+  70% { opacity: 1; transform: translateY(0) scale(1.06); }
+  82%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes av-tag {
+  0%, 65% { opacity: 0; }
+  85%, 100% { opacity: 1; }
+}
+@keyframes av-out {
+  0%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.av-intro { animation: av-out 2.6s ease forwards; }
+.av-intro-word { animation: av-word 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.av-intro-mono { animation: av-mono 2.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.av-intro-tag { animation: av-tag 2.6s ease forwards; }

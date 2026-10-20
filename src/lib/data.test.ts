@@ -60,3 +60,15 @@ describe('world tension prototype', () => {
     expect(calm.components.reduce((s, c) => s + c.weight, 0)).toBeCloseTo(1);
   });
 });
+
+describe('event timeline', () => {
+  it('buckets events into consecutive UTC days including empty ones', async () => {
+    const { bucketByDay } = await import('./timeline');
+    const now = Date.parse('2026-10-20T12:00:00Z');
+    const ev = (time: string, category: 'conflict' | 'energy') => ({ ...DEMO_EVENTS[0]!, id: time, time, category });
+    const b = bucketByDay([ev('2026-10-20T01:00:00Z', 'conflict'), ev('2026-10-20T09:00:00Z', 'energy'), ev('2026-10-18T09:00:00Z', 'conflict'), ev('2026-09-01T00:00:00Z', 'conflict')], 3, now);
+    expect(b.map((x) => x.day)).toEqual(['2026-10-18', '2026-10-19', '2026-10-20']);
+    expect(b.map((x) => x.total)).toEqual([1, 0, 2]);
+    expect(b[2]!.byCategory).toEqual({ conflict: 1, energy: 1 });
+  });
+});
