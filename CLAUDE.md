@@ -21,6 +21,9 @@ Instructions for AI development sessions (Claude Code, scheduled routines). Read
 - No investment advice or promised returns in UI copy.
 - Every visible control must work or be explicitly marked unavailable (`<Unavailable>` component, disabled buttons).
 
+## Product references
+Owner benchmarks and what to learn from each: `docs/DESIGN_REFERENCES.md`. Patterns only — never copy their branding, text or data.
+
 ## Codebase map
 - `worker/` — Cloudflare Worker: `/api/*` routes (`index.ts`), upstream clients (`worldbank.ts`, `usgs.ts`),
   edge caching, per-IP rate limiting. Assets are served by the Workers assets binding (SPA fallback).
