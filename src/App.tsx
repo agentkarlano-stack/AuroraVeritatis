@@ -9,6 +9,7 @@ const Headquarters = lazy(() => import('./pages/Headquarters'));
 const Radar = lazy(() => import('./pages/Radar'));
 const Countries = lazy(() => import('./pages/Countries'));
 const CountryDossier = lazy(() => import('./pages/CountryDossier'));
+const Compare = lazy(() => import('./pages/Compare'));
 const Markets = lazy(() => import('./pages/Markets'));
 const Lab = lazy(() => import('./pages/Lab'));
 const Impact = lazy(() => import('./pages/Impact'));
@@ -29,6 +30,7 @@ export function App() {
             <Route path="hq" element={<Lazy><Headquarters /></Lazy>} />
             <Route path="radar" element={<Lazy><Radar /></Lazy>} />
             <Route path="countries" element={<Lazy><Countries /></Lazy>} />
+            <Route path="countries/compare" element={<Lazy><Compare /></Lazy>} />
             <Route path="countries/:iso3" element={<Lazy><CountryDossier /></Lazy>} />
             <Route path="markets" element={<Lazy><Markets /></Lazy>} />
             <Route path="lab" element={<Lazy><Lab /></Lazy>} />

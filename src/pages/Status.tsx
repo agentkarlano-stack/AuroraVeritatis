@@ -16,6 +16,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Conflict Radar — geopolitical layer', to: '/radar', state: 'demo', note: 'Simulated scenarios until GDELT / UCDP / ReliefWeb ingestion is built.' },
   { name: 'Conflict Radar — timeline', to: '/radar', state: 'working', note: 'Daily event counts by category; click a day to filter the map and list.' },
   { name: 'Country dossiers', to: '/countries', state: 'working', note: '23 World Bank indicators with reference years and 1990–present history charts.' },
+  { name: 'Compare countries explorer', to: '/countries/compare', state: 'working', note: 'Animated bubble chart of any two World Bank indicators, sized by a third, 1990–present.' },
   { name: 'Country politics section', state: 'planned', note: 'Requires curated electoral and governance sources.' },
   { name: 'Markets terminal', to: '/markets', state: 'demo', note: 'Charts, indicators and statistics are real calculations on synthetic prices.' },
   { name: 'Research Lab — Monte Carlo', to: '/lab', state: 'working', note: 'GBM simulation, VaR/ES, confidence intervals, sensitivity, CSV export.' },

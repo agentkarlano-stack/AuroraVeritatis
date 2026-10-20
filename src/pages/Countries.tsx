@@ -26,7 +26,15 @@ export default function Countries() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Country Intelligence" title="Country dossiers">
+      <PageHeader
+        eyebrow="Country Intelligence"
+        title="Country dossiers"
+        actions={
+          <Link to="/countries/compare" className="btn-primary">
+            Compare countries over time
+          </Link>
+        }
+      >
         Economic, demographic, infrastructure and security baselines from World Bank Open Data. Select a country on the map or
         search below.
       </PageHeader>

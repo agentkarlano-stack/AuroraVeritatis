@@ -79,3 +79,21 @@ export interface ApiError {
   error: string;
   detail?: string;
 }
+
+export interface ComparePoint {
+  iso3: string;
+  name: string;
+  region: string;
+  x: number;
+  y: number;
+  size: number | null;
+}
+
+export interface CompareYear {
+  year: number;
+  x: string;
+  y: string;
+  size: string;
+  points: ComparePoint[];
+  source: SourceRef;
+}

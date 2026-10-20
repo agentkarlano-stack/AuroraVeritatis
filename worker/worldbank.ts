@@ -1,5 +1,5 @@
 import { INDICATORS, INDICATOR_IDS, WORLD_BANK_SOURCE } from '../shared/indicators';
-import type { CountryProfile, IndicatorSeries, IndicatorValue } from '../shared/types';
+import type { ComparePoint, CompareYear, CountryProfile, IndicatorSeries, IndicatorValue } from '../shared/types';
 import { fetchJson } from './http';
 
 const BASE = 'https://api.worldbank.org/v2';
@@ -83,4 +83,42 @@ export async function indicatorSeries(iso3: string, indicator: string): Promise<
     .map((o) => ({ date: o.date, value: o.value }))
     .sort((a, b) => a.date.localeCompare(b.date));
   return { iso3, indicator, label: def.label, unit: def.unit, points, source: WORLD_BANK_SOURCE };
+}
+
+interface WbCountryMeta {
+  id: string;
+  name: string;
+  region: { id: string; value: string };
+}
+
+/** Economies only (WB aggregates such as "World" or "Euro area" have region id "NA"). */
+async function economies(): Promise<Map<string, { name: string; region: string }>> {
+  const list = rows(await fetchJson<WbResponse<WbCountryMeta>>(`${BASE}/country?format=json&per_page=400`));
+  const out = new Map<string, { name: string; region: string }>();
+  for (const c of list) if (c.region?.id && c.region.id !== 'NA') out.set(c.id, { name: c.name, region: c.region.value.trim() });
+  return out;
+}
+
+async function yearValues(indicator: string, year: number): Promise<Map<string, number>> {
+  const data = await fetchJson<WbResponse<WbObservation>>(`${BASE}/country/all/indicator/${indicator}?format=json&date=${year}&per_page=400`);
+  const out = new Map<string, number>();
+  for (const o of rows(data)) if (typeof o.value === 'number' && o.countryiso3code) out.set(o.countryiso3code, o.value);
+  return out;
+}
+
+export const COMPARE_YEARS = { min: 1990, max: new Date().getUTCFullYear() - 1 } as const;
+
+/** One year of a three-indicator cross-section (x, y, bubble size) for all economies. */
+export async function compareYear(year: number, x: string, y: string, size: string): Promise<CompareYear | null> {
+  if (![x, y, size].every((id) => INDICATOR_IDS.has(id))) return null;
+  if (!Number.isInteger(year) || year < COMPARE_YEARS.min || year > COMPARE_YEARS.max) return null;
+  const [meta, xs, ys, ss] = await Promise.all([economies(), yearValues(x, year), yearValues(y, year), yearValues(size, year)]);
+  const points: ComparePoint[] = [];
+  for (const [iso3, m] of meta) {
+    const xv = xs.get(iso3);
+    const yv = ys.get(iso3);
+    if (xv === undefined || yv === undefined) continue;
+    points.push({ iso3, name: m.name, region: m.region, x: xv, y: yv, size: ss.get(iso3) ?? null });
+  }
+  return { year, x, y, size, points, source: WORLD_BANK_SOURCE };
 }

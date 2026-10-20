@@ -2,7 +2,7 @@ import type { PublicConfig } from '../shared/types';
 import { error, json } from './http';
 import { RateLimiter } from './ratelimit';
 import { earthquakes } from './usgs';
-import { ISO3_RE, countryProfile, indicatorSeries } from './worldbank';
+import { ISO3_RE, compareYear, countryProfile, indicatorSeries } from './worldbank';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -66,6 +66,20 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
         return json({ events: await earthquakes() }, { maxAge: 600 });
       } catch (e) {
         return error(502, 'Earthquake feed unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  const compare = path.match(/^\/api\/compare\/(\d{4})$/);
+  if (compare) {
+    const p = url.searchParams;
+    const [x, y, size] = [p.get('x') ?? 'NY.GDP.PCAP.CD', p.get('y') ?? 'SP.DYN.LE00.IN', p.get('size') ?? 'SP.POP.TOTL'];
+    return cached(request, ctx, async () => {
+      try {
+        const data = await compareYear(Number(compare[1]), x, y, size);
+        return data ? json(data, { maxAge: DAY }) : error(400, 'Unsupported indicator or year');
+      } catch (e) {
+        return error(502, 'Country data source unavailable', (e as Error).message);
       }
     });
   }

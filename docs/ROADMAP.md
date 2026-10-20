@@ -12,7 +12,7 @@ Cloudflare build config, CI, docs.
 - PostHog (EU, consent-gated). Cloudflare Rate Limiting binding. Mobile QA pass.
 
 ## Phase 3 — Advanced analysis
-Benchmarks: see [DESIGN_REFERENCES.md](DESIGN_REFERENCES.md) (World Monitor, Koyfin, TradingView, CFR Global Conflict Tracker, Conflictly, Trading 212).
+Benchmarks and platform map: see [REFERENCES.md](REFERENCES.md).
 - CFR-style conflict profiles (trend: worsening/unchanged/improving, impact, sourced timeline); TradingView-style chart workspace (symbol search, drawing tools, saved layouts); Koyfin-style watchlist columns and comparison charts; HQ density mode; mobile bottom navigation.
 Market Impact Radar, calibrated World Tension Index, Strategy Lab/backtesting, historical timelines, politics data,
 alerts infrastructure (Cron Triggers + Resend), MapLibre detailed map.

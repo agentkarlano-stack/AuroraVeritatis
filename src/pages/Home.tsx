@@ -1,16 +1,18 @@
-import { ArrowRight, BarChart3, Building2, FlaskConical, Globe2, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { ArrowRight, BarChart3, BrainCircuit, ChartScatter, Globe2, Landmark, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { IntroSplash } from '../components/IntroSplash';
 import { BrandLockup } from '../components/Logo';
 import { ProvenanceBadge } from '../components/ui';
 
+/** Platform map (owner's planned structure, Oct 2026). Order matches the two-column layout. */
 const MODULES = [
-  { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'A personal command dashboard: rearrange widgets, track countries and instruments, save research and set alerts.', state: 'Prototype' },
-  { to: '/radar', icon: Globe2, title: 'Global Conflict Radar', text: 'An interactive world map of geopolitical and natural-hazard events with filters by region, date, severity and type.', state: 'Prototype · live USGS layer' },
-  { to: '/countries', icon: Building2, title: 'Country Intelligence', text: 'Dossiers built from World Bank Open Data — economy, demography, infrastructure and defence spending, each with source and year.', state: 'Live data' },
-  { to: '/markets', icon: BarChart3, title: 'Markets Terminal', text: 'Candlestick charts, indicators, return statistics and geopolitical event annotations in a research-grade terminal.', state: 'Demo data' },
-  { to: '/lab', icon: FlaskConical, title: 'Quantitative Research Lab', text: 'Reproducible Monte Carlo simulation with VaR, expected shortfall, confidence intervals and sensitivity analysis.', state: 'Working' },
-];
+  { to: '/radar', icon: Globe2, title: 'Global Radar', text: 'World map of geopolitical and natural-hazard events with layers, filters, timeline and sourced detail.', tags: 'Map · Layers · Timeline', state: 'Live USGS + demo' },
+  { to: '/markets', icon: BarChart3, title: 'Market Terminal', text: 'Charts, indicators and statistics, plus the Market Impact Radar linking events to exposed assets.', tags: 'Charts · Watchlists · Impact Radar', state: 'Demo prices' },
+  { to: '/countries', icon: Landmark, title: 'Country Dossiers', text: 'World Bank indicators for every economy with history charts and an animated country-comparison explorer.', tags: 'Indicators · Compare · History', state: 'Live data' },
+  { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Reproducible Monte Carlo risk simulation with VaR, expected shortfall, confidence intervals and sensitivity.', tags: 'Simulation · Risk · Export', state: 'Working' },
+  { to: '/status', icon: BrainCircuit, title: 'AI Intelligence', text: 'EVE and KNOX research assistants and sourced intelligence reports.', tags: 'EVE · KNOX · Reports', state: 'Planned' },
+  { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'Your personalised workspace: widgets, watchlists, favourite countries, alerts and saved research.', tags: 'Personalised workspace', state: 'Prototype' },
+] as const;
 
 export default function Home() {
   return (
@@ -36,7 +38,7 @@ export default function Home() {
                 Open Headquarters <ArrowRight className="h-4 w-4" />
               </Link>
               <Link to="/radar" className="btn-ghost px-5 py-2.5">
-                Explore the Conflict Radar
+                Explore the Global Radar
               </Link>
             </div>
             <p className="mt-6 text-xs text-slate-dim">Early-access preview. Free to explore — no account required.</p>
@@ -51,29 +53,36 @@ export default function Home() {
 
       <section className="mx-auto max-w-7xl px-4 py-14">
         <div className="eyebrow mb-2">Platform</div>
-        <h2 className="text-2xl font-semibold">Five modules, one analytical workflow</h2>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((m) => (
-            <Link key={m.to} to={m.to} className="panel group flex flex-col p-5 transition-colors hover:border-gold-dim">
-              <div className="flex items-center justify-between">
-                <m.icon className="h-5 w-5 text-gold" aria-hidden />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-dim">{m.state}</span>
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-platinum group-hover:text-gold-soft">{m.title}</h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-mist">{m.text}</p>
-              <span className="mt-4 inline-flex items-center gap-1 text-xs text-gold">
-                Open <ArrowRight className="h-3 w-3" />
-              </span>
-            </Link>
-          ))}
-          <Link to="/status" className="panel flex flex-col justify-center border-dashed p-5 hover:border-gold-dim">
-            <h3 className="text-base font-semibold text-platinum">In development</h3>
-            <p className="mt-2 text-sm leading-relaxed text-mist">
-              Calibrated World Tension Index, Strategy Lab, real geopolitical feeds and the EVE &amp; KNOX research assistants. See the
-              platform status page for what works today.
-            </p>
-          </Link>
+        <h2 className="text-2xl font-semibold">Six modules, one analytical workflow</h2>
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          {MODULES.map((m) => {
+            const planned = m.state === 'Planned';
+            return (
+              <Link
+                key={m.title}
+                to={m.to}
+                className={`panel group flex gap-4 p-5 transition-colors hover:border-gold-dim ${planned ? 'border-dashed' : ''}`}
+              >
+                <m.icon className="mt-0.5 h-6 w-6 shrink-0 text-gold" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-display text-sm font-bold tracking-[0.08em] text-platinum uppercase group-hover:text-gold-soft">{m.title}</h3>
+                    <span className={`shrink-0 text-[10px] font-semibold tracking-wider uppercase ${planned ? 'text-gold-dim' : 'text-slate-dim'}`}>{m.state}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gold-dim">{m.tags}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-mist">{m.text}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
+        <p className="mt-4 text-xs text-slate-dim">
+          “Planned” modules are not available yet. See{' '}
+          <Link to="/status" className="text-gold hover:underline">
+            platform status
+          </Link>{' '}
+          for what works today.
+        </p>
       </section>
 
       <section className="border-y border-line bg-ink-900/40">
@@ -109,10 +118,10 @@ export default function Home() {
         <h2 className="text-2xl font-semibold">From event to impact</h2>
         <ol className="mt-8 grid gap-4 md:grid-cols-4">
           {[
-            ['Detect', 'Spot a development on the Conflict Radar and filter by severity, region and date.'],
+            ['Detect', 'Spot a development on the Global Radar and filter by severity, region and date.'],
             ['Contextualise', 'Open the country dossiers for economic, demographic and security baselines.'],
             ['Connect', 'See which asset classes are plausibly exposed — labelled as hypotheses, not predictions.'],
-            ['Quantify', 'Chart the instruments, then stress-test outcomes in the Research Lab.'],
+            ['Quantify', 'Chart the instruments, then stress-test outcomes in Quant Research.'],
           ].map(([t, d], i) => (
             <li key={t} className="panel p-5">
               <div className="num font-display text-2xl font-bold text-gold-dim">0{i + 1}</div>

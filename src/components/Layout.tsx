@@ -6,11 +6,11 @@ import { Wordmark } from './Logo';
 
 const NAV = [
   { to: '/hq', label: 'Headquarters' },
-  { to: '/radar', label: 'Conflict Radar' },
+  { to: '/radar', label: 'Global Radar' },
   { to: '/countries', label: 'Countries' },
   { to: '/markets', label: 'Markets' },
   { to: '/impact', label: 'Impact Radar' },
-  { to: '/lab', label: 'Research Lab' },
+  { to: '/lab', label: 'Quant Research' },
 ];
 
 const LEGAL = [

@@ -22,7 +22,7 @@ Instructions for AI development sessions (Claude Code, scheduled routines). Read
 - Every visible control must work or be explicitly marked unavailable (`<Unavailable>` component, disabled buttons).
 
 ## Product references
-Owner benchmarks and what to learn from each: `docs/DESIGN_REFERENCES.md`. Patterns only — never copy their branding, text or data.
+Owner benchmarks, platform map, what to learn from each and data-licence notes: `docs/REFERENCES.md`. Patterns only — never copy their branding, text or data.
 
 ## Codebase map
 - `worker/` — Cloudflare Worker: `/api/*` routes (`index.ts`), upstream clients (`worldbank.ts`, `usgs.ts`),

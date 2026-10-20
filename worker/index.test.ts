@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CountryProfile, IndicatorSeries, PublicConfig } from '../shared/types';
+import type { CompareYear, CountryProfile, IndicatorSeries, PublicConfig } from '../shared/types';
 import { handleApi, type Env } from './index';
 import { RateLimiter } from './ratelimit';
 import { magnitudeToSeverity, normalizeUsgs } from './usgs';
@@ -102,5 +102,36 @@ describe('RateLimiter', () => {
     expect([rl.allow('a', 0), rl.allow('a', 0), rl.allow('a', 0), rl.allow('a', 0)]).toEqual([true, true, true, false]);
     expect(rl.allow('b', 0)).toBe(true);
     expect(rl.allow('a', 1500)).toBe(true);
+  });
+});
+
+describe('country comparison endpoint', () => {
+  it('joins three indicators for economies only and validates input', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const u = new URL(url);
+        if (u.pathname === '/v2/country') {
+          return Response.json([{ page: 1 }, [
+            { id: 'DEU', name: 'Germany', region: { id: 'ECS', value: 'Europe & Central Asia' } },
+            { id: 'KEN', name: 'Kenya', region: { id: 'SSF', value: 'Sub-Saharan Africa ' } },
+            { id: 'WLD', name: 'World', region: { id: 'NA', value: 'Aggregates' } },
+          ]]);
+        }
+        const ind = u.pathname.split('/').at(-1)!;
+        const v: Record<string, Record<string, number | null>> = {
+          'NY.GDP.PCAP.CD': { DEU: 50000, KEN: 2000, WLD: 12000 },
+          'SP.DYN.LE00.IN': { DEU: 81, KEN: null, WLD: 73 },
+          'SP.POP.TOTL': { DEU: 83e6, KEN: 54e6, WLD: 8e9 },
+        };
+        return Response.json([{ page: 1 }, Object.entries(v[ind] ?? {}).map(([iso, value]) => ({ countryiso3code: iso, date: '2022', value }))]);
+      }),
+    );
+    const res = await get('/api/compare/2022');
+    expect(res.status).toBe(200);
+    const data = await body<CompareYear>(res);
+    expect(data.points).toEqual([{ iso3: 'DEU', name: 'Germany', region: 'Europe & Central Asia', x: 50000, y: 81, size: 83e6 }]);
+    expect((await get('/api/compare/1800')).status).toBe(400);
+    expect((await get('/api/compare/2022?x=BAD.ID')).status).toBe(400);
   });
 });
