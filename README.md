@@ -58,8 +58,11 @@ docs/           architecture, deployment, data policy, progress reports
 - [Deployment & environments](docs/DEPLOYMENT.md)
 - [Supabase setup](docs/SUPABASE.md)
 - [Data policy](docs/DATA_POLICY.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Backlog & priorities](docs/BACKLOG.md)
-- [Progress log](docs/PROGRESS.md)
+- [Integrations](docs/INTEGRATIONS.md)
+- [Security](docs/SECURITY.md)
+- [Progress log](docs/DEVELOPMENT_PROGRESS.md)
 
 ## Ground rules
 

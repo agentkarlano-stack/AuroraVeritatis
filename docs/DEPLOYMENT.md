@@ -8,13 +8,13 @@
 |---|---|---|
 | Local | `http://localhost:8787` | `npm run dev` or `npm run dev:worker` |
 | Preview | `*.workers.dev` preview URL per version | `npm run deploy:preview` (`wrangler versions upload`). Uploads a version **without** routing production traffic to it. |
-| Production | `https://aurorav.app` | Only after review: `npm run deploy:production` or Cloudflare Workers Builds on `main`. |
+| Production | Worker `auroraveritatis` (custom domain `aurorav.app` once attached) | **Cloudflare Workers Builds is connected to this repo: a merge to `main` deploys.** Merge only with the owner's approval. |
 
 ## One-time setup (project owner)
 
 1. **Cloudflare:** create the account (free plan), then run `npx wrangler login`.
-2. **First upload:** run `npm run deploy:preview`. This creates the `aurora-veritatis` Worker on `workers.dev`.
-3. **Variables** (Workers → aurora-veritatis → Settings → Variables):
+2. **Worker:** `auroraveritatis` already exists and is connected to GitHub via Workers Builds. Non-production branches get preview versions; `main` deploys. The `build.command` in `wrangler.jsonc` runs `npm run build:ci` before every upload.
+3. **Variables** (Workers → auroraveritatis → Settings → Variables):
    - `SUPABASE_URL`: public project URL
    - `SUPABASE_ANON_KEY`: public anon key
    - `wrangler.jsonc` sets `keep_vars: true`, so deploys do not wipe these.
@@ -23,7 +23,7 @@
    "routes": [{ "pattern": "aurorav.app", "custom_domain": true }]
    ```
    The domain's DNS must be on Cloudflare.
-5. **Optional CI deploys:** connect the GitHub repo in Workers Builds with build command `npm run build:ci` and deploy command `npx wrangler versions upload` for non-production branches. Keep production deploys manual until the project is stable.
+5. **Workers Builds settings to check:** the production branch should be `main`, and the non-production branch deploy command should be `npx wrangler versions upload`. Until v0.2 is approved, you may disable automatic production deploys in the Worker's Build settings so that merges do not go live.
 
 ## Secrets
 

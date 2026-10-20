@@ -1,6 +1,32 @@
-# Progress log
+# Development progress
 
-Newest entry first. Each development session appends an entry: date (Europe/Budapest), branch, what was done, what was verified, what is next, and any blockers.
+## Current status (update every session)
+
+| Field | Value |
+|---|---|
+| Project phase | Phase 1, Foundation: v0.1 built, hardening toward v0.2 |
+| Current branch | `dev/v0.1-foundation` |
+| Pull request | [#1](https://github.com/agentkarlano-stack/AuroraVeritatis/pull/1), open, awaiting review |
+| Latest successful build | 2026-10-21, local sandbox: `npm test` 21/21 and `npm run build` OK. CI on GitHub: see PR checks |
+| Next recommended action | AV-001: get CI green with a real `npm install`, then commit `package-lock.json` |
+
+**Completed:** see the session log below and the `done` rows in [BACKLOG.md](BACKLOG.md).
+**Remaining work:** the `todo` rows in [BACKLOG.md](BACKLOG.md).
+
+**Known defects**
+- Not yet verified with real dependencies: full type check (AV-001), real basemap (AV-002), live World Bank call (AV-003).
+- Supabase email-confirmation and password-recovery redirects are not handled (AV-004).
+- The Cloudflare Workers Builds check failed on the first push, probably because of the Worker name mismatch (fixed: `auroraveritatis`) and no build step (fixed: `build.command`). Re-check on the next push.
+
+**Required environment variables (names only)**
+- Worker: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (public), `APP_ENV`, `APP_VERSION` (set in `wrangler.jsonc`)
+- Future secrets (via `wrangler secret put`): `FRED_API_KEY`, `AI_API_KEY`, `RESEND_API_KEY`, `STRIPE_SECRET_KEY`. None exist yet.
+
+---
+
+## Session log
+
+Newest entry first. Each session adds an entry: date (Europe/Budapest), branch, what was done, what was verified, what is next, and any blockers.
 
 ---
 

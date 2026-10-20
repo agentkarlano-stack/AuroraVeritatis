@@ -2,9 +2,12 @@
   // Aurora Veritatis — Cloudflare Workers configuration.
   // Static SPA served by Workers Static Assets; /api/* handled by the Worker.
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "aurora-veritatis",
+  "name": "auroraveritatis",
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-09-01",
+  // Runs before `wrangler deploy` / `wrangler versions upload` (including Cloudflare Workers Builds),
+  // so dist/client always exists and contains the world-atlas basemap.
+  "build": { "command": "npm run build:ci" },
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",

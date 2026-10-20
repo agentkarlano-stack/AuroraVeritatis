@@ -12,11 +12,25 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build:ci
+      # Each step surfaces the tail of its output as an annotation on failure,
+      # so errors are readable from the PR checks API without raw log access.
+      - name: Install
+        run: |
+          set -o pipefail
+          npm install --no-audit --no-fund 2>&1 | tee install.log || { echo "::error title=npm install failed::$(tail -c 2500 install.log | tr '\n' ' ')"; exit 1; }
+      - name: Typecheck
+        run: |
+          set -o pipefail
+          npm run typecheck 2>&1 | tee tsc.log || { echo "::error title=typecheck failed::$(grep -m 25 'error TS' tsc.log | tr '\n' ' ' | tail -c 3000)"; exit 1; }
+      - name: Test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test.log || { echo "::error title=tests failed::$(grep -E -m 20 'not ok|Error|assert' test.log | tr '\n' ' ' | tail -c 3000)"; exit 1; }
+      - name: Build
+        run: |
+          set -o pipefail
+          npm run build:ci 2>&1 | tee build.log || { echo "::error title=build failed::$(tail -c 2500 build.log | tr '\n' ' ')"; exit 1; }

@@ -12,7 +12,7 @@ Goal of the current milestone: **initial functional version of aurorav.app (v0.2
 | AV-002 | Verify the real world-atlas basemap: rendering, antimeridian countries (Russia, Fiji), click-to-profile for all 33 registry ids | todo | v0.1 was browser-tested with a synthetic three-shape topology |
 | AV-003 | Verify live World Bank indicator fetch end to end in `wrangler dev` (latest values, history charts, Cache API) | todo | The sandbox could not reach api.worldbank.org |
 | AV-004 | Handle Supabase email-confirmation and password-recovery redirects (tokens in the URL hash on `/account`), plus a "set new password" form | todo | Required before enabling accounts publicly |
-| AV-005 | Add Playwright smoke tests (all routes at desktop and mobile widths, no console errors, no horizontal overflow) to the repo and CI | todo | Port the scratch script described in PROGRESS.md |
+| AV-005 | Add Playwright smoke tests (all routes at desktop and mobile widths, no console errors, no horizontal overflow) to the repo and CI | todo | Port the scratch script described in DEVELOPMENT_PROGRESS.md |
 | AV-006 | Add a React error boundary, focus management on route change, and a keyboard-accessible country list on the Radar | todo | Accessibility |
 | AV-007 | Light theme toggle (the brief asks for dark and light themes), persisted per user | todo | Define tokens under `[data-theme="light"]` |
 | AV-008 | Self-host the Lato font (OFL licence) in `public/fonts`, with no third-party font requests | todo | GDPR-friendly; matches the brand PDF |

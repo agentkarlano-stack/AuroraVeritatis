@@ -125,7 +125,7 @@ export async function handleApi(request: Request, env: Env, fetcher: FetchLike =
   if (request.method !== "GET") return json({ error: "Method not allowed" }, { status: 405 });
 
   if (path === "/api/health") {
-    return json({ status: "ok", service: "aurora-veritatis", env: env.APP_ENV ?? "development", version: env.APP_VERSION ?? "0.1.0", time: new Date().toISOString() });
+    return json({ status: "ok", service: "auroraveritatis", env: env.APP_ENV ?? "development", version: env.APP_VERSION ?? "0.1.0", time: new Date().toISOString() });
   }
 
   if (path === "/api/config") {

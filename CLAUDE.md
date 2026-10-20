@@ -1,6 +1,6 @@
 # Aurora Veritatis — instructions for AI development sessions
 
-Read `README.md`, `docs/BACKLOG.md` and the latest entry of `docs/PROGRESS.md` before changing anything.
+Read `README.md`, `docs/BACKLOG.md` and the latest entry of `docs/DEVELOPMENT_PROGRESS.md` before changing anything.
 
 ## Non-negotiable rules
 - **Never deploy to production** (`aurorav.app`, `wrangler deploy`, `npm run deploy:production`). Preview uploads are allowed only if the owner has configured credentials in the session. Never configure credentials yourself.
@@ -13,9 +13,9 @@ Read `README.md`, `docs/BACKLOG.md` and the latest entry of `docs/PROGRESS.md` b
 1. `git fetch origin`. If a `dev/*` PR is open, continue on that branch; otherwise branch `dev/<yyyy-mm-dd>-<task-id>` from `origin/main`.
 2. Pick the first `todo` item in `docs/BACKLOG.md` whose dependencies are met. Skip `blocked` items.
 3. Implement it, then run `npm run check`. Fix failures before committing.
-4. Update `docs/BACKLOG.md` (status) and add an entry to the top of `docs/PROGRESS.md` (done, verified, next, blockers).
+4. Update `docs/BACKLOG.md` (status) and add an entry to the top of `docs/DEVELOPMENT_PROGRESS.md` (done, verified, next, blockers).
 5. Commit with a clear message, push, and open or update the PR, summarising the change and the verification.
-6. If usage or time runs low, commit work-in-progress as a draft commit (`wip:` prefix) with a PROGRESS entry describing the exact resume point, push, and stop.
+6. If usage or time runs low, commit work-in-progress as a draft commit (`wip:` prefix) with a progress entry describing the exact resume point, push, and stop.
 
 ## Conventions
 - TypeScript strict; pure logic in `src/shared/` with tests in `tests/` (`node:test`).
