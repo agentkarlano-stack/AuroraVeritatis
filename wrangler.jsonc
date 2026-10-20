@@ -4,7 +4,11 @@
   "name": "auroraveritatis",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
+  // Explicit so plain `wrangler deploy` / `wrangler versions upload` work even when the Cloudflare
+  // dashboard has no build command. The Vite plugin produces this directory.
+  "build": { "command": "npm run build" },
   "assets": {
+    "directory": "./dist/client",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
