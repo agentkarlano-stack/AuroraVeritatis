@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-navy-950: #070c16;
+  --color-navy-900: #0b1220;
+  --color-navy-850: #0f1828;
+  --color-navy-800: #142033;
+  --color-navy-700: #1c2a42;
+  --color-charcoal: #303030;
+  --color-graphite: #23272e;
+  --color-line: #233149;
+  --color-gold: #c8a96b;
+  --color-gold-soft: #d9c08e;
+  --color-gold-dim: #8e7748;
+  --color-platinum: #e9eef5;
+  --color-mist: #a7b2c3;
+  --color-slate-dim: #6f7b8f;
+  --color-up: #5fb38a;
+  --color-down: #d26a6a;
+  --color-warn: #d9a441;
+  --color-info: #6c9bd2;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Montserrat', 'Inter', ui-sans-serif, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-navy-950);
+  }
+  body {
+    @apply bg-navy-950 text-platinum font-sans antialiased;
+    min-height: 100dvh;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-gold) 35%, transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+/* Component classes are declared as utilities so they can be composed with @apply (Tailwind v4). */
+@utility panel {
+  @apply rounded-xl border border-line bg-navy-900/80;
+}
+@utility eyebrow {
+  @apply font-display text-[11px] font-semibold tracking-[0.22em] text-gold uppercase;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45;
+}
+@utility btn-primary {
+  @apply btn bg-gold text-navy-950 hover:bg-gold-soft;
+}
+@utility btn-ghost {
+  @apply btn border border-line text-platinum hover:border-gold-dim hover:text-gold-soft;
+}
+@utility btn-quiet {
+  @apply btn px-2 py-1 text-mist hover:text-platinum;
+}
+@utility input {
+  @apply w-full rounded-md border border-line bg-navy-950 px-3 py-2 text-sm text-platinum placeholder:text-slate-dim focus:border-gold-dim focus:outline-none;
+}
+@utility label {
+  @apply mb-1 block text-xs font-medium text-mist;
+}
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-mist transition-colors hover:border-gold-dim hover:text-platinum;
+  &[aria-pressed='true'] {
+    @apply border-gold-dim bg-gold/10 text-gold-soft;
+  }
+}

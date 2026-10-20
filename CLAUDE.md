@@ -1,0 +1,43 @@
+# CLAUDE.md — Aurora Veritatis
+
+Instructions for AI development sessions (Claude Code, scheduled routines). Read this first, then
+`docs/DEVELOPMENT_PROGRESS.md`.
+
+## Session protocol
+1. `git fetch` and check open PRs on `agentkarlano-stack/AuroraVeritatis`; continue the open development PR's branch
+   rather than starting a parallel one.
+2. Read `docs/DEVELOPMENT_PROGRESS.md` ("Next recommended action") and avoid redoing completed work.
+3. Implement one achievable task end-to-end. Run `npm run check` before every commit; never commit failing checks.
+4. Update `docs/DEVELOPMENT_PROGRESS.md` here **and** `DEVELOPMENT_STATUS.md` in
+   `agentkarlano-stack/AuroraVeritatis-Knowledge` (completed, current tasks, commits, build result, blockers, next steps).
+5. Push and open/update the PR. Never push directly to `main`.
+
+## Hard rules
+- No secrets in git (use Cloudflare Worker secrets / `.dev.vars`). Never print secret values.
+- Never touch MARVETO repositories, databases, or its Stripe account.
+- No paid services, purchases, live Stripe products or production DB migrations without owner approval.
+- Never fabricate data. Every datum carries a provenance: `confirmed | estimate | unverified | simulated`
+  (`shared/types.ts`). Demo data must be visibly labelled "Simulated" and demo instruments end in `.D`.
+- No investment advice or promised returns in UI copy.
+- Every visible control must work or be explicitly marked unavailable (`<Unavailable>` component, disabled buttons).
+
+## Codebase map
+- `worker/` — Cloudflare Worker: `/api/*` routes (`index.ts`), upstream clients (`worldbank.ts`, `usgs.ts`),
+  edge caching, per-IP rate limiting. Assets are served by the Workers assets binding (SPA fallback).
+- `shared/` — types and indicator catalogue used by both worker and client.
+- `src/pages/` — one lazy-loaded page per route; `src/components/` — UI (`ui.tsx` primitives, `WorldMap`, `PriceChart`, `SvgCharts`).
+- `src/lib/` — pure logic with unit tests (Monte Carlo, technical indicators, tension index, synthetic market data).
+- `src/store/prefs.ts` — Zustand store persisted to localStorage (to be synced to Supabase `user_preferences`).
+- `supabase/migrations/` — SQL, reviewed and applied manually by the owner.
+
+## Conventions
+- TypeScript strict, `noUncheckedIndexedAccess`. React 19 + React Compiler lint rules (no setState in effects, no impure render).
+- Styling: Tailwind v4 tokens in `src/index.css` (`navy-*`, `gold`, `platinum`, `mist`, `line`). Reusable classes are
+  `@utility` blocks (`panel`, `btn-primary`, `btn-ghost`, `chip`, `input`, `eyebrow`).
+- Brand: charcoal/navy, champagne gold `#C8A96B`, platinum `#E9EEF5`; flat AV monogram (`components/Logo.tsx`). No neon, 3D or heavy animation.
+- Cloudflare: Worker name `auroraveritatis`; `wrangler.jsonc` has `keep_vars: true` so dashboard vars survive deploys.
+  Do not add routes/custom domains to config.
+
+## Sandbox notes
+Cloud sessions may block outbound calls to data APIs (World Bank, USGS). Worker integrations are unit-tested with mocked
+responses; verify against live endpoints on a Cloudflare preview deployment.
