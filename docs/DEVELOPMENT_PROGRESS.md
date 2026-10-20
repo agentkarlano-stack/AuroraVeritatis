@@ -42,8 +42,13 @@ Phase 1 — Foundation: complete on this branch, pending review.
 ## Branch / PR
 `claude/phase1-foundation` → draft PR against `main` (see PR list).
 
+## Decision (2026-10-20, delegated by owner)
+The Vite + `@cloudflare/vite-plugin` foundation (PR #2) is the project foundation. PR #1 (esbuild) is closed as superseded.
+Local `npm run build`, `wrangler deploy --dry-run` and `wrangler versions upload --dry-run` pass. The Workers Builds check failed
+within a second of starting, which points to dashboard build settings rather than code; the log is dashboard-only.
+
 ## Next recommended action
-1. **Owner**: choose PR #1 or this PR as the foundation; close the other.
-2. If this branch is chosen: rename to `dev/…` (so the scheduled task adopts it) and update the routine prompt's stack line
-   from "esbuild" to "Vite + @cloudflare/vite-plugin"; verify `/api/countries/DEU` and `/api/events/earthquakes` on a Cloudflare preview.
+1. **Owner (dashboard only)**: Workers & Pages > auroraveritatis > Settings > Builds: build `npm run build`, deploy `npx wrangler deploy`,
+   non-production deploy `npx wrangler versions upload`, Node 22 (`.nvmrc`). Paste the failing log if it still fails.
+2. Verify `/api/countries/DEU` and `/api/events/earthquakes` on a Cloudflare preview.
 3. Then Phase 2 per docs/ROADMAP.md.
