@@ -32,9 +32,12 @@ Instructions for AI development sessions (Claude Code, scheduled routines). Read
 
 ## Conventions
 - TypeScript strict, `noUncheckedIndexedAccess`. React 19 + React Compiler lint rules (no setState in effects, no impure render).
-- Styling: Tailwind v4 tokens in `src/index.css` (`navy-*`, `gold`, `platinum`, `mist`, `line`). Reusable classes are
+- Styling: Tailwind v4 tokens in `src/index.css` (`ink-*` charcoal scale, `charcoal`, `gold`, `platinum`, `mist`, `line`). Reusable classes are
   `@utility` blocks (`panel`, `btn-primary`, `btn-ghost`, `chip`, `input`, `eyebrow`).
-- Brand: charcoal/navy, champagne gold `#C8A96B`, platinum `#E9EEF5`; flat AV monogram (`components/Logo.tsx`). No neon, 3D or heavy animation.
+- Brand (owner-approved reference logo, Oct 2026): warm charcoal/near-black, gold `#C9A35A`, platinum `#F1F0EC`, no blue cast.
+  AV monogram = two separate bold geometric letters drawn as SVG paths (`components/Logo.tsx`: `Monogram`, `Wordmark`,
+  `BrandLockup`); Montserrat 700 wordmark, Montserrat 500 tagline. Master files in `public/brand/` (SVG + PNG).
+  No neon, gradients-as-decoration, 3D or heavy animation.
 - Cloudflare: Worker name `auroraveritatis`; `wrangler.jsonc` has `keep_vars: true` so dashboard vars survive deploys.
   Do not add routes/custom domains to config. `build.command` + `assets.directory` are set so `wrangler deploy` and
   `wrangler versions upload` work with or without a dashboard build command (verified with `--dry-run` from a clean clone).

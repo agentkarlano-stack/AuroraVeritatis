@@ -109,7 +109,7 @@ export default function Account() {
                     {used} / {max}
                   </span>
                 </div>
-                <div className="mt-1 h-1.5 rounded-full bg-navy-800">
+                <div className="mt-1 h-1.5 rounded-full bg-ink-800">
                   <div className={`h-1.5 rounded-full ${used >= max ? 'bg-warn' : 'bg-gold/70'}`} style={{ width: `${Math.min(100, (used / max) * 100)}%` }} />
                 </div>
               </li>

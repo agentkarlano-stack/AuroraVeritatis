@@ -115,7 +115,7 @@ export default function Markets() {
               const q = lastQuote(i.symbol);
               const active = i.symbol === symbol;
               return (
-                <li key={i.symbol} className={`flex items-center gap-2 px-3 py-2 ${active ? 'bg-navy-800/70' : 'hover:bg-navy-800/40'}`}>
+                <li key={i.symbol} className={`flex items-center gap-2 px-3 py-2 ${active ? 'bg-ink-800/70' : 'hover:bg-ink-800/40'}`}>
                   <button
                     className={`shrink-0 ${watchlist.includes(i.symbol) ? 'text-gold' : 'text-slate-dim hover:text-mist'}`}
                     aria-label={watchlist.includes(i.symbol) ? `Remove ${i.symbol} from watchlist` : `Add ${i.symbol} to watchlist`}

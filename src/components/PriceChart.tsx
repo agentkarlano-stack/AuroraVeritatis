@@ -40,12 +40,12 @@ interface Props {
 }
 
 const C = {
-  bg: '#0b1220',
-  text: '#a7b2c3',
-  grid: '#152036',
-  up: '#5fb38a',
-  down: '#d26a6a',
-  gold: '#c8a96b',
+  bg: '#151517',
+  text: '#adaba5',
+  grid: '#1f1f23',
+  up: '#5e9f7e',
+  down: '#c2605b',
+  gold: '#c9a35a',
 };
 
 function line(values: (number | null)[], bars: Bar[]) {
@@ -66,12 +66,12 @@ export function PriceChart({ bars, options, visibleBars, annotations = [], decim
         fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 11,
         attributionLogo: true,
-        panes: { separatorColor: '#233149', separatorHoverColor: '#2c3d5a', enableResize: true },
+        panes: { separatorColor: '#2f2f35', separatorHoverColor: '#3a372f', enableResize: true },
       },
       grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
       crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor: '#233149' },
-      timeScale: { borderColor: '#233149', rightOffset: 4 },
+      rightPriceScale: { borderColor: '#2f2f35' },
+      timeScale: { borderColor: '#2f2f35', rightOffset: 4 },
       localization: { priceFormatter: (p: number) => p.toFixed(decimals) },
     });
 
@@ -92,22 +92,22 @@ export function PriceChart({ bars, options, visibleBars, annotations = [], decim
     if (options.volume) {
       const vol = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'vol', lastValueVisible: false, priceLineVisible: false });
       vol.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-      vol.setData(bars.map((b) => ({ time: b.time as Time, value: b.volume, color: b.close >= b.open ? 'rgba(95,179,138,0.35)' : 'rgba(210,106,106,0.35)' })));
+      vol.setData(bars.map((b) => ({ time: b.time as Time, value: b.volume, color: b.close >= b.open ? 'rgba(94,159,126,0.35)' : 'rgba(194,96,91,0.35)' })));
     }
     const overlay = { lineWidth: 1 as const, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false };
-    if (options.sma20) chart.addSeries(LineSeries, { ...overlay, color: '#6c9bd2' }).setData(line(sma(closes, 20), bars));
-    if (options.sma50) chart.addSeries(LineSeries, { ...overlay, color: '#b58fd1' }).setData(line(sma(closes, 50), bars));
-    if (options.ema20) chart.addSeries(LineSeries, { ...overlay, color: '#e0c35a' }).setData(line(ema(closes, 20), bars));
+    if (options.sma20) chart.addSeries(LineSeries, { ...overlay, color: '#7d9cc0' }).setData(line(sma(closes, 20), bars));
+    if (options.sma50) chart.addSeries(LineSeries, { ...overlay, color: '#9d8bb8' }).setData(line(sma(closes, 50), bars));
+    if (options.ema20) chart.addSeries(LineSeries, { ...overlay, color: '#d8c27a' }).setData(line(ema(closes, 20), bars));
     if (options.bollinger) {
       const bb = bollinger(closes, 20, 2);
-      chart.addSeries(LineSeries, { ...overlay, color: 'rgba(200,169,107,0.55)', lineStyle: 2 }).setData(line(bb.upper, bars));
-      chart.addSeries(LineSeries, { ...overlay, color: 'rgba(200,169,107,0.55)', lineStyle: 2 }).setData(line(bb.lower, bars));
+      chart.addSeries(LineSeries, { ...overlay, color: 'rgba(201,163,90,0.55)', lineStyle: 2 }).setData(line(bb.upper, bars));
+      chart.addSeries(LineSeries, { ...overlay, color: 'rgba(201,163,90,0.55)', lineStyle: 2 }).setData(line(bb.lower, bars));
     }
     if (options.rsi) {
       const r = chart.addSeries(LineSeries, { color: C.gold, lineWidth: 1, priceLineVisible: false }, 1);
       r.setData(line(rsi(closes, 14), bars));
-      r.createPriceLine({ price: 70, color: '#6f7b8f', lineStyle: 2, lineWidth: 1, axisLabelVisible: false, title: '' });
-      r.createPriceLine({ price: 30, color: '#6f7b8f', lineStyle: 2, lineWidth: 1, axisLabelVisible: false, title: '' });
+      r.createPriceLine({ price: 70, color: '#77756f', lineStyle: 2, lineWidth: 1, axisLabelVisible: false, title: '' });
+      r.createPriceLine({ price: 30, color: '#77756f', lineStyle: 2, lineWidth: 1, axisLabelVisible: false, title: '' });
       chart.panes()[1]?.setHeight(110);
     }
     if (options.events && annotations.length) {

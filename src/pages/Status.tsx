@@ -22,7 +22,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'World Tension Index', to: '/hq', state: 'prototype', note: 'Transparent formula on demo inputs; not a validated measure.' },
   { name: 'Accounts (Supabase Auth)', to: '/signin', state: 'prototype', note: 'Magic link, password, sign-up and password reset; enabled once SUPABASE_URL / SUPABASE_ANON_KEY are configured.' },
   { name: 'Plan limits & feature access', to: '/account', state: 'working', note: 'Free-tier watchlist and alert limits enforced in the app; all features unlocked during early access.' },
-  { name: 'Market Impact Radar', state: 'planned', note: 'Event-to-asset transmission analysis (Phase 3).' },
+  { name: 'Market Impact Radar', to: '/impact', state: 'prototype', note: 'Transmission channels with evidence classes; event-window study and correlation matrix run on demo data.' },
   { name: 'Strategy Lab & backtesting', state: 'planned', note: 'Phase 3.' },
   { name: 'EVE & KNOX assistants', state: 'planned', note: 'Phase 4.' },
   { name: 'Subscriptions', to: '/pricing', state: 'planned', note: 'Phase 5, requires owner approval.' },

@@ -185,7 +185,7 @@ function SeriesView({ iso3, indicator }: { iso3: string; indicator: string }) {
   if (s.status === 'error') return <ErrorState message={s.error} onRetry={s.reload} />;
   const unit = s.data.unit;
   return (
-    <div className="mt-3 rounded-lg border border-line bg-navy-950 p-3">
+    <div className="mt-3 rounded-lg border border-line bg-ink-950 p-3">
       <div className="mb-1 flex justify-between text-xs">
         <span className="font-medium text-platinum">{s.data.label}</span>
         <span className="text-slate-dim">

@@ -56,7 +56,7 @@ export default function Radar() {
           <Panel title="Layers">
             <div className="space-y-3 text-sm">
               <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1 accent-[#c8a96b]" checked={layers.quakes} onChange={(e) => setLayers((l) => ({ ...l, quakes: e.target.checked }))} />
+                <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.quakes} onChange={(e) => setLayers((l) => ({ ...l, quakes: e.target.checked }))} />
                 <span>
                   Earthquakes M4.5+, past 7 days <ProvenanceBadge kind="confirmed" className="ml-1" />
                   <span className="block text-xs text-slate-dim">
@@ -71,7 +71,7 @@ export default function Radar() {
                 </span>
               </label>
               <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1 accent-[#c8a96b]" checked={layers.demo} onChange={(e) => setLayers((l) => ({ ...l, demo: e.target.checked }))} />
+                <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.demo} onChange={(e) => setLayers((l) => ({ ...l, demo: e.target.checked }))} />
                 <span>
                   Geopolitical scenarios <ProvenanceBadge kind="simulated" className="ml-1" />
                   <span className="block text-xs text-slate-dim">Synthetic demo events ({demo.length})</span>
@@ -98,7 +98,7 @@ export default function Radar() {
                 <label className="label" htmlFor="sev">
                   Minimum severity: <span className="text-platinum">{minSeverity}</span>
                 </label>
-                <input id="sev" type="range" min={1} max={5} value={minSeverity} onChange={(e) => setMinSeverity(+e.target.value)} className="w-full accent-[#c8a96b]" />
+                <input id="sev" type="range" min={1} max={5} value={minSeverity} onChange={(e) => setMinSeverity(+e.target.value)} className="w-full accent-[#c9a35a]" />
               </div>
               <div>
                 <label className="label" htmlFor="region">
@@ -162,7 +162,7 @@ export default function Radar() {
                 {filtered.map((e) => (
                   <li key={e.id}>
                     <button
-                      className={`flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-navy-800/60 ${selected?.id === e.id ? 'bg-navy-800/60' : ''}`}
+                      className={`flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-ink-800/60 ${selected?.id === e.id ? 'bg-ink-800/60' : ''}`}
                       onClick={() => setSelected(e)}
                     >
                       <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[e.category] }} />
@@ -189,7 +189,7 @@ export default function Radar() {
 function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => void }) {
   const external = e.source.url.startsWith('http');
   return (
-    <div className="absolute inset-x-2 bottom-2 z-20 max-h-[85%] overflow-y-auto rounded-lg border border-line bg-navy-900/97 p-4 shadow-2xl sm:inset-x-auto sm:left-2 sm:top-2 sm:bottom-auto sm:w-96">
+    <div className="absolute inset-x-2 bottom-2 z-20 max-h-[85%] overflow-y-auto rounded-lg border border-line bg-ink-900/97 p-4 shadow-2xl sm:inset-x-auto sm:left-2 sm:top-2 sm:bottom-auto sm:w-96">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <ProvenanceBadge kind={e.provenance} />
@@ -228,7 +228,12 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
       {e.marketLinks && e.marketLinks.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
           <div className="eyebrow mb-1">Potential market exposure</div>
-          <p className="mb-2 text-[11px] text-slate-dim">Analytical hypothesis for research — not a forecast.</p>
+          <p className="mb-2 text-[11px] text-slate-dim">
+            Analytical hypothesis for research — not a forecast.{' '}
+            <Link to="/impact" className="text-gold hover:underline">
+              How these links work
+            </Link>
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {e.marketLinks.map((s) => (
               <Link key={s} className="chip" to={`/markets?symbol=${encodeURIComponent(s)}`}>

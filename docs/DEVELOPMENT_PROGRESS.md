@@ -11,7 +11,7 @@ _Last updated: 2026-10-20, session `session_01DABSiCB2yNMA9QbADoheEi` (run 2)_
 | GitHub Actions CI | ✅ passing |
 | Cloudflare Workers Builds | ❌ fails in **0 s** on every commit of every branch, incl. the README-only `main` → failing before clone; dashboard/account issue (see Blockers) |
 | Scheduled task | "AV development (every 2h)" exists but is **paused** (`enabled: false`) |
-| Next recommended action | Owner: fix Workers Builds connection (or add `CLOUDFLARE_API_TOKEN` for the Actions preview workflow); choose PR. Dev: Market Impact Radar page. |
+| Next recommended action | Owner: fix Workers Builds connection (or add `CLOUDFLARE_API_TOKEN` for the Actions preview workflow); choose PR. Dev: Supabase preference sync; real geopolitical source. |
 
 ## Completed
 ### Run 2 (2026-10-20)
@@ -26,12 +26,18 @@ _Last updated: 2026-10-20, session `session_01DABSiCB2yNMA9QbADoheEi` (run 2)_
   visitor, replayable from Account. No audio.
 - **Auth**: password reset request, `PASSWORD_RECOVERY` → set-new-password panel, redirect `error_description` surfaced.
 - **Radar timeline**: daily stacked bars by category; click to filter by day.
+- **Market Impact Radar** (`/impact`): 6 transmission channels with exposures labelled by evidence class
+  (mechanism / correlation / hypothesis / model scenario), event-window study (z-score vs pre-event volatility) and a
+  return-correlation matrix — real statistics on synthetic data, labelled.
+- **Rebrand per owner's reference logo**: neutral charcoal palette (`ink-*` tokens replace `navy-*`), gold `#C9A35A`,
+  redrawn AV monogram (separate bold geometric letters), stacked `BrandLockup`, new favicon, `public/brand/` master
+  files (SVG + PNG).
 ### Run 1
 Phase 1 foundation: Home, Headquarters, Conflict Radar, Country dossiers (World Bank), Markets (Lightweight Charts),
 Research Lab (Monte Carlo), Plans, Sign-in/Account, Status, legal drafts, Worker API, RLS migration, CI, docs.
 
 ## Verification (run 2)
-- `npm run check`: lint ✅ · typecheck ✅ · 29/29 tests ✅ · build ✅
+- `npm run check`: lint ✅ · typecheck ✅ · 32/32 tests ✅ · build ✅
 - Playwright: intro shows/skips/doesn't repeat/absent under reduced motion; timeline filters 14 → 1; alert limit blocks 3rd
   rule; watchlist stops at 10; reset link present; Account usage panel; 0 console errors.
 
@@ -53,6 +59,6 @@ Worker secret: `RESEND_API_KEY` (unused). GitHub (optional preview workflow): se
 3. Decide whether to re-enable the paused scheduled task.
 
 ## Next recommended actions (dev)
-1. Market Impact Radar page (event type → transmission channel → assets, evidence classes; correlation matrix on demo data).
-2. Supabase preference sync once auth is configured.
-3. Real geopolitical source evaluation (GDELT/UCDP/ReliefWeb) with provenance mapping.
+1. Supabase preference sync once auth is configured.
+2. Real geopolitical source evaluation (GDELT/UCDP/ReliefWeb) with provenance mapping.
+3. Economic calendar; Strategy Lab scenario comparison.

@@ -11,6 +11,7 @@ const Countries = lazy(() => import('./pages/Countries'));
 const CountryDossier = lazy(() => import('./pages/CountryDossier'));
 const Markets = lazy(() => import('./pages/Markets'));
 const Lab = lazy(() => import('./pages/Lab'));
+const Impact = lazy(() => import('./pages/Impact'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
@@ -31,6 +32,7 @@ export function App() {
             <Route path="countries/:iso3" element={<Lazy><CountryDossier /></Lazy>} />
             <Route path="markets" element={<Lazy><Markets /></Lazy>} />
             <Route path="lab" element={<Lazy><Lab /></Lazy>} />
+            <Route path="impact" element={<Lazy><Impact /></Lazy>} />
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />
