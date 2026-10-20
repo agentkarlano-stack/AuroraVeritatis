@@ -8,11 +8,13 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function SignIn() {
   const auth = useAuth();
-  const [mode, setMode] = useState<'magic' | 'password' | 'signup'>('magic');
+  const [mode, setMode] = useState<'magic' | 'password' | 'signup' | 'reset'>('magic');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(() =>
+    auth.urlError ? { kind: 'err', text: `Sign-in link problem: ${auth.urlError}` } : null,
+  );
 
   if (auth.status === 'loading') return <div className="mx-auto max-w-md px-4 py-16"><Loading /></div>;
   if (auth.status === 'signed-in') return <Navigate to="/account" replace />;
@@ -22,12 +24,15 @@ export default function SignIn() {
     e.preventDefault();
     setMsg(null);
     if (!EMAIL_RE.test(email)) return setMsg({ kind: 'err', text: 'Enter a valid email address.' });
-    if (mode !== 'magic' && password.length < 10) return setMsg({ kind: 'err', text: 'Passwords must be at least 10 characters.' });
+    if ((mode === 'password' || mode === 'signup') && password.length < 10) return setMsg({ kind: 'err', text: 'Passwords must be at least 10 characters.' });
     setBusy(true);
     try {
       if (mode === 'magic') {
         await auth.sendMagicLink(email);
         setMsg({ kind: 'ok', text: 'Check your inbox for a sign-in link.' });
+      } else if (mode === 'reset') {
+        await auth.requestPasswordReset(email);
+        setMsg({ kind: 'ok', text: 'If an account exists for this address, a reset link is on its way.' });
       } else if (mode === 'signup') {
         await auth.signUp(email, password);
         setMsg({ kind: 'ok', text: 'Account created. Confirm your email address to continue.' });
@@ -74,7 +79,7 @@ export default function SignIn() {
             </label>
             <input id="email" type="email" autoComplete="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} disabled={disabled} required />
           </div>
-          {mode !== 'magic' && (
+          {(mode === 'password' || mode === 'signup') && (
             <div>
               <label className="label" htmlFor="password">
                 Password
@@ -98,9 +103,14 @@ export default function SignIn() {
             </p>
           )}
           <button className="btn-primary w-full" disabled={disabled || busy}>
-            {busy ? 'Please wait…' : mode === 'magic' ? 'Send sign-in link' : mode === 'signup' ? 'Create account' : 'Sign in'}
+            {busy ? 'Please wait…' : { magic: 'Send sign-in link', signup: 'Create account', password: 'Sign in', reset: 'Send reset link' }[mode]}
           </button>
         </form>
+        {mode === 'password' && (
+          <button className="mt-3 text-xs text-gold hover:underline" onClick={() => setMode('reset')} disabled={disabled}>
+            Forgot password?
+          </button>
+        )}
         <p className="mt-4 text-xs text-slate-dim">
           By continuing you agree to the draft <Link className="text-gold hover:underline" to="/legal/terms">Terms</Link> and{' '}
           <Link className="text-gold hover:underline" to="/legal/privacy">Privacy Policy</Link>.

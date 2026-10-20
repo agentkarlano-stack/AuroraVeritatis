@@ -13,6 +13,20 @@ interface AuthContextValue {
   signInWithPassword: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  /** True after arriving from a password-recovery email link, until a new password is set. */
+  recovery: boolean;
+  /** Error reported by Supabase in the redirect URL (expired link, etc.), if any. */
+  urlError: string | null;
+}
+
+/** Supabase reports redirect errors as `error_description` in the hash or query string. */
+function readUrlError(): string | null {
+  if (typeof location === 'undefined') return null;
+  const params = new URLSearchParams(location.hash.replace(/^#/, '') || location.search);
+  const msg = params.get('error_description');
+  return msg ? msg.replace(/\+/g, ' ').slice(0, 200) : null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -27,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [client, setClient] = useState<SupabaseClient | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
+  const [recovery, setRecovery] = useState(false);
+  const [urlError] = useState(readUrlError);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -49,7 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await sb.auth.getSession();
         setSession(data.session);
         setStatus(data.session ? 'signed-in' : 'signed-out');
-        const sub = sb.auth.onAuthStateChange((_event, s) => {
+        const sub = sb.auth.onAuthStateChange((event, s) => {
+          if (event === 'PASSWORD_RECOVERY') setRecovery(true);
           setSession(s);
           setStatus(s ? 'signed-in' : 'signed-out');
         });
@@ -89,8 +106,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         await require().auth.signOut();
       },
+      requestPasswordReset: async (email) => {
+        const { error } = await require().auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/account` });
+        if (error) throw error;
+      },
+      updatePassword: async (password) => {
+        const { error } = await require().auth.updateUser({ password });
+        if (error) throw error;
+        setRecovery(false);
+      },
+      recovery,
+      urlError,
     }),
-    [status, session, config, require],
+    [status, session, config, require, recovery, urlError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

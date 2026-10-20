@@ -2,10 +2,11 @@ import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, Setting
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
-import { Change, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
+import { Change, LimitNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
 import { INSTRUMENTS, INSTRUMENT_MAP } from '../data/instruments';
 import { countryByIso3, searchCountries } from '../lib/countries';
 import { demoBars, lastQuote } from '../lib/demoMarket';
+import { limitOf, useTier } from '../lib/entitlements';
 import { CATEGORY_COLOR, CATEGORY_LABEL, useEvents } from '../lib/events';
 import { fmtDate, fmtNumber, relativeTime } from '../lib/format';
 import { annualisedVol } from '../lib/technical';
@@ -242,7 +243,9 @@ function MarketsWidget() {
 
 function WatchlistWidget() {
   const { watchlist, toggleWatch } = usePrefs();
+  const maxWatch = limitOf(useTier(), 'assetsPerWatchlist');
   const [adding, setAdding] = useState('');
+  const full = watchlist.length >= maxWatch;
   const options = INSTRUMENTS.filter((i) => !watchlist.includes(i.symbol));
   return (
     <div>
@@ -260,12 +263,16 @@ function WatchlistWidget() {
           />
         ))}
       </ul>
-      {options.length > 0 && (
+      <p className="num mt-2 text-[11px] text-slate-dim">
+        {watchlist.length}/{maxWatch} instruments
+      </p>
+      {full && <LimitNotice what="instruments per watchlist" limit={maxWatch} />}
+      {options.length > 0 && !full && (
         <form
           className="mt-3 flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (adding) toggleWatch(adding);
+            if (adding) toggleWatch(adding, maxWatch);
             setAdding('');
           }}
         >
@@ -330,6 +337,8 @@ function CountriesWidget() {
 
 function AlertsWidget() {
   const { alerts, addAlert, removeAlert } = usePrefs();
+  const maxAlerts = limitOf(useTier(), 'alertRules');
+  const full = alerts.length >= maxAlerts;
   const [symbol, setSymbol] = useState(INSTRUMENTS[0]!.symbol);
   const [direction, setDirection] = useState<'above' | 'below'>('above');
   const [level, setLevel] = useState('');
@@ -354,13 +363,18 @@ function AlertsWidget() {
           );
         })}
       </ul>
+      <p className="num mt-2 text-[11px] text-slate-dim">
+        {alerts.length}/{maxAlerts} alert rules
+      </p>
+      {full && <LimitNotice what="alert rules" limit={maxAlerts} />}
       <form
+        hidden={full}
         className="mt-3 grid grid-cols-[1fr_auto] gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           const v = Number(level);
           if (!(v > 0)) return;
-          addAlert({ symbol, direction, level: v });
+          addAlert({ symbol, direction, level: v }, maxAlerts);
           setLevel('');
         }}
       >

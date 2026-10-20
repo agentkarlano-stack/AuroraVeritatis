@@ -36,7 +36,13 @@ Instructions for AI development sessions (Claude Code, scheduled routines). Read
   `@utility` blocks (`panel`, `btn-primary`, `btn-ghost`, `chip`, `input`, `eyebrow`).
 - Brand: charcoal/navy, champagne gold `#C8A96B`, platinum `#E9EEF5`; flat AV monogram (`components/Logo.tsx`). No neon, 3D or heavy animation.
 - Cloudflare: Worker name `auroraveritatis`; `wrangler.jsonc` has `keep_vars: true` so dashboard vars survive deploys.
-  Do not add routes/custom domains to config.
+  Do not add routes/custom domains to config. `build.command` + `assets.directory` are set so `wrangler deploy` and
+  `wrangler versions upload` work with or without a dashboard build command (verified with `--dry-run` from a clean clone).
+- Plans/limits: `src/lib/entitlements.ts` (`limitOf`, `checkLimit`, `hasFeature`). `EARLY_ACCESS_ALL_FEATURES` stays true until
+  billing launches; numeric Free limits are enforced in the UI. Server-side enforcement belongs in Supabase (RLS/triggers).
+
+## Gotchas
+- Never `pkill -f`/`pgrep -f` with a pattern that also appears in your own shell command (it kills the shell). Use `fuser -k <port>/tcp`.
 
 ## Sandbox notes
 Cloud sessions may block outbound calls to data APIs (World Bank, USGS). Worker integrations are unit-tested with mocked
