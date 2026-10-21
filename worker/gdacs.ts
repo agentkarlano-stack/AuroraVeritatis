@@ -90,6 +90,7 @@ export function normalizeGdacs(features: GdacsFeature[]): GeoEvent[] {
 }
 
 export async function disasters(): Promise<GeoEvent[]> {
-  const data = await fetchJson<{ features?: GdacsFeature[] } | null>(gdacsUrl());
+  // GDACS search is slow (often >8 s); the result is edge-cached for 30 minutes.
+  const data = await fetchJson<{ features?: GdacsFeature[] } | null>(gdacsUrl(), 25_000);
   return normalizeGdacs(data?.features ?? []);
 }
