@@ -50,3 +50,15 @@ export function hasFeature(id: TierId, feature: Feature, earlyAccess = EARLY_ACC
 export function useTier(): TierId {
   return 'free';
 }
+
+/**
+ * Brain graphs live only in the user's browser during early access (no server cost), so the preview uses the proposed
+ * Premium quota rather than the Free demonstration limit. Server-side enforcement arrives with cloud sync.
+ */
+export const EARLY_ACCESS_BRAIN_TIER: TierId = 'premium';
+
+export function brainLimits(id: TierId, earlyAccess = EARLY_ACCESS_ALL_FEATURES): { graphs: number; nodesPerGraph: number; edgesPerGraph: number } {
+  const t = earlyAccess && ORDER.indexOf(id) < ORDER.indexOf(EARLY_ACCESS_BRAIN_TIER) ? EARLY_ACCESS_BRAIN_TIER : id;
+  const nodes = limitOf(t, 'brainNodesPerGraph');
+  return { graphs: limitOf(t, 'brainGraphs'), nodesPerGraph: nodes, edgesPerGraph: nodes * 4 };
+}

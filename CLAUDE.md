@@ -37,6 +37,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   `components/CommandPalette.tsx` + `lib/search.ts`.
 - Cloud sync: `lib/sync.ts` (backend-agnostic, tested) + `auth/PrefsSync.tsx` (subscribes to the prefs store, newer side
   wins on sign-in, debounced upserts). Synced keys are `SYNCED_KEYS`; notes sync per row via `research_notes`.
+- Personal Intelligence Brain (`pages/Brain.tsx`, `components/BrainCanvas.tsx`): pure model + import/export in `lib/brain.ts`,
+  IndexedDB persistence in `lib/brainStore.ts` (local-first, no server copy), layouts in `lib/brainLayout.ts` (d3-force,
+  seeded), Aurora entity links + "Add to Brain" in `lib/brainEntities.ts` / `components/AddToBrain.tsx`. Quotas:
+  `brainLimits()` in `lib/entitlements.ts`.
 - `supabase/migrations/` — SQL, reviewed and applied manually by the owner.
 
 ## Conventions

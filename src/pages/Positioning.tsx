@@ -2,6 +2,7 @@ import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { COT_LOOKBACK, COT_MARKET_MAP, COT_MARKETS, cotCsv, cotIndexSeries, summariseCot, toPoints, type CotResponse, type CotSummary } from '../../shared/cot';
+import { AddToBrain } from '../components/AddToBrain';
 import { PerformanceChart, type PerformanceSeries } from '../components/PerformanceChart';
 import { ErrorState, Loading, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
 import { useApi } from '../lib/api';
@@ -234,6 +235,10 @@ export default function Positioning() {
                 Related chart in Market Terminal (simulated prices)
               </Link>
             )}
+            <AddToBrain
+              className="mt-3"
+              entity={{ kind: ['Energy', 'Metals', 'Agriculture'].includes(market.group) ? 'commodity' : 'instrument', label: `${market.name} futures positioning`, ref: { type: 'cot', code: market.code } }}
+            />
           </Panel>
 
           <Panel title="Method & limitations">

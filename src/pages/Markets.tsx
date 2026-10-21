@@ -147,6 +147,9 @@ export default function Markets() {
         title="Market analysis"
         actions={
           <>
+            <Link to="/impact" className="btn-ghost text-xs">
+              Market Impact Radar
+            </Link>
             <Link to="/macro" className="btn-ghost text-xs">
               Macro &amp; FX (ECB data)
             </Link>

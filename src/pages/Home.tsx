@@ -11,7 +11,7 @@ const MODULES = [
   { to: '/countries', icon: Landmark, title: 'Country Dossiers', text: 'World Bank indicators for every economy with history charts and an animated country-comparison explorer.', tags: 'Indicators · Compare · History', state: 'Live data' },
   { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Reproducible Monte Carlo risk simulation and a Strategy Lab for comparing event scenarios with visible uncertainty.', tags: 'Simulation · Scenarios · Risk', state: 'Working' },
   { to: '/status', icon: BrainCircuit, title: 'AI Intelligence', text: 'EVE and KNOX research assistants and sourced intelligence reports.', tags: 'EVE · KNOX · Reports', state: 'Planned' },
-  { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'Your personalised workspace: widgets, watchlists, favourite countries, alerts and saved research.', tags: 'Personalised workspace', state: 'Prototype' },
+  { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'Your personalised workspace: widgets, watchlists, favourite countries, alerts and the Personal Intelligence Brain — your own graph linking events, countries and markets.', tags: 'Workspace · Brain', state: 'Prototype' },
 ] as const;
 
 export default function Home() {

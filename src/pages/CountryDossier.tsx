@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { INDICATORS, type IndicatorDef } from '../../shared/indicators';
 import type { CountryProfile, IndicatorSeries, IndicatorValue } from '../../shared/types';
+import { AddToBrain } from '../components/AddToBrain';
 import { LineChart } from '../components/SvgCharts';
 import { ErrorState, Loading, ProvenanceBadge, Unavailable } from '../components/ui';
 import { useApi } from '../lib/api';
@@ -49,7 +50,8 @@ export default function CountryDossier() {
             </p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {valid && <AddToBrain entity={{ kind: 'country', label: name, ref: { type: 'country', iso3: code } }} />}
           <Link to={`/countries/vs?c=${code}`} className="btn-ghost">
             Compare with…
           </Link>

@@ -36,6 +36,8 @@ export default function Pricing() {
                   ['AI requests / day', t.limits.aiRequestsPerDay],
                   ['In-depth AI reports / month', t.limits.aiReportsPerMonth],
                   ['Alert rules', t.limits.alertRules],
+                  ['Brain graphs', t.limits.brainGraphs],
+                  ['Nodes per Brain graph', t.limits.brainNodesPerGraph],
                 ] as const
               ).map(([k, v]) => (
                 <div key={k} className="flex justify-between">

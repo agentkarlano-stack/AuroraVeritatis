@@ -20,6 +20,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Compare countries explorer', to: '/countries/compare', state: 'working', note: 'Animated bubble chart of any two World Bank indicators, sized by a third, 1990–present.' },
   { name: 'Country politics section', state: 'planned', note: 'Requires curated electoral and governance sources.' },
   { name: 'Markets terminal', to: '/markets', state: 'demo', note: 'Charts, indicators and statistics are real calculations on synthetic prices.' },
+  { name: 'Personal Intelligence Brain', to: '/brain', state: 'working', note: 'Local-first research graph (IndexedDB in your browser): typed nodes and sourced relationships with certainty, links to dossiers/series, layouts, groups, saved views, templates, JSON/Markdown export and import. No cloud sync yet.' },
   { name: 'Macro & FX (ECB)', to: '/macro', state: 'working', note: 'ECB policy rates, euro-area HICP inflation (headline and core), 10-year AAA yield and 15 euro reference exchange rates with USD cross rates, history to 25 years and CSV (3-hour cache).' },
   { name: 'Futures positioning (CFTC COT)', to: '/positioning', state: 'working', note: 'Official weekly Commitments of Traders data for 14 futures markets: net positions by trader group, 3-year positioning index, extremes, CSV (6-hour cache).' },
   { name: 'Research Lab — Monte Carlo', to: '/lab', state: 'working', note: 'GBM simulation, VaR/ES, confidence intervals, sensitivity, CSV export.' },

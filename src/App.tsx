@@ -19,6 +19,7 @@ const Strategy = lazy(() => import('./pages/Strategy'));
 const Tension = lazy(() => import('./pages/Tension'));
 const Positioning = lazy(() => import('./pages/Positioning'));
 const Macro = lazy(() => import('./pages/Macro'));
+const Brain = lazy(() => import('./pages/Brain'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
@@ -47,6 +48,7 @@ export function App() {
             <Route path="tension" element={<Lazy><Tension /></Lazy>} />
             <Route path="positioning" element={<Lazy><Positioning /></Lazy>} />
             <Route path="macro" element={<Lazy><Macro /></Lazy>} />
+            <Route path="brain" element={<Lazy><Brain /></Lazy>} />
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />
