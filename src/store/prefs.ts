@@ -2,9 +2,10 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { DEFAULT_CHART_OPTIONS, type ChartOptions, type Drawing } from '../lib/chart';
 
-export type WidgetId = 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts';
+export type WidgetId = 'briefing' | 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts';
 
 export const WIDGETS: { id: WidgetId; title: string }[] = [
+  { id: 'briefing', title: 'Daily Briefing' },
   { id: 'tension', title: 'World Tension Index' },
   { id: 'events', title: 'Priority Events' },
   { id: 'markets', title: 'Market Overview' },
@@ -120,7 +121,10 @@ export const usePrefs = create<PrefsState>()(
       merge: (persisted, current) => {
         const p = persisted as Partial<PrefsState>;
         const layout = (p.layout ?? []).filter((w) => DEFAULT_LAYOUT.includes(w));
-        for (const w of DEFAULT_LAYOUT) if (!layout.includes(w)) layout.push(w);
+        // New widgets appear at their default position rather than at the end.
+        DEFAULT_LAYOUT.forEach((w, i) => {
+          if (!layout.includes(w)) layout.splice(Math.min(i, layout.length), 0, w);
+        });
         return { ...current, ...p, layout, chart: { ...current.chart, ...p.chart } };
       },
     },

@@ -10,10 +10,12 @@ import { limitOf, useTier } from '../lib/entitlements';
 import { CATEGORY_COLOR, CATEGORY_LABEL, useEvents } from '../lib/events';
 import { fmtDate, fmtNumber, plural, relativeTime } from '../lib/format';
 import { annualisedVol } from '../lib/technical';
+import { buildBriefing } from '../lib/briefing';
 import { tensionBand, worldTension } from '../lib/tension';
 import { WIDGETS, usePrefs, type WidgetId } from '../store/prefs';
 
 const WIDE: WidgetId[] = ['tension', 'events'];
+const FULL: WidgetId[] = ['briefing'];
 
 export default function Headquarters() {
   const { layout, hidden, moveWidget, toggleWidget, resetLayout } = usePrefs();
@@ -50,14 +52,14 @@ export default function Headquarters() {
         </p>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-flow-row-dense gap-4 md:grid-cols-2 xl:grid-cols-3">
         {shown.map((id, index) => {
           const meta = WIDGETS.find((w) => w.id === id)!;
           const isHidden = hidden.includes(id);
           return (
             <div
               key={id}
-              className={`min-w-0 ${WIDE.includes(id) ? 'xl:col-span-2' : ''} ${isHidden ? 'opacity-45' : ''} ${dragging === id ? 'opacity-60' : ''}`}
+              className={`min-w-0 ${FULL.includes(id) ? 'md:col-span-2 xl:col-span-3' : WIDE.includes(id) ? 'xl:col-span-2' : ''} ${isHidden ? 'opacity-45' : ''} ${dragging === id ? 'opacity-60' : ''}`}
               draggable={editing}
               onDragStart={(e) => {
                 setDragging(id);
@@ -108,6 +110,8 @@ export default function Headquarters() {
 
 function Widget({ id }: { id: WidgetId }) {
   switch (id) {
+    case 'briefing':
+      return <BriefingWidget />;
     case 'tension':
       return <TensionWidget />;
     case 'events':
@@ -123,6 +127,71 @@ function Widget({ id }: { id: WidgetId }) {
     case 'notes':
       return <NotesWidget />;
   }
+}
+
+function BriefingWidget() {
+  const { demo, quakes, disasters } = useEvents();
+  const watchlist = usePrefs((s) => s.watchlist);
+  const [now] = useState(() => Date.now());
+  const [copied, setCopied] = useState(false);
+  const briefing = useMemo(() => {
+    const closes = demoBars('GLB-EQ.D').map((b) => b.close);
+    const events = [...demo, ...quakes, ...disasters];
+    const movers = watchlist.flatMap((symbol) => {
+      const q = lastQuote(symbol);
+      const inst = INSTRUMENT_MAP.get(symbol);
+      return q && inst ? [{ symbol, name: inst.name, changePct: q.changePct }] : [];
+    });
+    return buildBriefing({
+      now,
+      events,
+      tensionNow: worldTension(events, annualisedVol(closes.slice(-22)), now).value,
+      tensionWeekAgo: worldTension(events, annualisedVol(closes.slice(-27, -5)), now - 7 * 86_400_000).value,
+      movers,
+    });
+  }, [demo, quakes, disasters, watchlist, now]);
+
+  const copy = async () => {
+    const text = [`Aurora Veritatis daily briefing — ${briefing.date}`, briefing.headline, ...briefing.sections.flatMap((s) => [`\n${s.title}`, ...s.items.map((i) => `• ${i.text} [${i.provenance}]`)])].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-platinum">{briefing.headline}</p>
+        <button className="btn-quiet shrink-0 text-xs" onClick={copy}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-4 md:grid-cols-3">
+        {briefing.sections.map((sec) => (
+          <div key={sec.title}>
+            <div className="eyebrow mb-1.5">{sec.title}</div>
+            <ul className="space-y-2">
+              {sec.items.map((it, i) => (
+                <li key={i} className="text-xs leading-relaxed text-mist">
+                  <Link to={it.to} className="hover:text-platinum">
+                    {it.text}
+                  </Link>{' '}
+                  <ProvenanceBadge kind={it.provenance} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] text-slate-dim">
+        Generated from platform data for {briefing.date} — rule-based, no AI. Each line is labelled with the reliability of its inputs.
+      </p>
+    </div>
+  );
 }
 
 function TensionWidget() {
