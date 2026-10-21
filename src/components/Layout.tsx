@@ -151,6 +151,11 @@ export function Layout() {
                 </Link>
               </li>
               <li>
+                <Link className="text-mist hover:text-platinum" to="/tension">
+                  World Tension Index
+                </Link>
+              </li>
+              <li>
                 <Link className="text-mist hover:text-platinum" to="/status">
                   Platform status &amp; data sources
                 </Link>

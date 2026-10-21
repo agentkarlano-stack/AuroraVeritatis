@@ -1,13 +1,13 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 4 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 5 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 48 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 54 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
 | Scheduled task | "AV development (every 2h)" **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
@@ -19,6 +19,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 5 (2026-10-21)
+- **World Tension Index page** (`/tension`): published component definitions (categories, weights, saturation
+  constants), adjustable weights (re-normalised), 7/14/30-day window, 90-day rolling history, weight-sensitivity
+  robustness table (each weight halved/doubled, equal weights → range), measured-vs-modelled provenance table,
+  methodology + calibration plan. `lib/tension.ts` refactored (`TENSION_COMPONENTS`, `normaliseWeights`,
+  `tensionHistory`, `weightSensitivity`), fully unit-tested; HQ widget links to it.
+- **Markets relative performance**: compare up to 3 instruments, rebased to 100 over the selected range, with return
+  and correlation (ρ of daily log returns) per series; `rebase()` helper tested.
+- Remaining "Conflict Radar" labels renamed to "Global Radar".
 ### Run 4 (2026-10-21)
 - Diagnosed the idle scheduled task (no repo sources → push denied) and paused it to stop wasted runs.
 - **Quick search** (Ctrl/⌘+K, "/", header button, mobile): pages, all countries, instruments; ranked matches; keyboard nav.
@@ -44,6 +53,11 @@ timeline, Market Impact Radar, rebrand to the owner's logo (charcoal + gold), br
 ### Run 1
 Phase 1 foundation: Home, Headquarters, Conflict Radar, Country dossiers, Markets, Research Lab, Plans, Sign-in/Account,
 Status, legal drafts, Worker API, RLS migration, CI, docs.
+
+## Verification (run 5)
+- `npm run check`: 54/54 tests ✅. Playwright: tension reading 46.1 → weights change it → reset restores; 30-day window;
+  history chart + 6-row sensitivity table; HQ link → /tension; Markets compare GOLD.D + SHIP.D with ρ, removal;
+  mobile /tension and /markets no overflow; 0 console errors.
 
 ## Verification (run 4)
 - `npm run check`: 48/48 tests ✅. Playwright: palette Ctrl+K→/countries/DEU, "/"→/markets?symbol=GOLD.D; level + trend
@@ -75,5 +89,5 @@ Future: `CLOUDFLARE_RADAR_TOKEN` (internet outages), `UCDP_TOKEN`.
 ## Next recommended actions (dev)
 1. Supabase preference sync (when Supabase vars are set).
 2. CFR-style conflict profile pages (trend / impact / sourced timeline) — needs a licensed source (UCDP token or curated).
-3. Chart workspace follow-ups: compare-overlay of two instruments, named saved layouts.
+3. Chart workspace follow-up: named saved layouts.
 4. Cloudflare Radar outages → "Communications" dossier section (needs token).

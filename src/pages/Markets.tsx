@@ -10,7 +10,9 @@ import { limitOf, useTier } from '../lib/entitlements';
 import type { ChartOptions, ChartPoint, Drawing, DrawMode } from '../lib/chart';
 import { CATEGORY_COLOR } from '../lib/events';
 import { fmtNumber, fmtPct } from '../lib/format';
-import { annualisedVol, maxDrawdown, periodReturn } from '../lib/technical';
+import { correlation } from '../lib/impact';
+import { annualisedVol, logReturns, maxDrawdown, periodReturn, rebase } from '../lib/technical';
+import { PerformanceChart, type PerformanceSeries } from '../components/PerformanceChart';
 import { uid, usePrefs } from '../store/prefs';
 
 const NO_DRAWINGS: Drawing[] = [];
@@ -42,6 +44,27 @@ const TOGGLES: { key: keyof Omit<ChartOptions, 'style'>; label: string }[] = [
   { key: 'events', label: 'Events' },
 ];
 
+const COMPARE_COLORS = ['#c9a35a', '#7d9cc0', '#5e9f7e', '#9d8bb8'];
+const MAX_COMPARE = 3;
+const performanceCache = new Map<string, { series: PerformanceSeries[]; corr: (number | null)[] }>();
+
+/** Rebased (=100) performance over the trailing `range` sessions for the main symbol plus comparisons, cached by key. */
+function performanceFor(symbols: string[], range: number) {
+  const key = `${symbols.join(',')}|${range}`;
+  const hit = performanceCache.get(key);
+  if (hit) return hit;
+  const windows = symbols.map((s) => demoBars(s).slice(-range));
+  const series = windows.map((bars, i) => {
+    const rebased = rebase(bars.map((b) => b.close));
+    return { label: symbols[i]!, color: COMPARE_COLORS[i % COMPARE_COLORS.length]!, points: bars.map((b, j) => ({ time: b.time, value: rebased[j]! })) };
+  });
+  const base = logReturns(windows[0]!.map((b) => b.close));
+  const corr = windows.map((bars, i) => (i === 0 ? null : correlation(base, logReturns(bars.map((b) => b.close)))));
+  const out = { series, corr };
+  performanceCache.set(key, out);
+  return out;
+}
+
 const annotationCache = new Map<string, ChartAnnotation[]>();
 
 /** Chart markers for demo events tagged to `symbol`, snapped to the last session on or before the event. */
@@ -72,6 +95,9 @@ export default function Markets() {
   const range = options.range;
   const drawings = allDrawings[symbol] ?? NO_DRAWINGS;
   const [mode, setMode] = useState<DrawMode>('none');
+  const [compare, setCompare] = useState<string[]>([]);
+  const compareSymbols = compare.filter((c) => c !== symbol);
+  const perf = compareSymbols.length ? performanceFor([symbol, ...compareSymbols], range) : null;
   const [pending, setPending] = useState<ChartPoint | null>(null);
 
   useEffect(() => {
@@ -256,6 +282,56 @@ export default function Markets() {
             </div>
           </section>
 
+          <Panel
+            title="Relative performance"
+            eyebrow={`Rebased to 100 · ${RANGES.find((r) => r.bars === range)?.label ?? ''}`}
+            actions={
+              compareSymbols.length < MAX_COMPARE ? (
+                <select
+                  className="input h-8 w-44 py-0 text-xs"
+                  value=""
+                  aria-label="Add instrument to compare"
+                  onChange={(e) => e.target.value && setCompare((c) => [...c.filter((x) => x !== symbol), e.target.value].slice(-MAX_COMPARE))}
+                >
+                  <option value="">Compare with…</option>
+                  {INSTRUMENTS.filter((i) => i.symbol !== symbol && !compareSymbols.includes(i.symbol)).map((i) => (
+                    <option key={i.symbol} value={i.symbol}>
+                      {i.symbol}
+                    </option>
+                  ))}
+                </select>
+              ) : undefined
+            }
+          >
+            {!perf ? (
+              <p className="text-sm text-slate-dim">Add up to {MAX_COMPARE} instruments to compare their performance with {symbol} over the selected range.</p>
+            ) : (
+              <>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {perf.series.map((s, i) => (
+                    <span key={s.label} className="chip">
+                      <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+                      <span className="text-platinum">{s.label}</span>
+                      <Change value={(s.points.at(-1)?.value ?? 100) / 100 - 1} />
+                      {perf.corr[i] != null && <span className="num text-slate-dim">ρ {perf.corr[i]!.toFixed(2)}</span>}
+                      {i > 0 && (
+                        <button aria-label={`Remove ${s.label} from comparison`} className="hover:text-down" onClick={() => setCompare((c) => c.filter((x) => x !== s.label))}>
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <div className="h-72">
+                  <PerformanceChart series={perf.series} />
+                </div>
+                <p className="mt-2 text-[11px] text-slate-dim">
+                  ρ = correlation of daily log returns with {symbol} over the period (co-movement, not causation). Synthetic demo series.
+                </p>
+              </>
+            )}
+          </Panel>
+
           <div className="grid gap-4 md:grid-cols-2">
             <Panel title="Statistics" eyebrow="Computed from displayed series">
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -320,7 +396,7 @@ export default function Markets() {
                 Event–asset links are analytical hypotheses for research. Co-occurrence on a chart does not establish causation.
               </p>
               <Link to="/radar" className="mt-2 inline-block text-xs text-gold hover:underline">
-                Open Conflict Radar →
+                Open Global Radar →
               </Link>
             </Panel>
           </div>

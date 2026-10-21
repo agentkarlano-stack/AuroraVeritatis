@@ -18,6 +18,7 @@ export const PAGES: SearchItem[] = [
   ['/impact', 'Market Impact Radar', 'Events → asset exposure'],
   ['/lab', 'Quant Research', 'Monte Carlo risk simulation'],
   ['/strategy', 'Strategy Lab', 'Scenario comparison'],
+  ['/tension', 'World Tension Index', 'Methodology, weights and history'],
   ['/pricing', 'Plans', 'Proposed subscription tiers'],
   ['/account', 'Account', 'Profile, plan and local data'],
   ['/status', 'Platform status', 'What works today and data sources'],

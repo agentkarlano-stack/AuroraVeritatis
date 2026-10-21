@@ -101,3 +101,10 @@ export function maxDrawdown(values: number[]): number {
   }
   return mdd;
 }
+
+/** Rebase a series so its first value equals `base` (e.g. 100) for relative-performance comparison. */
+export function rebase(values: number[], base = 100): number[] {
+  const first = values[0];
+  if (!first) return values.map(() => NaN);
+  return values.map((v) => (v / first) * base);
+}

@@ -160,9 +160,14 @@ function TensionWidget() {
             </li>
           ))}
         </ul>
-        <button className="mt-3 text-xs text-gold hover:underline" onClick={() => setShowMethod((s) => !s)} aria-expanded={showMethod}>
-          {showMethod ? 'Hide methodology' : 'Show methodology'}
-        </button>
+        <div className="mt-3 flex gap-4 text-xs">
+          <button className="text-gold hover:underline" onClick={() => setShowMethod((s) => !s)} aria-expanded={showMethod}>
+            {showMethod ? 'Hide methodology' : 'Show methodology'}
+          </button>
+          <Link to="/tension" className="text-gold hover:underline">
+            Full index, history &amp; weights →
+          </Link>
+        </div>
         {showMethod && (
           <p className="mt-2 text-xs leading-relaxed text-mist">
             Index = Σ wᵢ·cᵢ. Each event component is the severity-weighted sum of events in the window, scaled to 0–100 by
@@ -201,7 +206,7 @@ function EventsWidget() {
       <div className="mt-3 flex justify-between text-xs">
         <span className="text-slate-dim">USGS feed: {quakeStatus === 'ready' ? `${quakes.length} live events` : quakeStatus}</span>
         <Link to="/radar" className="text-gold hover:underline">
-          Open Conflict Radar →
+          Open Global Radar →
         </Link>
       </div>
     </div>

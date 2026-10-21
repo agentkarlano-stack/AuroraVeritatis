@@ -41,3 +41,12 @@ describe('technical indicators', () => {
     expect(quantileSorted([1, 2, 3, 4], 1)).toBe(4);
   });
 });
+
+describe('rebase', () => {
+  it('rebases to 100 and handles empty or zero starts', async () => {
+    const { rebase } = await import('./technical');
+    rebase([50, 55, 45]).forEach((v, i) => expect(v).toBeCloseTo([100, 110, 90][i]!, 10));
+    expect(rebase([])).toEqual([]);
+    expect(rebase([0, 1]).every(Number.isNaN)).toBe(true);
+  });
+});
