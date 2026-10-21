@@ -14,6 +14,7 @@ export const PAGES: SearchItem[] = [
   ['/radar', 'Global Radar', 'Event map, layers and timeline'],
   ['/countries', 'Country Dossiers', 'All countries'],
   ['/countries/compare', 'Compare countries', 'Animated indicator comparison'],
+  ['/countries/vs', 'Side-by-side countries', 'Compare up to four countries'],
   ['/markets', 'Market Terminal', 'Charts and indicators'],
   ['/impact', 'Market Impact Radar', 'Events → asset exposure'],
   ['/lab', 'Quant Research', 'Monte Carlo risk simulation'],

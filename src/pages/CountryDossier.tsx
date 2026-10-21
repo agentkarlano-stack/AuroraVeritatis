@@ -49,9 +49,14 @@ export default function CountryDossier() {
             </p>
           )}
         </div>
-        <button className={fav ? 'btn-primary' : 'btn-ghost'} onClick={() => toggleFavorite(code)} aria-pressed={fav}>
-          <Star className="h-4 w-4" fill={fav ? 'currentColor' : 'none'} /> {fav ? 'Favourite' : 'Add to favourites'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/countries/vs?c=${code}`} className="btn-ghost">
+            Compare with…
+          </Link>
+          <button className={fav ? 'btn-primary' : 'btn-ghost'} onClick={() => toggleFavorite(code)} aria-pressed={fav}>
+            <Star className="h-4 w-4" fill={fav ? 'currentColor' : 'none'} /> {fav ? 'Favourite' : 'Add to favourites'}
+          </button>
+        </div>
       </div>
 
       {!valid && <ErrorState message="Country codes are three-letter ISO 3166-1 alpha-3 codes, e.g. DEU." />}

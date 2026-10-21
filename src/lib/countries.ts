@@ -38,3 +38,13 @@ export function searchCountries(q: string, limit = 8): CountryRef[] {
   if (!s) return [];
   return COUNTRIES.filter((c) => c.name.toLowerCase().includes(s) || c.iso3.toLowerCase() === s).slice(0, limit);
 }
+
+/** Parse a comma-separated list such as "deu,FRA,xx" into unique, well-formed ISO3 codes (at most `max`). */
+export function parseIsoList(raw: string | null, max = 4): string[] {
+  const out: string[] = [];
+  for (const c of (raw ?? '').toUpperCase().split(',')) {
+    const code = c.trim();
+    if (/^[A-Z]{3}$/.test(code) && !out.includes(code)) out.push(code);
+  }
+  return out.slice(0, max);
+}

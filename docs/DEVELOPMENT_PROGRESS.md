@@ -7,7 +7,7 @@ _Last updated: 2026-10-21, run 6 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 68 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 69 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
 | Scheduled task | "AV development (every 2h)" **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
@@ -28,6 +28,9 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
   Verified: 7 unit tests + Playwright against an intercepted Supabase API (pull of newer remote, single upsert with
   user_id + bearer token after a change; notes merged, local-only note uploaded, new note upserted, deleted note removed
   with a user-scoped DELETE). Not verified against a live Supabase project.
+- **Side-by-side country comparison** (`/countries/vs?c=DEU,FRA`): up to 4 countries × 23 World Bank indicators with
+  reference years and neutral magnitude bars; shareable URL; per-country error handling; entry points from the
+  Countries page, every dossier ("Compare with…") and quick search.
 ### Run 5 (2026-10-21)
 - **World Tension Index page** (`/tension`): published component definitions (categories, weights, saturation
   constants), adjustable weights (re-normalised), 7/14/30-day window, 90-day rolling history, weight-sensitivity

@@ -72,3 +72,12 @@ describe('event timeline', () => {
     expect(b[2]!.byCategory).toEqual({ conflict: 1, energy: 1 });
   });
 });
+
+describe('parseIsoList', () => {
+  it('normalises, dedupes, validates and caps', async () => {
+    const { parseIsoList } = await import('./countries');
+    expect(parseIsoList('deu, FRA,deu,xx,USA,JPN,CHN')).toEqual(['DEU', 'FRA', 'USA', 'JPN']);
+    expect(parseIsoList(null)).toEqual([]);
+    expect(parseIsoList('DEU,FRA,USA', 2)).toEqual(['DEU', 'FRA']);
+  });
+});

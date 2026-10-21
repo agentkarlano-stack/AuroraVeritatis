@@ -30,9 +30,14 @@ export default function Countries() {
         eyebrow="Country Intelligence"
         title="Country dossiers"
         actions={
-          <Link to="/countries/compare" className="btn-primary">
-            Compare countries over time
-          </Link>
+          <>
+            <Link to="/countries/vs?c=DEU,FRA,USA" className="btn-ghost">
+              Side-by-side table
+            </Link>
+            <Link to="/countries/compare" className="btn-primary">
+              Compare countries over time
+            </Link>
+          </>
         }
       >
         Economic, demographic, infrastructure and security baselines from World Bank Open Data. Select a country on the map or
