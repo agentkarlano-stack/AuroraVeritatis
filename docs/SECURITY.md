@@ -14,3 +14,10 @@
 - **Separation**: no shared resources with MARVETO.
 
 Report vulnerabilities to auroraveritatissup@gmail.com.
+
+## Supabase schema review (2026-10-21)
+- Column-level `REVOKE` does not override a table-level grant. Supabase grants ALL on new public tables to `anon` and
+  `authenticated`, so restricted columns need a table-level revoke plus explicit column grants.
+- Guests have no privileges on user tables; every policy is scoped `to authenticated` and checks `(select auth.uid())`.
+- Security-definer functions use `set search_path = ''` and are not executable by guests.
+- `scripts/test-migrations.sh` (CI job `migrations`) proves the rules with two accounts on every PR.
