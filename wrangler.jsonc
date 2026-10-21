@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must match the existing Cloudflare Worker connected to aurorav.app.
+  "name": "auroraveritatis",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  // Explicit so plain `wrangler deploy` / `wrangler versions upload` work even when the Cloudflare
+  // dashboard has no build command. The Vite plugin produces this directory.
+  "build": { "command": "npm run build" },
+  "assets": {
+    "directory": "./dist/client",
+    // Exposed to the Worker as env.ASSETS (used to serve the SPA shell with route metadata).
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // The Worker handles /api and page navigations (to inject route metadata); hashed bundles and static files
+    // are served directly without invoking it.
+    "run_worker_first": ["/*", "!/assets/*", "!/brand/*", "!/favicon.svg", "!/robots.txt", "!/sitemap.xml"]
+  },
+  // Plain-text vars (SUPABASE_URL, SUPABASE_ANON_KEY, POSTHOG_KEY, ...) are managed in the
+  // Cloudflare dashboard. keep_vars stops `wrangler deploy` from wiping them.
+  "keep_vars": true,
+  "observability": { "enabled": true },
+  "upload_source_maps": true
+  // Custom domain aurorav.app is attached in the Cloudflare dashboard; it is intentionally
+  // not declared here so deploys never touch domain/route configuration.
+}

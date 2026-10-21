@@ -1,0 +1,9 @@
+# Local Worker variables for `npm run dev`. Copy to .dev.vars (gitignored).
+# Production values live in Cloudflare: Workers & Pages -> auroraveritatis -> Settings -> Variables and Secrets.
+# The Supabase anon key is public by design (protected by Row Level Security), but keep it out of git anyway.
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+POSTHOG_KEY=
+POSTHOG_HOST=https://eu.i.posthog.com
+# Secrets (never commit real values):
+# RESEND_API_KEY=

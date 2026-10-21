@@ -1,0 +1,117 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Neutral charcoal scale (darkest -> lightest). Warm-neutral, no blue cast. */
+  --color-ink-950: #0d0d0e;
+  --color-ink-900: #151517;
+  --color-ink-850: #1a1a1d;
+  --color-ink-800: #222226;
+  --color-ink-700: #2c2c31;
+  --color-charcoal: #303030;
+  --color-graphite: #232327;
+  --color-line: #2f2f35;
+  /* Brand gold, sampled to match the AV logo. */
+  --color-gold: #c9a35a;
+  --color-gold-soft: #ddbf84;
+  --color-gold-dim: #8d7444;
+  --color-platinum: #f1f0ec;
+  --color-mist: #adaba5;
+  --color-slate-dim: #77756f;
+  /* Muted signal colours: legible but restrained. */
+  --color-up: #5e9f7e;
+  --color-down: #c2605b;
+  --color-warn: #d2a043;
+  --color-info: #7d9cc0;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Montserrat', 'Inter', ui-sans-serif, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-ink-950);
+  }
+  body {
+    @apply bg-ink-950 text-platinum font-sans antialiased;
+    min-height: 100dvh;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--color-gold) 35%, transparent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+/* Component classes are declared as utilities so they can be composed with @apply (Tailwind v4). */
+@utility panel {
+  @apply rounded-xl border border-line bg-ink-900/80;
+}
+@utility eyebrow {
+  @apply font-display text-[11px] font-semibold tracking-[0.22em] text-gold uppercase;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45;
+}
+@utility btn-primary {
+  @apply btn bg-gold text-ink-950 hover:bg-gold-soft;
+}
+@utility btn-ghost {
+  @apply btn border border-line text-platinum hover:border-gold-dim hover:text-gold-soft;
+}
+@utility btn-quiet {
+  @apply btn px-2 py-1 text-mist hover:text-platinum;
+}
+@utility input {
+  @apply w-full rounded-md border border-line bg-ink-950 px-3 py-2 text-sm text-platinum placeholder:text-slate-dim focus:border-gold-dim focus:outline-none;
+}
+@utility label {
+  @apply mb-1 block text-xs font-medium text-mist;
+}
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+@utility chip {
+  @apply inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-mist transition-colors hover:border-gold-dim hover:text-platinum;
+  &[aria-pressed='true'] {
+    @apply border-gold-dim bg-gold/10 text-gold-soft;
+  }
+}
+
+/* Intro splash (IntroSplash.tsx). Disabled entirely for prefers-reduced-motion users. */
+@keyframes av-word {
+  0% { opacity: 0; letter-spacing: 0.6em; }
+  25% { opacity: 1; letter-spacing: 0.12em; }
+  55% { opacity: 1; letter-spacing: 0.06em; }
+  75% { opacity: 0; letter-spacing: 0.02em; transform: scale(0.85); }
+  100% { opacity: 0; }
+}
+@keyframes av-mono {
+  0%, 45% { opacity: 0; transform: translateY(18px) scale(0.6); }
+  70% { opacity: 1; transform: translateY(0) scale(1.06); }
+  82%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes av-tag {
+  0%, 65% { opacity: 0; }
+  85%, 100% { opacity: 1; }
+}
+@keyframes av-out {
+  0%, 88% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.av-intro { animation: av-out 2.6s ease forwards; }
+.av-intro-word { animation: av-word 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.av-intro-mono { animation: av-mono 2.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.av-intro-tag { animation: av-tag 2.6s ease forwards; }
