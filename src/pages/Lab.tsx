@@ -2,6 +2,7 @@ import { Download, Play, Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { FanChart, HistogramChart } from '../components/SvgCharts';
+import { BacktestTool } from '../components/BacktestTool';
 import { PageHeader, Panel, Unavailable } from '../components/ui';
 import { fmtNumber, fmtPct } from '../lib/format';
 import { MC_LIMITS, simulateGbm, type GbmParams, type GbmResult } from '../lib/montecarlo';
@@ -14,7 +15,8 @@ function num(v: string | null, fallback: number) {
 }
 
 export default function Lab() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const tool = params.get('tool') === 'backtest' ? 'backtest' : 'mc';
   const label = params.get('label')?.slice(0, 40) ?? 'Hypothetical portfolio';
   const [form, setForm] = useState({
     s0: String(num(params.get('s0'), 10000)),
@@ -108,11 +110,31 @@ export default function Lab() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Quantitative Research Lab" title="Monte Carlo risk simulation">
-        Simulate the distribution of future values under geometric Brownian motion. Results are hypothetical model outputs —
-        reproducible with the same seed — and are not forecasts or observed outcomes.
+      <PageHeader eyebrow="Quantitative Research Lab" title={tool === 'backtest' ? 'Strategy backtesting' : 'Monte Carlo risk simulation'}>
+        {tool === 'backtest'
+          ? 'Test simple, transparent trading rules against buy-and-hold, after costs and without look-ahead bias.'
+          : 'Simulate the distribution of future values under geometric Brownian motion. Results are hypothetical model outputs — reproducible with the same seed — and are not forecasts or observed outcomes.'}
       </PageHeader>
+      <div className="mb-4 flex gap-1.5" role="tablist" aria-label="Research tools">
+        {(
+          [
+            ['mc', 'Monte Carlo'],
+            ['backtest', 'Backtest'],
+          ] as const
+        ).map(([k, label]) => (
+          <button key={k} role="tab" aria-selected={tool === k} aria-pressed={tool === k} className="chip" onClick={() => setParams(k === 'mc' ? {} : { tool: k })}>
+            {label}
+          </button>
+        ))}
+        <Link to="/strategy" className="chip">
+          Strategy Lab →
+        </Link>
+      </div>
 
+
+      {tool === 'backtest' ? (
+        <BacktestTool />
+      ) : (
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
         <Panel title="Model inputs" eyebrow={label}>
           <form
@@ -250,9 +272,10 @@ export default function Lab() {
             </Link>{' '}
             compares a scenario against this baseline.
           </p>
-          <Unavailable phase="Phase 3">Backtesting, historical model accuracy tracking and 3D plots.</Unavailable>
+          <Unavailable phase="Phase 3">Historical model accuracy tracking and 3D plots.</Unavailable>
         </div>
       </div>
+      )}
     </div>
   );
 }

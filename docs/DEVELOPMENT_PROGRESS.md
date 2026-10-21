@@ -7,7 +7,7 @@ _Last updated: 2026-10-21, run 5 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 54 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 58 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
 | Scheduled task | "AV development (every 2h)" **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
@@ -28,6 +28,9 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 - **Markets relative performance**: compare up to 3 instruments, rebased to 100 over the selected range, with return
   and correlation (ρ of daily log returns) per series; `rebase()` helper tested.
 - Remaining "Conflict Radar" labels renamed to "Global Radar".
+- **Backtesting** (Quant Research → Backtest tab, `/lab?tool=backtest`): MA crossover, RSI mean reversion, buy & hold;
+  costs charged on capital per position change; equity vs. buy & hold; return, CAGR, vol, Sharpe, drawdown, trades,
+  exposure. `lib/backtest.ts` tested incl. a look-ahead test (tampering with future prices never changes past signals).
 ### Run 4 (2026-10-21)
 - Diagnosed the idle scheduled task (no repo sources → push denied) and paused it to stop wasted runs.
 - **Quick search** (Ctrl/⌘+K, "/", header button, mobile): pages, all countries, instruments; ranked matches; keyboard nav.
@@ -57,7 +60,8 @@ Status, legal drafts, Worker API, RLS migration, CI, docs.
 ## Verification (run 5)
 - `npm run check`: 54/54 tests ✅. Playwright: tension reading 46.1 → weights change it → reset restores; 30-day window;
   history chart + 6-row sensitivity table; HQ link → /tension; Markets compare GOLD.D + SHIP.D with ρ, removal;
-  mobile /tension and /markets no overflow; 0 console errors.
+  mobile /tension and /markets no overflow; 0 console errors. Backtest tab: SMA 20/50 vs RSI results, validation,
+  tab switching, mobile no overflow.
 
 ## Verification (run 4)
 - `npm run check`: 48/48 tests ✅. Playwright: palette Ctrl+K→/countries/DEU, "/"→/markets?symbol=GOLD.D; level + trend

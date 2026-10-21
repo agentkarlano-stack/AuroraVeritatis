@@ -17,6 +17,7 @@ export const PAGES: SearchItem[] = [
   ['/markets', 'Market Terminal', 'Charts and indicators'],
   ['/impact', 'Market Impact Radar', 'Events → asset exposure'],
   ['/lab', 'Quant Research', 'Monte Carlo risk simulation'],
+  ['/lab?tool=backtest', 'Backtest', 'Test trading rules against buy-and-hold'],
   ['/strategy', 'Strategy Lab', 'Scenario comparison'],
   ['/tension', 'World Tension Index', 'Methodology, weights and history'],
   ['/pricing', 'Plans', 'Proposed subscription tiers'],
