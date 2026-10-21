@@ -1,18 +1,18 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 10 — live smoke tests + production data fixes (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 11 — competitive benchmark + CFTC positioning (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | **PR #3 merged to `main`** 2026-10-21 19:56 UTC (merge `dd86938`). Follow-up work restarts `claude/stoic-planck-ojnqng` from `main` |
-| GitHub Actions CI | ✅ lint · typecheck · 83 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 92 tests · build |
 | Cloudflare Workers Builds | ✅ **production build on `main` succeeded** (build `dc74be9e`, Worker Version `7b52857d`). ❌ non-production (PR branch) builds still fail; production is unaffected |
 | PR previews | GitHub Actions `preview` uploads a Worker version per PR (alias `https://pr-<N>-auroraveritatis.agentkarlano.workers.dev`) and runs `scripts/smoke.sh` against it: real Workers runtime + live World Bank / USGS / GDACS. PR #4 at `fc94df6`: **14/14** |
-| Production check | `smoke.yml` runs `scripts/smoke.sh` on aurorav.app after each merge to `main` (and on demand). Before PR #4 (2026-10-21 ~20:35 UTC): **12/14** — app, metadata, assets, World Bank profile, USGS OK; `/api/compare/:year` 400 and GDACS 502 (both fixed in PR #4) |
+| Production check | `smoke.yml` runs `scripts/smoke.sh` on aurorav.app after each merge to `main` (and on demand). After PR #4 (2026-10-21 20:29:57 UTC, Worker Version `c35ef040`): **14/14** |
 | Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
-| Next recommended action | Owner: confirm aurorav.app serves the new app (`/api/health`, `/radar`); optionally disable or fix non-production Workers Builds. Dev: CFR-style conflict profiles; Supabase sync verification |
+| Next recommended action | See `docs/COMPETITIVE_BENCHMARK.md` §3: (1) ECB FX + IMF/Eurostat macro series, (2) UCDP conflict events + conflict dossiers (needs owner's UCDP token), (3) GDELT news layer, (4) SEC 13D/13G ownership |
 
 ## Decision (2026-10-20, delegated by owner)
 The Vite + `@cloudflare/vite-plugin` foundation is the project foundation (PR #3). PRs #1 (esbuild) and #2 (same code,
@@ -20,6 +20,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 11 (2026-10-21) — competitive benchmark + first increment
+- `docs/COMPETITIVE_BENCHMARK.md`: feature matrix for World Monitor, Koyfin, TradingView, CFR, Conflictly, Trading 212 and
+  the institutional/trade references (status, gaps, data licences, effort, value, cost, priority, evidence); ranked gaps.
+- **Futures positioning (`/positioning`)** on CFTC Commitments of Traders (Legacy, futures only; Socrata `6dca-aqww`):
+  14 markets; net speculators/commercials/small traders; weekly change; % of OI; 156-week positioning index, percentile,
+  extremes; 3/10/20-year charts; CSV; shareable URL; method + limitations. Worker `/api/cot`, `/api/cot/:code?years=N`
+  (6 h edge cache, defensive parsing). Verified: 92 unit tests, Playwright 22/22 (desktop + mobile, mocked API),
+  live preview smoke 17/17 (all 14 CFTC codes returned).
+
 ### Run 10 (2026-10-21) — production verification
 - `scripts/smoke.sh` + CI wiring: first real evidence that aurorav.app serves the full app (12/14 checks).
 - **Fixed (production bug):** `/api/compare/:year` rejected every year in the Workers runtime — `COMPARE_YEARS` used
