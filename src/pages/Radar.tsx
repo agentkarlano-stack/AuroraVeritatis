@@ -51,8 +51,8 @@ export default function Radar() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Global Conflict Radar" title="Event monitoring map">
-        Filter developments by type, severity, region and date. Click a marker for details or a country to open its dossier.
+      <PageHeader eyebrow="Global Radar" title="World events map">
+        Filter events by type, severity, region and date. Click a marker for details, or a country to open its dossier.
       </PageHeader>
 
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
@@ -93,7 +93,7 @@ export default function Radar() {
                 <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.demo} onChange={(e) => setLayers((l) => ({ ...l, demo: e.target.checked }))} />
                 <span>
                   Geopolitical scenarios <ProvenanceBadge kind="simulated" className="ml-1" />
-                  <span className="block text-xs text-slate-dim">Synthetic demo events ({demo.length})</span>
+                  <span className="block text-xs text-slate-dim">Simulated events ({demo.length})</span>
                 </span>
               </label>
               <p className="border-t border-line pt-3 text-xs text-slate-dim">Planned: GDELT, UCDP, ReliefWeb, licensed ADS-B / AIS.</p>
@@ -154,9 +154,9 @@ export default function Radar() {
 
         <div className="min-w-0 space-y-4">
           <DemoNotice>
-            Geopolitical markers are <strong>simulated scenarios</strong> (dashed outline) for interface demonstration — they are
-            not real events and contain no casualty figures. The earthquake layer (U.S. Geological Survey) and disaster alerts (GDACS, modelled impact estimates) are live public
-            data.
+            Geopolitical markers (dashed outline) are <strong>simulated scenarios</strong> that demonstrate the interface. They are
+            not real events and contain no casualty figures. Earthquakes (U.S. Geological Survey) and disaster alerts (GDACS, modelled
+            impact estimates) are live public data.
           </DemoNotice>
           <div className="relative">
             <WorldMap
@@ -250,7 +250,7 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
           kind: e.provenance === 'simulated' ? 'scenario' : 'event',
           label: e.title,
           date: e.time.slice(0, 10),
-          notes: `${e.provenance === 'simulated' ? 'Simulated demo scenario — not a real event. ' : ''}${e.summary}`.slice(0, 5000),
+          notes: `${e.provenance === 'simulated' ? 'Simulated scenario. Not a real event. ' : ''}${e.summary}`.slice(0, 5000),
           ref: { type: 'event', id: e.id },
           sources: e.source.url.startsWith('http') ? [{ title: e.source.name, url: e.source.url, date: e.time.slice(0, 10) }] : [],
         }}
@@ -259,7 +259,7 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
         <div className="mt-4 border-t border-line pt-3">
           <div className="eyebrow mb-1">Potential market exposure</div>
           <p className="mb-2 text-[11px] text-slate-dim">
-            Analytical hypothesis for research — not a forecast.{' '}
+            A research hypothesis, not a forecast.{' '}
             <Link to="/impact" className="text-gold hover:underline">
               How these links work
             </Link>

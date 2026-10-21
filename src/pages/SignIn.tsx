@@ -53,7 +53,7 @@ export default function SignIn() {
         <h1 className="mt-5 text-xl font-semibold">{mode === 'signup' ? 'Create your account' : 'Sign in to Aurora Veritatis'}</h1>
         {disabled ? (
           <p className="mt-3 rounded-md border border-gold-dim/50 bg-gold/5 p-3 text-sm text-gold-soft">
-            Accounts are not enabled in this environment yet. You can use every module as a guest — preferences are saved in this
+            Accounts are not switched on yet. You can use every module as a guest, and your preferences are saved in this
             browser.
           </p>
         ) : (

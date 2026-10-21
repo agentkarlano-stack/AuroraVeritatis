@@ -71,7 +71,7 @@ export function BacktestTool() {
   return (
     <div className="space-y-4">
       <DemoNotice>
-        Backtests run on <strong>synthetic demo prices</strong>, so results illustrate the method only. Past (or simulated)
+        Backtests run on <strong>simulated prices</strong>, so results only illustrate the method. Past or simulated
         performance does not predict future results.
       </DemoNotice>
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
@@ -82,7 +82,7 @@ export function BacktestTool() {
               <select className="input" value={inp.symbol} onChange={set('symbol')}>
                 {INSTRUMENTS.map((i) => (
                   <option key={i.symbol} value={i.symbol}>
-                    {i.symbol} — {i.name}
+                    {i.symbol} · {i.name}
                   </option>
                 ))}
               </select>

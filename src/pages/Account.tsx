@@ -91,7 +91,7 @@ export default function Account() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span>
               Current plan: <span className="font-semibold text-gold-soft">{plan.name}</span>{' '}
-              <span className="text-xs text-slate-dim">(early-access preview — all features unlocked, Free limits apply)</span>
+              <span className="text-xs text-slate-dim">(early access: all features open, Free limits apply)</span>
             </span>
             <Link to="/pricing" className="text-xs text-gold hover:underline">
               Compare plans
@@ -118,7 +118,7 @@ export default function Account() {
             ))}
           </ul>
           <div className="mt-4">
-            <Unavailable phase="Phase 5">Billing history, invoices, plan changes and cancellation will appear here once subscriptions launch.</Unavailable>
+            <Unavailable phase="planned">Billing history, invoices, plan changes and cancellation will appear here once paid plans launch.</Unavailable>
           </div>
         </Panel>
 

@@ -74,8 +74,8 @@ export default function Positioning() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader eyebrow="Market Terminal · Institutional data" title="Futures positioning">
-        How large speculators, commercial hedgers and small traders are positioned in major futures markets, from the U.S.
-        CFTC Commitments of Traders report — with each market's position placed in its own three-year range.
+        How large speculators, commercial hedgers and small traders are positioned in major futures markets. Data comes from
+        the U.S. CFTC Commitments of Traders report, and each market is shown within its own three-year range.
       </PageHeader>
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-dim">

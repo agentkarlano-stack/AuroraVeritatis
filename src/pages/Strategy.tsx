@@ -123,12 +123,12 @@ export default function Strategy() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader eyebrow="Strategy Lab" title="Scenario explorer">
-        Define an event, how likely it is, when it could happen and how large its effect might be — then compare the simulated
-        outcome distribution against a no-event baseline. Every number here is a model output under your assumptions.
+        Define an event: how likely it is, when it could happen and how large its effect might be. Then compare the simulated
+        outcomes with a no-event baseline. Every number here is a model output based on your assumptions.
       </PageHeader>
       <DemoNotice>
-        <strong>Model scenario.</strong> Starting assumptions are illustrative hypotheses, not calibrated estimates, and the
-        underlying prices are synthetic demo series. Nothing here is a forecast or investment advice.
+        <strong>Model scenario.</strong> The starting assumptions are illustrations, not calibrated estimates, and the prices
+        are simulated. Nothing here is a forecast or investment advice.
       </DemoNotice>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[300px_1fr]">
@@ -165,7 +165,7 @@ export default function Strategy() {
               <select className="input" value={form.symbol} onChange={set('symbol')}>
                 {INSTRUMENTS.map((i) => (
                   <option key={i.symbol} value={i.symbol}>
-                    {i.symbol} — {i.name}
+                    {i.symbol} · {i.name}
                   </option>
                 ))}
               </select>

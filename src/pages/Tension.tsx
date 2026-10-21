@@ -46,13 +46,13 @@ export default function Tension() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader eyebrow="World Tension Index" title="A transparent composite of global tension">
-        One number summarising geopolitical, humanitarian and financial stress — with every input, weight and formula shown, so
-        you can see exactly how it is built and how much it depends on the choices behind it.
+        One number for geopolitical, humanitarian and financial stress. Every input, weight and formula is shown, so you can see
+        how it is built and how much it depends on the choices behind it.
       </PageHeader>
       <DemoNotice>
-        <strong>Prototype on demonstration inputs.</strong> Geopolitical event inputs are simulated scenarios and the market input
-        is a synthetic price series; only the natural-hazard inputs are live (USGS earthquakes, GDACS disaster alerts). The index is a methodological sketch, not a
-        validated or scientifically established measure.
+        <strong>Prototype on simulated inputs.</strong> The geopolitical inputs are simulated scenarios and the market input is a
+        simulated price series. Only the natural-hazard inputs are live (USGS earthquakes and GDACS disaster alerts). The index
+        is a method sketch, not a validated or established measure.
       </DemoNotice>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[320px_1fr]">
@@ -119,7 +119,7 @@ export default function Tension() {
                 <li key={c.key}>
                   <div className="flex flex-wrap justify-between gap-2 text-xs">
                     <span className="text-platinum">
-                      {c.label} <span className="text-slate-dim">— {c.explanation}</span>
+                      {c.label}: <span className="text-slate-dim">{c.explanation}</span>
                     </span>
                     <span className="num text-mist">
                       {c.score.toFixed(0)} × {(c.weight * 100).toFixed(0)}% = <span className="text-platinum">{(c.score * c.weight).toFixed(1)}</span>
@@ -213,9 +213,9 @@ export default function Tension() {
                   ). Financial stress maps 21-day annualised volatility linearly, 40% → 100.
                 </p>
                 <p>
-                  Before production use: replace simulated inputs with sourced conflict and event data, calibrate constants against
-                  historical episodes, and benchmark against established conflict indices (e.g. the ACLED Conflict Index's
-                  deadliness, diffusion, danger and fragmentation dimensions).
+                  Before the index can support research, the simulated inputs must be replaced with sourced conflict data, the
+                  constants calibrated against past episodes, and the results compared with established conflict indices, such as
+                  the deadliness, diffusion, danger and fragmentation dimensions of the ACLED Conflict Index.
                 </p>
                 <p>
                   Event inputs come from the{' '}

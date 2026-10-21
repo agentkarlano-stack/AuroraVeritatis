@@ -350,7 +350,7 @@ export function exportMarkdown(g: BrainGraph): string {
       const other = byId.get(e.from === n.id ? e.to : e.from);
       if (!other) continue;
       const when = e.dateFrom || e.dateTo ? ` (${e.dateFrom ?? '…'} – ${e.dateTo ?? '…'})` : '';
-      out.push(`- ${edgeLabel(e)} [[${mdEscape(other.label)}]] — ${CERTAINTY[e.certainty]}${when}`);
+      out.push(`- ${edgeLabel(e)} [[${mdEscape(other.label)}]] (${CERTAINTY[e.certainty]})${when}`);
       for (const s of e.sources) out.push(`  - Source: ${s.url ? `[${mdEscape(s.title)}](${s.url})` : s.title}${s.date ? `, ${s.date}` : ''}`);
     }
     for (const s of n.sources) out.push(`- Source: ${s.url ? `[${mdEscape(s.title)}](${s.url})` : s.title}${s.date ? `, ${s.date}` : ''}`);

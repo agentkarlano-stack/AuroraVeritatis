@@ -129,8 +129,8 @@ export default function Macro() {
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-dim">
         <ProvenanceBadge kind="confirmed" />
         <span>
-          {ECB_SOURCE.name}. Reference rates are published around 16:00 CET on working days for information only — not
-          trading rates. Cross rates and changes are computed by Aurora Veritatis.
+          {ECB_SOURCE.name}. The ECB publishes reference rates around 16:00 CET on working days, for information only. They
+          are not trading rates. Aurora Veritatis computes the cross rates and changes.
         </span>
       </div>
 

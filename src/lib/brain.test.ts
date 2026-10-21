@@ -143,7 +143,7 @@ describe('Brain import / export', () => {
     h = updateEdge(h, h.edges[0]!.id, { certainty: 'likely', sources: [{ title: 'Regulator report', url: 'https://example.org/r' }] });
     const md = exportMarkdown(h);
     expect(md).toContain('## Pipeline outage');
-    expect(md).toContain('- affects economically [[Natural gas]] — Likely');
+    expect(md).toContain('- affects economically [[Natural gas]] (Likely)');
     expect(md).toContain('[Regulator report](https://example.org/r)');
   });
 

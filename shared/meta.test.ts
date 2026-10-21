@@ -12,7 +12,7 @@ describe('page metadata', () => {
 
   it('names country dossiers and canonicalises the code', () => {
     const m = metaFor('/countries/deu');
-    expect(m.title).toBe('Germany — Country Dossier · Aurora Veritatis');
+    expect(m.title).toBe('Germany: country dossier · Aurora Veritatis');
     expect(m.canonical).toBe('https://aurorav.app/countries/DEU');
     expect(m.description).toContain('World Bank');
   });
