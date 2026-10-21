@@ -15,7 +15,7 @@ check() { # name, path, expected status, grep pattern (extended regex, may be em
   if [[ "$code" == "$want" ]] && { [[ -z "$pattern" ]] || grep -qE "$pattern" "$body"; }; then
     results+=("PASS $name ($code)")
   else
-    results+=("FAIL $name (HTTP $code, expected $want${pattern:+ and /$pattern/})")
+    results+=("FAIL $name (HTTP $code, expected $want${pattern:+ and /$pattern/}; body: $(head -c 240 "$body" | tr -d '\n;'))")
     fail=1
   fi
   rm -f "$body"
