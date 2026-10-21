@@ -2,6 +2,7 @@ import { BarChart3, Globe2, Landmark, LayoutDashboard, Menu, Search, UserRound, 
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { useRouteMeta } from '../lib/useMeta';
 import { CommandPalette } from './CommandPalette';
 import { Wordmark } from './Logo';
 
@@ -26,6 +27,7 @@ const LEGAL = [
 
 export function Layout() {
   const { pathname } = useLocation();
+  useRouteMeta();
   // The menu remembers the path it was opened on, so navigating closes it without an effect.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const open = openAt === pathname;

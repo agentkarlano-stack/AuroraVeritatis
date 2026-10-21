@@ -26,7 +26,8 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 
 ## Codebase map
 - `worker/` — Cloudflare Worker: `/api/*` routes (`index.ts`), upstream clients (`worldbank.ts`, `usgs.ts`, `gdacs.ts`),
-  edge caching, per-IP rate limiting. Assets are served by the Workers assets binding (SPA fallback).
+  edge caching, per-IP rate limiting, route metadata injection (`meta.ts`). Assets via the `ASSETS` binding (SPA fallback).
+- `shared/meta.ts` — per-route title/description/canonical/noindex used by both the Worker and `src/lib/useMeta.ts`.
 - `shared/` — types and indicator catalogue used by both worker and client.
 - `src/pages/` — one lazy-loaded page per route; `src/components/` — UI (`ui.tsx` primitives, `WorldMap`, `PriceChart`, `SvgCharts`).
 - `src/lib/` — pure logic with unit tests (Monte Carlo, technical indicators, tension index, synthetic market data).
@@ -56,6 +57,11 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Never `pkill -f`/`pgrep -f` with a pattern that also appears in your own shell command (it kills the shell). Use `fuser -k <port>/tcp`.
 - Lightweight Charts swallows a second click that follows quickly (double-click detection). Chart drawing tools use a
   native `click` listener + `coordinateToTime/Price` (`components/PriceChart.tsx`), not `subscribeClick`.
+- Worker/shared code must not import the `i18n-iso-countries` entry point (it `require()`s every locale and the Worker
+  fails to start). Use `shared/countryNames.ts`. Always smoke-test Worker changes with `vite preview` + curl: CI and
+  unit tests run in Node and cannot catch Workers-runtime failures.
+- The Worker serves page navigations (route `<head>` metadata via HTMLRewriter, `worker/meta.ts`) through the
+  `ASSETS` binding; `run_worker_first` excludes `/assets/*`, `/brand/*` and static files so they bypass the Worker.
 - Scheduled tasks need the repositories attached as sources (set in the Claude app). Without them a run can only clone
   read-only and cannot push; it should stop and report rather than retry.
 

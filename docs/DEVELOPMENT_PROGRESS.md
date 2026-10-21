@@ -1,13 +1,13 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 7 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 8 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 76 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 81 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
 | Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
@@ -19,6 +19,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 8 (2026-10-21)
+- **Route metadata for search and link previews**: `shared/meta.ts` defines title/description/canonical/noindex per
+  route (country dossiers named, legal drafts + account/sign-in + 404 noindex). Client hook keeps tags in sync on
+  navigation; the Worker injects them server-side with HTMLRewriter so crawlers/preview bots that don't run JS see them.
+- Found and fixed two Worker-runtime bugs during local workerd testing (neither visible to CI): the `ASSETS` binding was
+  never declared (any non-/api request through the Worker would 500), and `i18n-iso-countries`' entry point crashes the
+  Worker at startup → `shared/countryNames.ts` imports the data files directly.
+- Merge decision: PR #3 **not merged** — it is the initial production release (not a routine change), its required
+  Cloudflare check fails, and the production pipeline cannot deploy or be verified (see Blockers).
 ### Run 7 (2026-10-21)
 - **GDACS disaster-alert layer**: Worker `/api/events/disasters` (cyclones, floods, volcanoes, droughts, wildfires;
   30-min edge cache; defensive parsing; unsafe report links never passed through) → Radar layer with "Estimate"
@@ -77,6 +86,13 @@ timeline, Market Impact Radar, rebrand to the owner's logo (charcoal + gold), br
 ### Run 1
 Phase 1 foundation: Home, Headquarters, Conflict Radar, Country dossiers, Markets, Research Lab, Plans, Sign-in/Account,
 Status, legal drafts, Worker API, RLS migration, CI, docs.
+
+## Verification (run 8)
+- 81/81 tests. workerd preview + curl: per-route `<title>`/description/canonical/og:url, `noindex` on /account,
+  /legal/*, unknown paths; CSP + X-Frame-Options still applied; `/assets/*` 200 with immutable caching; favicon, brand
+  PNG, /api/health OK. `wrangler deploy --dry-run` (no build cmd / build first) and `versions upload --dry-run` OK.
+  Browser regression suites (palette, drawings, Strategy Lab, Tension, comparison, mobile) pass; client-side title/
+  canonical/robots update on navigation.
 
 ## Verification (run 5)
 - `npm run check`: 54/54 tests ✅. Playwright: tension reading 46.1 → weights change it → reset restores; 30-day window;

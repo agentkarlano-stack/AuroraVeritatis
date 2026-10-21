@@ -2,6 +2,7 @@ import type { PublicConfig } from '../shared/types';
 import { error, json } from './http';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
+import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
 import { ISO3_RE, compareYear, countryProfile, indicatorSeries } from './worldbank';
 
@@ -129,6 +130,9 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) return handleApi(request, env, ctx);
-    return env.ASSETS.fetch(request);
+    const res = await env.ASSETS.fetch(request);
+    // Page navigations get route-specific <head> tags; everything else passes through untouched.
+    if (request.method === 'GET' && (res.headers.get('content-type') ?? '').includes('text/html')) return withRouteMeta(res, url.pathname);
+    return res;
   },
 } satisfies ExportedHandler<Env>;
