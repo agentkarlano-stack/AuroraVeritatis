@@ -1,18 +1,18 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 12 — Macro & FX on ECB data (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-22, run 13 — Personal Intelligence Brain (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | **PR #3 merged to `main`** 2026-10-21 19:56 UTC (merge `dd86938`). Follow-up work restarts `claude/stoic-planck-ojnqng` from `main` |
-| GitHub Actions CI | ✅ lint · typecheck · 102 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 118 tests · build |
 | Cloudflare Workers Builds | ✅ **production build on `main` succeeded** (build `dc74be9e`, Worker Version `7b52857d`). ❌ non-production (PR branch) builds still fail; production is unaffected |
 | PR previews | GitHub Actions `preview` uploads a Worker version per PR (alias `https://pr-<N>-auroraveritatis.agentkarlano.workers.dev`) and runs `scripts/smoke.sh` against it: real Workers runtime + live World Bank / USGS / GDACS. PR #4 at `fc94df6`: **14/14** |
 | Production check | `smoke.yml` runs `scripts/smoke.sh` on aurorav.app after each merge to `main` (and on demand). After PR #4 (2026-10-21 20:29:57 UTC, Worker Version `c35ef040`): **14/14** |
 | Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
-| Next recommended action | `docs/COMPETITIVE_BENCHMARK.md` §3: GDELT news layer (ready), SEC 13D/13G ownership (ready), COT Disaggregated/TFF (ready); UCDP conflict dossiers need the owner's token |
+| Next recommended action | Owner brief 2026-10-22 dependency plan (Knowledge `ROADMAP.md`): Market Terminal chart types + indicator catalogue on the existing (simulated, labelled) series and ECB FX; Finance landing animation; GDELT layer; SEC 13D/13G. Blocked on owner: Supabase (profiles, polls, community), equity data licence, UCDP token, satellite imagery licence |
 
 ## Decision (2026-10-20, delegated by owner)
 The Vite + `@cloudflare/vite-plugin` foundation is the project foundation (PR #3). PRs #1 (esbuild) and #2 (same code,
@@ -20,6 +20,19 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 13 (2026-10-22) — Personal Intelligence Brain
+- `/brain`: local-first research graph (IndexedDB, no server copy). 12 node types, 9 typed relationships with direction,
+  certainty, dates, notes and sources; SVG canvas (pan, wheel/pinch zoom, drag, drag-to-connect, keyboard), search,
+  type filters, collapsible groups, saved views, force/by-type/timeline layouts (seeded d3-force), box-aware fit;
+  node/edge inspectors; links to dossiers/ECB/CFTC/instruments; Add to Brain on dossier, Radar event, positioning, Macro.
+- Strict JSON import, JSON + Obsidian Markdown export, delete with export-first; templates (relationships speculative).
+- Quotas in `tiers.ts` (Free 1×10, Premium 3×100, Prime 15×500, Intelligence 50×2000; Premium during early access).
+- Nav: Brain added; Impact Radar moved under Market Terminal header + footer (no wrapping at 1024–1440 px).
+- Fixed during testing: unfitted new graphs (deferred fit), centre-only fit (box-aware), wheel scrolling the page.
+- Verified: 118 unit tests; Playwright 39/39 (desktop + mobile touch, real IndexedDB); Macro 28/28, COT 22/22;
+  preview smoke 21/21.
+- Known limitation: on phones the whole graph is fitted, so labels start small (pinch to zoom).
+
 ### Run 12 (2026-10-21) — Macro & FX (ECB)
 - **`/macro`** on the ECB Data Portal: policy rates (DFR, MRO, MLF) with last change; euro-area HICP headline + core vs
   2% target; 10-yr AAA yield; monetary-conditions chart; 15 euro reference rates (1d/1m/1y, sparklines) with a USD base

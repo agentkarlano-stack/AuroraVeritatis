@@ -126,6 +126,11 @@ fundamentals and AI synthesis** — each blocked or shaped by data licensing rat
 | INST-10 | AI Paper Lab | Reproducible research | Monte Carlo/backtest engines exist | No | Upload, extraction, experiment builder | Supported model families only; parameters extracted by AI, executed by tested engines | Anthropic API | XL | H | €10–40 | P3 | Planned | — |
 | INST-11 | Multi-agent research desk + AI Ops dashboard | Scaled research | None | No | All | Few specialised agents (research, filings, verification, reporting) with job log, cost meter, hard caps; owner-only | Anthropic API, Supabase | XL | H | €20–80 | P3 | Planned | — |
 
+### 2.8 Aurora-original capabilities (no direct competitor equivalent)
+| ID | Feature | Why useful | Status | Evidence |
+|---|---|---|---|---|
+| AV-1 | **Personal Intelligence Brain** (`/brain`): user-owned graph of events, countries, companies, instruments, indicators and hypotheses; typed, directed, sourced relationships with certainty labels; links into Aurora datasets; JSON + Obsidian Markdown export | Connects the domains competitors keep separate (owner brief §5) in the analyst's own words | Implemented and verified (local-first; cloud sync after Supabase) | 118 unit tests; Playwright 39/39; preview smoke 21/21 (PR #7) |
+
 ## 3. Highest-value missing functions (ranked)
 Ranking = value × urgency × feasibility within budget and licences.
 
