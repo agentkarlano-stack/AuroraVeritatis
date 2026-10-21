@@ -82,7 +82,7 @@ export default function Lab() {
     if (!result) return;
     const p = result.params;
     const lines = [
-      '# Aurora Veritatis Research Lab — GBM Monte Carlo (hypothetical simulation, not observed data)',
+      '# Aurora Veritatis Research Lab: GBM Monte Carlo (hypothetical simulation, not observed data)',
       `# s0=${p.s0},mu=${p.mu},sigma=${p.sigma},days=${p.days},paths=${p.paths},seed=${p.seed}`,
       'day,p05,p25,p50,p75,p95',
       ...result.fan.map((f) => [f.day, f.p05, f.p25, f.p50, f.p75, f.p95].map((v) => +v.toFixed(6)).join(',')),
@@ -113,7 +113,7 @@ export default function Lab() {
       <PageHeader eyebrow="Quantitative Research Lab" title={tool === 'backtest' ? 'Strategy backtesting' : 'Monte Carlo risk simulation'}>
         {tool === 'backtest'
           ? 'Test simple, transparent trading rules against buy-and-hold, after costs and without look-ahead bias.'
-          : 'Simulate the distribution of future values under geometric Brownian motion. Results are hypothetical model outputs — reproducible with the same seed — and are not forecasts or observed outcomes.'}
+          : 'Simulate the range of future values under geometric Brownian motion. Results are model outputs that you can reproduce with the same seed. They are not forecasts or observed outcomes.'}
       </PageHeader>
       <div className="mb-4 flex gap-1.5" role="tablist" aria-label="Research tools">
         {(
@@ -213,7 +213,7 @@ export default function Lab() {
                     <Row k="Analytical E[S_T] = S₀·e^(μT)" v={fmtNumber(s.analyticMean)} />
                     <Row
                       k="Analytical value inside CI"
-                      v={s.analyticMean >= s.meanCi95[0] && s.analyticMean <= s.meanCi95[1] ? 'Yes' : 'No (sampling noise — try more paths)'}
+                      v={s.analyticMean >= s.meanCi95[0] && s.analyticMean <= s.meanCi95[1] ? 'Yes' : 'No (sampling noise: try more paths)'}
                     />
                     <Row k="Standard deviation" v={fmtNumber(s.stdev)} />
                     <Row k="Paths × steps" v={`${p.paths.toLocaleString()} × ${p.days}`} />
@@ -272,7 +272,7 @@ export default function Lab() {
             </Link>{' '}
             compares a scenario against this baseline.
           </p>
-          <Unavailable phase="Phase 3">Historical model accuracy tracking and 3D plots.</Unavailable>
+          <Unavailable phase="planned">Tracking of historical model accuracy, and 3D plots.</Unavailable>
         </div>
       </div>
       )}

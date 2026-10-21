@@ -10,7 +10,7 @@ import { fmtPct } from '../lib/format';
 import { correlationMatrix, eventWindow } from '../lib/impact';
 
 const EVIDENCE: Record<EvidenceClass, { label: string; cls: string; help: string }> = {
-  mechanism: { label: 'Mechanism', cls: 'border-up/50 text-up', help: 'Established economic transmission channel — explains how an effect could arise, not that it will.' },
+  mechanism: { label: 'Mechanism', cls: 'border-up/50 text-up', help: 'An established economic channel. It explains how an effect could arise, not that it will.' },
   correlation: { label: 'Correlation', cls: 'border-info/50 text-info', help: 'Measured statistical co-movement. Not causation.' },
   hypothesis: { label: 'Hypothesis', cls: 'border-warn/50 text-warn', help: 'Analytical judgement to be tested against data.' },
   scenario: { label: 'Model scenario', cls: 'border-gold-dim text-gold', help: 'Model output under stated assumptions.' },
@@ -118,11 +118,11 @@ export default function Impact() {
 
           <Panel title="Event-window study" eyebrow="Statistical test on linked events">
             <DemoNotice>
-              Events and prices here are both <strong>synthetic</strong>, so results only demonstrate the method. With real data,
+              Events and prices here are both <strong>simulated</strong>, so results only demonstrate the method. With real data,
               this compares the move after an event with normal day-to-day volatility.
             </DemoNotice>
             {linked.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-dim">No demo events are linked to this channel.</p>
+              <p className="mt-3 text-sm text-slate-dim">No simulated events are linked to this channel.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="num w-full min-w-[560px] text-sm">
@@ -172,8 +172,8 @@ export default function Impact() {
 
           <Panel title="Return correlation matrix" eyebrow="1 year of daily log returns">
             <DemoNotice>
-              Computed on <strong>synthetic</strong> series that are generated independently, so correlations cluster near zero.
-              With licensed data this shows real co-movement.
+              Computed on <strong>simulated</strong> series that are generated independently, so correlations cluster near zero.
+              With licensed data, this shows real co-movement.
             </DemoNotice>
             <div className="mt-3 overflow-x-auto">
               <table className="num text-[11px]">
@@ -204,7 +204,7 @@ export default function Impact() {
               </table>
             </div>
             <p className="mt-2 text-[11px] text-slate-dim">
-              Gold = positive, blue = negative. {INSTRUMENTS.length} demo instruments available; showing {MATRIX_SYMBOLS.length}.
+              Gold is positive, blue is negative. Showing {MATRIX_SYMBOLS.length} of {INSTRUMENTS.length} simulated instruments.
             </p>
           </Panel>
         </div>

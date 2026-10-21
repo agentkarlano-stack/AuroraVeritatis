@@ -43,7 +43,7 @@ export default function Headquarters() {
           </>
         }
       >
-        Your personal command dashboard. {status === 'signed-in' ? 'Layout is saved on this device; cloud sync arrives with accounts in Phase 2.' : 'Layout, watchlist and notes are saved in this browser.'}
+        Your personal dashboard. {status === 'signed-in' ? 'Your layout is saved on this device and synced to your account.' : 'Your layout, watchlist and notes are saved in this browser.'}
       </PageHeader>
 
       {editing && (
@@ -152,7 +152,7 @@ function BriefingWidget() {
   }, [demo, quakes, disasters, watchlist, now]);
 
   const copy = async () => {
-    const text = [`Aurora Veritatis daily briefing — ${briefing.date}`, briefing.headline, ...briefing.sections.flatMap((s) => [`\n${s.title}`, ...s.items.map((i) => `• ${i.text} [${i.provenance}]`)])].join('\n');
+    const text = [`Aurora Veritatis daily briefing, ${briefing.date}`, briefing.headline, ...briefing.sections.flatMap((s) => [`\n${s.title}`, ...s.items.map((i) => `• ${i.text} [${i.provenance}]`)])].join('\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -188,7 +188,7 @@ function BriefingWidget() {
         ))}
       </div>
       <p className="mt-3 text-[11px] text-slate-dim">
-        Generated from platform data for {briefing.date} — rule-based, no AI. Each line is labelled with the reliability of its inputs.
+        Generated from platform data for {briefing.date}. Rule-based, no AI. Each line shows how reliable its inputs are.
       </p>
     </div>
   );
@@ -210,7 +210,7 @@ function TensionWidget() {
           <ProvenanceBadge kind="simulated" />
         </div>
         <p className="mt-2 text-[11px] leading-snug text-slate-dim">
-          Prototype index on demo inputs over {t.windowDays} days ({t.eventsConsidered} events). Not a validated measure.
+          Prototype index on simulated inputs over {t.windowDays} days ({t.eventsConsidered} events). Not a validated measure.
         </p>
       </div>
       <div>
@@ -310,7 +310,7 @@ function MarketsWidget() {
           <QuoteRow key={s} symbol={s} />
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-slate-dim">Synthetic demo prices.</p>
+      <p className="mt-2 text-[11px] text-slate-dim">Simulated prices.</p>
     </div>
   );
 }
@@ -354,7 +354,7 @@ function WatchlistWidget() {
             <option value="">Add instrument…</option>
             {options.map((i) => (
               <option key={i.symbol} value={i.symbol}>
-                {i.symbol} — {i.name}
+                {i.symbol} · {i.name}
               </option>
             ))}
           </select>
@@ -418,7 +418,7 @@ function AlertsWidget() {
   const [level, setLevel] = useState('');
   return (
     <div>
-      {alerts.length === 0 && <p className="text-sm text-slate-dim">No alert rules. Rules are evaluated against the latest demo close.</p>}
+      {alerts.length === 0 && <p className="text-sm text-slate-dim">No alert rules yet. Rules are checked against the latest simulated close.</p>}
       <ul className="divide-y divide-line/60">
         {alerts.map((a) => {
           const q = lastQuote(a.symbol);

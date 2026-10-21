@@ -42,7 +42,7 @@ export default function CountryDossier() {
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="eyebrow mb-2">Country Intelligence Dossier · {code}</div>
+          <div className="eyebrow mb-2">Country dossier · {code}</div>
           <h1 className="text-3xl font-semibold">{name}</h1>
           {profile.status === 'ready' && (
             <p className="mt-2 text-sm text-mist">
@@ -107,10 +107,10 @@ export default function CountryDossier() {
                   {isOpen && (
                     <div className="border-t border-line px-4 py-3">
                       {sec.key === 'politics' ? (
-                        <Unavailable phase="Phase 3">
-                          Government structure, parties, elections and published polling require curated sources (e.g. national
-                          electoral commissions, ParlGov, World Governance Indicators). Not yet integrated — no figures are shown
-                          rather than unsourced ones.
+                        <Unavailable phase="planned">
+                          Government structure, parties, elections and published polls need curated sources, such as national
+                          electoral commissions, ParlGov and the Worldwide Governance Indicators. Until they are added, we show no
+                          figures rather than unsourced ones.
                         </Unavailable>
                       ) : (
                         <IndicatorTable profile={profile.data} section={sec.key} />
@@ -122,10 +122,10 @@ export default function CountryDossier() {
             })}
           </div>
           <p className="mt-6 text-xs leading-relaxed text-slate-dim">
-            Values are the most recent non-empty observation per indicator; reference years differ between indicators. Derived
-            figures (marked ≈) are computed by Aurora Veritatis from the cited shares and total population. Source:{' '}
+            Each value is the most recent available observation, so reference years differ between indicators. Figures marked ≈
+            are computed by Aurora Veritatis from the cited shares and the total population. Source:{' '}
             <a className="text-gold hover:underline" href={`https://data.worldbank.org/country/${code}`} target="_blank" rel="noreferrer">
-              World Bank — {name}
+              World Bank: {name}
             </a>
             . Retrieved {new Date(profile.data.fetchedAt).toUTCString()}.
           </p>

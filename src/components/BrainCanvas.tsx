@@ -302,7 +302,7 @@ export function BrainCanvas(props: Props) {
                   <title>Drag onto another node to connect</title>
                 </g>
               )}
-              <title>{`${n.label} — ${isGroup ? `collapsed group of ${n.members} (click to expand)` : NODE_KINDS[n.kind].label}`}</title>
+              <title>{`${n.label}: ${isGroup ? `collapsed group of ${n.members}. Click to expand.` : NODE_KINDS[n.kind].label}`}</title>
             </g>
           );
         })}

@@ -134,7 +134,7 @@ export function lastChange(obs: MacroObs[]): { date: string; from: number; to: n
 /** CSV with a sourced header. */
 export function macroCsv(def: MacroSeriesDef, obs: MacroObs[], note = ''): string {
   return [
-    `# ${def.label} (${def.unit}, ${def.frequency}) — ${ECB_SOURCE.name}, series ${def.flow}.${def.key}${note ? ` — ${note}` : ''}`,
+    `# ${def.label} (${def.unit}, ${def.frequency}). ${ECB_SOURCE.name}, series ${def.flow}.${def.key}${note ? `. Note: ${note}` : ''}`,
     'date,value',
     ...obs.map((o) => `${o.date},${o.value}`),
   ].join('\n');

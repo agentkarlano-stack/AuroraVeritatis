@@ -1,6 +1,6 @@
 import type { GeoEvent } from '../../shared/types';
 
-const DEMO_SOURCE = { name: 'Aurora Veritatis demo dataset', url: '/status', license: 'Synthetic — for interface demonstration only' };
+const DEMO_SOURCE = { name: 'Aurora Veritatis simulated dataset', url: '/status', license: 'Simulated. For interface demonstration only.' };
 
 function daysAgo(n: number, hour = 9): string {
   const d = new Date();

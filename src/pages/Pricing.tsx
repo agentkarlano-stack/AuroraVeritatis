@@ -1,16 +1,16 @@
-import { Check } from 'lucide-react';
+import { Check, Clock } from 'lucide-react';
 import { DemoNotice, PageHeader } from '../components/ui';
 import { TIERS } from '../data/tiers';
 
 export default function Pricing() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Plans" title="Subscription tiers">
-        Proposed plans for the commercial launch. Everything in the current preview is free while the platform is in development.
+      <PageHeader eyebrow="Plans" title="Plans">
+        These are the plans we propose for launch. During early access everything on the site is free.
       </PageHeader>
       <DemoNotice>
-        Prices and limits are <strong>proposals, not offers</strong>. Paid subscriptions are not yet available and no payment
-        is collected. Final terms will be published with the Subscription Terms before launch.
+        Prices and limits are <strong>proposals, not offers</strong>. Paid plans are not available yet and no payments are
+        taken. Final terms will be published before launch. Items marked “Planned” do not exist yet.
       </DemoNotice>
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {TIERS.map((t) => (
@@ -23,8 +23,12 @@ export default function Pricing() {
             <p className="mt-1 text-sm text-mist">{t.tagline}</p>
             <ul className="mt-5 flex-1 space-y-2 text-sm">
               {t.features.map((f) => (
-                <li key={f} className="flex gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden /> <span className="text-mist">{f}</span>
+                <li key={f.label} className="flex gap-2">
+                  {f.planned ? <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-dim" aria-hidden /> : <Check className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden />}
+                  <span className={f.planned ? 'text-slate-dim' : 'text-mist'}>
+                    {f.label}
+                    {f.planned && <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wider text-gold-dim">Planned</span>}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -33,8 +37,8 @@ export default function Pricing() {
                 [
                   ['Watchlists', t.limits.watchlists],
                   ['Assets per watchlist', t.limits.assetsPerWatchlist],
-                  ['AI requests / day', t.limits.aiRequestsPerDay],
-                  ['In-depth AI reports / month', t.limits.aiReportsPerMonth],
+                  ['AI requests per day (planned)', t.limits.aiRequestsPerDay],
+                  ['AI reports per month (planned)', t.limits.aiReportsPerMonth],
                   ['Alert rules', t.limits.alertRules],
                   ['Brain graphs', t.limits.brainGraphs],
                   ['Nodes per Brain graph', t.limits.brainNodesPerGraph],
@@ -46,8 +50,8 @@ export default function Pricing() {
                 </div>
               ))}
             </dl>
-            <button className={`${t.id === 'free' ? 'btn-ghost' : 'btn-primary'} mt-5`} disabled title="Subscriptions are not yet available">
-              {t.id === 'free' ? 'Current preview' : 'Not yet available'}
+            <button className={`${t.id === 'free' ? 'btn-ghost' : 'btn-primary'} mt-5`} disabled title="Paid plans are not available yet">
+              {t.id === 'free' ? 'Available now' : 'Not available yet'}
             </button>
           </div>
         ))}

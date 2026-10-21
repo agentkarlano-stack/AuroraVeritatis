@@ -59,7 +59,7 @@ export interface CotResponse {
 }
 
 export const COT_SOURCE = {
-  name: 'U.S. Commodity Futures Trading Commission — Commitments of Traders (Legacy, futures only)',
+  name: 'U.S. Commodity Futures Trading Commission: Commitments of Traders (Legacy, futures only)',
   url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm',
   license: 'U.S. government work; reported weekly (positions as of Tuesday, published Friday 15:30 ET)',
 } as const;
@@ -143,7 +143,7 @@ export function cotIndexSeries(rows: CotRow[], lookback = COT_LOOKBACK, minWeeks
 export function cotCsv(market: CotMarket, rows: CotRow[]): string {
   const pts = toPoints(rows);
   return [
-    `# ${market.name} (${market.exchange}, CFTC code ${market.code}) — ${COT_SOURCE.name}`,
+    `# ${market.name} (${market.exchange}, CFTC code ${market.code}). ${COT_SOURCE.name}`,
     `# ${COT_SOURCE.url} · positions in contracts as of the report date (Tuesday)`,
     'report_date,open_interest,noncommercial_long,noncommercial_short,net_noncommercial,commercial_long,commercial_short,net_commercial,nonreportable_long,nonreportable_short,net_nonreportable',
     ...rows.map((r, i) =>

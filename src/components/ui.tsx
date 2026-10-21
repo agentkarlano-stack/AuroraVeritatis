@@ -1,18 +1,19 @@
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { PROVENANCE } from '../../shared/copy';
 import type { Provenance } from '../../shared/types';
 
-const PROVENANCE: Record<Provenance, { label: string; cls: string; title: string }> = {
-  confirmed: { label: 'Sourced', cls: 'border-up/50 text-up', title: 'Published by an identified primary or official source.' },
-  estimate: { label: 'Estimate', cls: 'border-info/50 text-info', title: 'Modelled or estimated figure; see source methodology.' },
-  unverified: { label: 'Unverified', cls: 'border-warn/50 text-warn', title: 'Reported but not independently corroborated.' },
-  simulated: { label: 'Simulated', cls: 'border-gold-dim text-gold', title: 'Synthetic demo data for interface demonstration. Not a real event or price.' },
+const BADGE_CLASS: Record<Provenance, string> = {
+  confirmed: 'border-up/50 text-up',
+  estimate: 'border-info/50 text-info',
+  unverified: 'border-warn/50 text-warn',
+  simulated: 'border-gold-dim text-gold',
 };
 
 export function ProvenanceBadge({ kind, className = '' }: { kind: Provenance; className?: string }) {
-  const p = PROVENANCE[kind];
+  const p = { ...PROVENANCE[kind], cls: BADGE_CLASS[kind] };
   return (
-    <span title={p.title} className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${p.cls} ${className}`}>
+    <span title={p.description} className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${p.cls} ${className}`}>
       {p.label}
     </span>
   );
@@ -120,9 +121,9 @@ export function Change({ value, className = '' }: { value: number | null; classN
 export function LimitNotice({ what, limit }: { what: string; limit: number }) {
   return (
     <p role="status" className="mt-2 text-xs text-warn">
-      Free plan limit reached: {limit} {what}. Higher limits are planned for paid tiers —{' '}
+      Free plan limit reached: {limit} {what}. Paid plans will have higher limits.{' '}
       <a href="/pricing" className="underline hover:text-gold-soft">
-        see plans
+        See plans
       </a>
       .
     </p>

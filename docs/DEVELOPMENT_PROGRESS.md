@@ -1,18 +1,18 @@
 # Development Progress
 
-_Last updated: 2026-10-22, run 13 — Personal Intelligence Brain (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 14 — approved homepage copy and site-wide copy cleanup (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | **PR #3 merged to `main`** 2026-10-21 19:56 UTC (merge `dd86938`). Follow-up work restarts `claude/stoic-planck-ojnqng` from `main` |
-| GitHub Actions CI | ✅ lint · typecheck · 118 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 125 tests (incl. copy-style guard) · build |
 | Cloudflare Workers Builds | ✅ **production build on `main` succeeded** (build `dc74be9e`, Worker Version `7b52857d`). ❌ non-production (PR branch) builds still fail; production is unaffected |
 | PR previews | GitHub Actions `preview` uploads a Worker version per PR (alias `https://pr-<N>-auroraveritatis.agentkarlano.workers.dev`) and runs `scripts/smoke.sh` against it: real Workers runtime + live World Bank / USGS / GDACS. PR #4 at `fc94df6`: **14/14** |
 | Production check | `smoke.yml` runs `scripts/smoke.sh` on aurorav.app after each merge to `main` (and on demand). After PR #4 (2026-10-21 20:29:57 UTC, Worker Version `c35ef040`): **14/14** |
 | Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
-| Next recommended action | Owner brief 2026-10-22 dependency plan (Knowledge `ROADMAP.md`): Market Terminal chart types + indicator catalogue on the existing (simulated, labelled) series and ECB FX; Finance landing animation; GDELT layer; SEC 13D/13G. Blocked on owner: Supabase (profiles, polls, community), equity data licence, UCDP token, satellite imagery licence |
+| Next recommended action | Master directive order: B social sharing (OG/Story assets, /share), C full mobile audit with Playwright screenshot suite (320–1920 px), D bug/broken-button/security/status audit, E legal/contact/analytics soft-launch readiness. Blocked on owner: Supabase activation, data/imagery licences, billing |
 
 ## Decision (2026-10-20, delegated by owner)
 The Vite + `@cloudflare/vite-plugin` foundation is the project foundation (PR #3). PRs #1 (esbuild) and #2 (same code,
@@ -20,7 +20,18 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
-### Run 13 (2026-10-22) — Personal Intelligence Brain
+### Run 14 (2026-10-21) — Approved homepage copy and site-wide copy cleanup
+- Owner-approved homepage copy in `shared/copy.ts` (`HOME`), rendered verbatim and pinned by `shared/copy.test.ts`.
+- Audited ~1,300 user-facing strings (TypeScript AST extraction). Removed em dashes from prose, fixed retired names
+  ("Global Conflict Radar", "Markets Terminal"), unified "simulated" (no more "synthetic"/"demo data"), sentence-case titles,
+  plainer Status page without internal jargon (phases, env var names), truthful plan features (planned items labelled),
+  privacy text now mentions Brain storage (IndexedDB), theme-color no longer navy.
+- `scripts/copyStyle.test.ts`: AST-based guard (no em dashes in prose, en dashes only in numeric ranges, no double hyphens,
+  no hype phrases, no retired names).
+- Mobile fixes found while checking: Home status labels overflowed at 320–390 px; Brain graph picker overflowed at 320 px.
+  All 21 routes checked at 320 and 390 px: no horizontal overflow.
+
+### Run 13 (2026-10-21, 22:13 UTC) — Personal Intelligence Brain
 - `/brain`: local-first research graph (IndexedDB, no server copy). 12 node types, 9 typed relationships with direction,
   certainty, dates, notes and sources; SVG canvas (pan, wheel/pinch zoom, drag, drag-to-connect, keyboard), search,
   type filters, collapsible groups, saved views, force/by-type/timeline layouts (seeded d3-force), box-aware fit;

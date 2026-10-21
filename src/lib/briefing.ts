@@ -65,7 +65,7 @@ export function buildBriefing({ now, events, tensionNow, tensionWeekAgo, movers 
     .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
     .slice(0, 3)
     .map((m) => ({ text: `${m.name}: ${pct(m.changePct)} on the latest session.`, provenance: 'simulated', to: `/markets?symbol=${encodeURIComponent(m.symbol)}` }));
-  if (!moverItems.length) moverItems.push({ text: 'Your watchlist is empty — add instruments to see movers here.', provenance: 'confirmed', to: '/markets' });
+  if (!moverItems.length) moverItems.push({ text: 'Your watchlist is empty. Add instruments to see movers here.', provenance: 'confirmed', to: '/markets' });
 
   const top = recent[0];
   const headline = top

@@ -3,9 +3,9 @@ import { countryName } from './countryNames';
 export const SITE = {
   name: 'Aurora Veritatis',
   origin: 'https://aurorav.app',
-  defaultTitle: 'Aurora Veritatis — Global Analysis & Strategic Insight',
+  defaultTitle: 'Aurora Veritatis · Global Analysis & Strategic Insight',
   defaultDescription:
-    'Aurora Veritatis connects geopolitical developments, country intelligence and financial markets in one research platform for analysts, students and investors.',
+    'Track global events, countries and markets in one place. Official data, transparent sources and research tools for analysts, students and investors.',
 } as const;
 
 export interface PageMeta {
@@ -19,22 +19,22 @@ export interface PageMeta {
 
 const STATIC: Record<string, { title: string; description: string; noindex?: boolean }> = {
   '/': { title: SITE.defaultTitle, description: SITE.defaultDescription },
-  '/hq': { title: 'Headquarters', description: 'Your personal dashboard: daily briefing, events, World Tension Index, markets, watchlist, alerts and saved research.' },
-  '/radar': { title: 'Global Radar', description: 'Interactive world map of geopolitical events, earthquakes and disaster alerts with filters, timeline and source labels.' },
+  '/hq': { title: 'Headquarters', description: 'Your personal dashboard: a daily briefing, events, the World Tension Index, markets, a watchlist, alerts and saved research.' },
+  '/radar': { title: 'Global Radar', description: 'A world map of earthquakes, disaster alerts and simulated geopolitical scenarios, with filters, a timeline and source labels.' },
   '/countries': { title: 'Country Dossiers', description: 'Economic, demographic, infrastructure and defence indicators for every country, sourced from World Bank Open Data.' },
-  '/countries/compare': { title: 'Compare Countries Over Time', description: 'Animated bubble chart of World Bank indicators for every economy since 1990.' },
-  '/countries/vs': { title: 'Side-by-side Country Comparison', description: 'Compare up to four countries across World Bank indicators, each value with its reference year.' },
-  '/markets': { title: 'Market Terminal', description: 'Interactive charts, technical indicators, drawing tools and relative-performance comparison, annotated with geopolitical events.' },
-  '/impact': { title: 'Market Impact Radar', description: 'How geopolitical events can transmit to markets — mechanisms, correlations and hypotheses labelled by strength of evidence.' },
+  '/countries/compare': { title: 'Compare countries over time', description: 'Animated bubble chart of World Bank indicators for every economy since 1990.' },
+  '/countries/vs': { title: 'Side-by-side country comparison', description: 'Compare up to four countries across World Bank indicators, each value with its reference year.' },
+  '/markets': { title: 'Market Terminal', description: 'Charts, technical indicators, drawing tools and performance comparison. Prices on this page are simulated for demonstration.' },
+  '/impact': { title: 'Market Impact Radar', description: 'How geopolitical events can reach markets: mechanisms, correlations and hypotheses, each labelled by strength of evidence.' },
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },
   '/brain': { title: 'Personal Intelligence Brain', description: 'Build your own research graph linking events, countries, companies, markets and indicators with typed, sourced relationships. Stored privately in your browser.' },
   '/macro': { title: 'Macro & FX', description: 'ECB policy rates, euro-area inflation, 10-year yields and euro reference exchange rates with history, cross rates and CSV export.' },
-  '/positioning': { title: 'Futures Positioning (CFTC COT)', description: 'Weekly CFTC Commitments of Traders data for major futures: net speculative and commercial positions, three-year positioning index and extremes.' },
-  '/tension': { title: 'World Tension Index', description: 'A transparent composite of geopolitical, humanitarian and financial stress with published formula, weights and robustness check.' },
-  '/pricing': { title: 'Plans', description: 'Proposed Aurora Veritatis subscription tiers. The early-access preview is free.' },
-  '/status': { title: 'Platform Status & Data Sources', description: 'What works today, what uses demonstration data, and the licences of every data source.' },
-  '/signin': { title: 'Sign In', description: 'Sign in to Aurora Veritatis.', noindex: true },
+  '/positioning': { title: 'Futures positioning (CFTC)', description: 'Weekly CFTC Commitments of Traders data for major futures: net speculative and commercial positions, three-year positioning index and extremes.' },
+  '/tension': { title: 'World Tension Index', description: 'One transparent number for geopolitical, humanitarian and financial stress, with its formula, weights and a robustness check.' },
+  '/pricing': { title: 'Plans', description: 'Proposed Aurora Veritatis plans. Everything is free during early access.' },
+  '/status': { title: 'Platform status and data sources', description: 'What works today, what uses simulated data, and the licence of every data source.' },
+  '/signin': { title: 'Sign in', description: 'Sign in to Aurora Veritatis.', noindex: true },
   '/account': { title: 'Account', description: 'Your Aurora Veritatis account.', noindex: true },
 };
 
@@ -63,8 +63,8 @@ export function metaFor(pathname: string): PageMeta {
     const name = countryName(iso3);
     if (name) {
       return {
-        title: withSite(`${name} — Country Dossier`),
-        description: `${name}: population, economy, demography, infrastructure and defence indicators from World Bank Open Data, each with source and reference year.`,
+        title: withSite(`${name}: country dossier`),
+        description: `${name}: population, economy, demography, infrastructure and defence indicators from World Bank Open Data, each with its source and reference year.`,
         canonical: `${SITE.origin}/countries/${iso3}`,
       };
     }

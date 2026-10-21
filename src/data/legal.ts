@@ -3,7 +3,7 @@ export interface LegalDoc {
   sections: { heading: string; body: string }[];
 }
 
-const OPERATOR = '[Operator legal name, address and registration details — to be completed]';
+const OPERATOR = '[Operator legal name, address and registration details: to be completed]';
 
 /**
  * DRAFT legal texts. They are placeholders structured for review by a qualified lawyer
@@ -24,7 +24,7 @@ export const LEGAL: Record<string, LegalDoc> = {
     title: 'Privacy Policy',
     sections: [
       { heading: 'Controller', body: `${OPERATOR}. Contact: auroraveritatissup@gmail.com.` },
-      { heading: 'Data we process', body: 'Guest use stores preferences only in your browser (localStorage). If you create an account, we process your email address and the preferences you choose to sync, stored with Supabase. Server logs are processed by Cloudflare.' },
+      { heading: 'Data we process', body: 'As a guest, your preferences are stored only in your browser (localStorage), and your Personal Intelligence Brain graphs only in your browser (IndexedDB). We do not receive them. If you create an account, we process your email address and the preferences you choose to sync, stored with Supabase. Server logs are processed by Cloudflare.' },
       { heading: 'Legal bases', body: 'Contract performance (Art. 6(1)(b) GDPR) for accounts; legitimate interests (Art. 6(1)(f)) for security logging; consent (Art. 6(1)(a)) for optional analytics.' },
       { heading: 'Processors', body: 'Cloudflare (hosting), Supabase (database and authentication), Resend (transactional email), PostHog EU (analytics, only with consent). Further processors will be listed before launch.' },
       { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection, and the right to complain to a supervisory authority (in Austria: Datenschutzbehörde). Local data can be exported or deleted from the Account page.' },
@@ -41,7 +41,7 @@ export const LEGAL: Record<string, LegalDoc> = {
     title: 'Financial & Investment Risk Disclaimer',
     sections: [
       { heading: 'No advice', body: 'Aurora Veritatis is not a licensed investment adviser, broker or financial institution. Information is provided for research and education only.' },
-      { heading: 'Data limitations', body: 'Prices shown in the preview are synthetic demo data. Future licensed data may be delayed. Simulations and scenarios are hypothetical and are not forecasts.' },
+      { heading: 'Data limitations', body: 'Prices in the Market Terminal are simulated. Future licensed data may be delayed. Simulations and scenarios are hypothetical and are not forecasts.' },
       { heading: 'Risk', body: 'Trading and investing involve risk of loss, including loss of the entire capital. Past performance and model outputs do not guarantee future results.' },
     ],
   },
@@ -49,7 +49,7 @@ export const LEGAL: Record<string, LegalDoc> = {
     title: 'AI Transparency',
     sections: [
       { heading: 'Current state', body: 'The preview does not yet use generative AI to produce content shown to users.' },
-      { heading: 'Planned assistants', body: 'EVE and KNOX will be AI assistants. Their outputs will be labelled as AI-generated, cite sources for factual claims and may contain errors. Voice output will use synthetic speech.' },
+      { heading: 'Planned assistants', body: 'EVE and KNOX will be AI assistants. Their outputs will be labelled as AI-generated, cite sources for factual claims and may contain errors. Voice output will use computer-generated speech.' },
       { heading: 'EU AI Act', body: 'Transparency obligations for AI-generated content and chatbots will be assessed and implemented before launch.' },
     ],
   },

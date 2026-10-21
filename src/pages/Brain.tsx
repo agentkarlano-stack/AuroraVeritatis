@@ -263,14 +263,15 @@ export default function Brain() {
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-8">
       <PageHeader eyebrow="Research workspace" title="Personal Intelligence Brain">
-        Map how events, countries, companies, markets and indicators connect — in your own words, with your own sources and
-        certainty. Nodes link straight into Aurora's dossiers, charts and datasets.
+        Map how events, countries, companies, markets and indicators connect. Use your own words, sources and level of
+        certainty. Nodes link straight to Aurora's dossiers, charts and datasets.
       </PageHeader>
 
       <div className="mb-4 rounded-lg border border-gold/25 bg-gold/5 px-4 py-3 text-xs leading-relaxed text-mist" role="note">
-        <strong className="text-platinum">Stored only in this browser.</strong> Your graphs are kept in this browser's local storage (IndexedDB) on
-        this device — not on Aurora's servers and not synced to other devices. Clearing site data, private browsing or
-        uninstalling the browser deletes them. <strong className="text-platinum">Export regularly</strong> (JSON restores everything).{' '}
+        <strong className="text-platinum">Stored only in this browser.</strong> Your graphs live in this browser's local storage
+        (IndexedDB) on this device. They are not on Aurora's servers and do not sync to other devices. Clearing site data, private
+        browsing or uninstalling the browser deletes them. <strong className="text-platinum">Export regularly.</strong> A JSON export
+        restores everything.{' '}
         {persistent === true && 'This browser has granted persistent storage.'}
         {persistent === false && 'This browser has not granted persistent storage, so it may evict data when space runs low.'}
       </div>
@@ -296,7 +297,7 @@ export default function Brain() {
             <label className="sr-only" htmlFor="brain-graph">
               Graph
             </label>
-            <select id="brain-graph" className="input h-9 w-auto min-w-48" value={graph?.id ?? ''} onChange={(e) => switchTo(e.target.value)} disabled={graphs.length === 0}>
+            <select id="brain-graph" className="input h-9 w-auto min-w-48 max-w-full" value={graph?.id ?? ''} onChange={(e) => switchTo(e.target.value)} disabled={graphs.length === 0}>
               {graphs.length === 0 && <option value="">No graphs yet</option>}
               {graphs.map((g) => (
                 <option key={g.id} value={g.id}>
@@ -304,7 +305,7 @@ export default function Brain() {
                 </option>
               ))}
             </select>
-            <select className="input h-9 w-auto" value="" aria-label="Create a graph from a template" onChange={(e) => e.target.value && createFrom(e.target.value)}>
+            <select className="input h-9 w-auto max-w-full" value="" aria-label="Create a graph from a template" onChange={(e) => e.target.value && createFrom(e.target.value)}>
               <option value="">+ New graph…</option>
               {TEMPLATES.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -561,7 +562,7 @@ export default function Brain() {
                       {confirmDelete && (
                         <div className="rounded-md border border-down/40 bg-down/5 p-3 text-xs" role="alertdialog" aria-label="Confirm graph deletion">
                           <p className="text-platinum">
-                            Delete "{graph.name}" from this browser? This cannot be undone — export it first if you may need it again.
+                            Delete "{graph.name}" from this browser? This cannot be undone. Export it first if you may need it again.
                           </p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <button className="btn-ghost text-xs" onClick={() => download(fileName(graph, 'json'), exportJson(graph), 'application/json')}>
@@ -867,7 +868,7 @@ function EdgeEditor({
   return (
     <Panel
       title="Connection"
-      eyebrow="Your assessment — not verified by Aurora"
+      eyebrow="Your assessment. Not verified by Aurora."
       actions={
         <button className="btn-ghost text-xs text-down" onClick={onDelete}>
           <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete
