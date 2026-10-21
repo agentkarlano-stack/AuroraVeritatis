@@ -1,13 +1,13 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 14 — approved homepage copy and site-wide copy cleanup (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 15 — social sharing assets and link previews (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | **PR #3 merged to `main`** 2026-10-21 19:56 UTC (merge `dd86938`). Follow-up work restarts `claude/stoic-planck-ojnqng` from `main` |
-| GitHub Actions CI | ✅ lint · typecheck · 125 tests (incl. copy-style guard) · build |
+| GitHub Actions CI | ✅ lint · typecheck · 130 tests (incl. copy-style guard, share assets) · build |
 | Cloudflare Workers Builds | ✅ **production build on `main` succeeded** (build `dc74be9e`, Worker Version `7b52857d`). ❌ non-production (PR branch) builds still fail; production is unaffected |
 | PR previews | GitHub Actions `preview` uploads a Worker version per PR (alias `https://pr-<N>-auroraveritatis.agentkarlano.workers.dev`) and runs `scripts/smoke.sh` against it: real Workers runtime + live World Bank / USGS / GDACS. PR #4 at `fc94df6`: **14/14** |
 | Production check | `smoke.yml` runs `scripts/smoke.sh` on aurorav.app after each merge to `main` (and on demand). After PR #4 (2026-10-21 20:29:57 UTC, Worker Version `c35ef040`): **14/14** |
@@ -20,6 +20,21 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 15 (2026-10-21) — Social sharing (master directive B)
+- Share assets rendered from the real interface (`/share/card`, noindex, outside the site layout) by
+  `scripts/render-share-assets.ts` (Playwright + system ffmpeg): OG 1200×630 (+ Radar, Countries, Markets, Brain variants),
+  Story 1080×1920, post 1080×1350, square 1080×1080, and a 10 s seamless Story loop (300 deterministic frames of a full
+  globe turn; H.264 MP4 + VP8 WebM, ~1.3 MB each). Files in `public/media/` (bypass the Worker, 1-day cache, CORS open).
+- New `components/Globe.tsx` (orthographic Natural Earth globe; reusable for the planned 3D globe).
+- Crawler-visible OG/Twitter tags (`og:image` + size + alt, `twitter:card summary_large_image`, title/description/image)
+  injected per route by the Worker and kept in sync by `useRouteMeta`; module-specific preview images.
+- `/share` page: copy-link per module, native share, suggested text, image previews with download and copy-image-link,
+  Story video (muted, poster, preload none). Sitemap updated (was missing Tension, Macro, Positioning, Brain).
+- Smoke test: +6 checks (share metadata, og:image, twitter card, route image, image and video files) and an informational
+  Supabase "Auth status" line (PR #9).
+- Verified: 130 unit tests; Playwright /share 18/18 (desktop + mobile, clipboard, all images decode, 10 download links
+  resolve, video attributes, no overflow, no console errors); local workerd shows route-specific OG tags.
+
 ### Run 14 (2026-10-21) — Approved homepage copy and site-wide copy cleanup
 - Owner-approved homepage copy in `shared/copy.ts` (`HOME`), rendered verbatim and pinned by `shared/copy.test.ts`.
 - Audited ~1,300 user-facing strings (TypeScript AST extraction). Removed em dashes from prose, fixed retired names

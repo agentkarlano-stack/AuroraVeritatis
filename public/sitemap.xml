@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://aurorav.app/</loc></url>
+  <url><loc>https://aurorav.app/hq</loc></url>
   <url><loc>https://aurorav.app/radar</loc></url>
   <url><loc>https://aurorav.app/countries</loc></url>
   <url><loc>https://aurorav.app/countries/compare</loc></url>
   <url><loc>https://aurorav.app/countries/vs</loc></url>
   <url><loc>https://aurorav.app/markets</loc></url>
+  <url><loc>https://aurorav.app/macro</loc></url>
+  <url><loc>https://aurorav.app/positioning</loc></url>
+  <url><loc>https://aurorav.app/impact</loc></url>
   <url><loc>https://aurorav.app/lab</loc></url>
   <url><loc>https://aurorav.app/strategy</loc></url>
-  <url><loc>https://aurorav.app/impact</loc></url>
+  <url><loc>https://aurorav.app/tension</loc></url>
+  <url><loc>https://aurorav.app/brain</loc></url>
   <url><loc>https://aurorav.app/pricing</loc></url>
   <url><loc>https://aurorav.app/status</loc></url>
+  <url><loc>https://aurorav.app/share</loc></url>
 </urlset>

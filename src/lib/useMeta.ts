@@ -32,6 +32,14 @@ export function useRouteMeta() {
     setTag('meta[property="og:description"]', meta('property', 'og:description'), 'content', m.description);
     setTag('meta[property="og:url"]', meta('property', 'og:url'), 'content', m.canonical);
     setTag('meta[name="robots"]', meta('name', 'robots'), 'content', m.noindex ? 'noindex' : null);
+    setTag('meta[property="og:image"]', meta('property', 'og:image'), 'content', m.image.url);
+    setTag('meta[property="og:image:width"]', meta('property', 'og:image:width'), 'content', String(m.image.width));
+    setTag('meta[property="og:image:height"]', meta('property', 'og:image:height'), 'content', String(m.image.height));
+    setTag('meta[property="og:image:alt"]', meta('property', 'og:image:alt'), 'content', m.image.alt);
+    setTag('meta[name="twitter:title"]', meta('name', 'twitter:title'), 'content', m.title);
+    setTag('meta[name="twitter:description"]', meta('name', 'twitter:description'), 'content', m.description);
+    setTag('meta[name="twitter:image"]', meta('name', 'twitter:image'), 'content', m.image.url);
+    setTag('meta[name="twitter:image:alt"]', meta('name', 'twitter:image:alt'), 'content', m.image.alt);
     setTag(
       'link[rel="canonical"]',
       () => {

@@ -26,6 +26,7 @@ export const PAGES: SearchItem[] = [
   ['/tension', 'World Tension Index', 'Methodology, weights and history'],
   ['/pricing', 'Plans', 'Proposed plans'],
   ['/account', 'Account', 'Profile, plan and local data'],
+  ['/share', 'Share Aurora Veritatis', 'Link previews, Story and post images'],
   ['/status', 'Platform status', 'What works today and data sources'],
 ].map(([to, label, hint]) => ({ id: `p:${to}`, group: 'Pages' as const, label: label!, hint: hint!, to: to! }));
 

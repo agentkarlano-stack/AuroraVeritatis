@@ -14,7 +14,7 @@
     "not_found_handling": "single-page-application",
     // The Worker handles /api and page navigations (to inject route metadata); hashed bundles and static files
     // are served directly without invoking it.
-    "run_worker_first": ["/*", "!/assets/*", "!/brand/*", "!/favicon.svg", "!/robots.txt", "!/sitemap.xml"]
+    "run_worker_first": ["/*", "!/assets/*", "!/brand/*", "!/favicon.svg", "!/robots.txt", "!/sitemap.xml", "!/media/*"]
   },
   // Plain-text vars (SUPABASE_URL, SUPABASE_ANON_KEY, POSTHOG_KEY, ...) are managed in the
   // Cloudflare dashboard. keep_vars stops `wrangler deploy` from wiping them.
