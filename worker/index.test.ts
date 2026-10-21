@@ -3,6 +3,7 @@ import type { CompareYear, CountryProfile, IndicatorSeries, PublicConfig } from 
 import { handleApi, type Env } from './index';
 import { RateLimiter } from './ratelimit';
 import { magnitudeToSeverity, normalizeUsgs } from './usgs';
+import { compareYears } from './worldbank';
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
 const env = { ASSETS: {} as Fetcher } as Env;
@@ -133,6 +134,12 @@ describe('country comparison endpoint', () => {
     expect(data.points).toEqual([{ iso3: 'DEU', name: 'Germany', region: 'Europe & Central Asia', x: 50000, y: 81, size: 83e6 }]);
     expect((await get('/api/compare/1800')).status).toBe(400);
     expect((await get('/api/compare/2022?x=BAD.ID')).status).toBe(400);
+  });
+
+  it('derives the valid year range from the request-time clock, not module load', () => {
+    // Workers report the Unix epoch during global-scope initialisation; a load-time bound rejected every year.
+    expect(compareYears(Date.UTC(2026, 9, 21))).toEqual({ min: 1990, max: 2025 });
+    expect(compareYears(0).max).toBe(1969);
   });
 });
 

@@ -52,6 +52,11 @@ jobs:
           echo "### Preview: ${url:-not reported (enable Preview URLs on the Worker)}" >> "$GITHUB_STEP_SUMMARY"
           echo "${version:-Worker Version ID not reported}" >> "$GITHUB_STEP_SUMMARY"
           echo "::notice title=Cloudflare preview::${version:-Worker Version ID not reported} · ${url:-no preview URL reported}"
+      - name: Smoke test the preview (real Workers runtime, live upstream data)
+        if: env.HAS_TOKEN == 'true' && steps.upload.outputs.url != ''
+        run: |
+          for i in $(seq 1 12); do curl -sf -o /dev/null "${{ steps.upload.outputs.url }}/api/health" && break; sleep 5; done
+          scripts/smoke.sh "${{ steps.upload.outputs.url }}"
       - name: Comment preview URL
         if: env.HAS_TOKEN == 'true' && steps.upload.outputs.url != ''
         env:

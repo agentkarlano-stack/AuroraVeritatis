@@ -1,0 +1,31 @@
+name: Production smoke test
+
+# Read-only HTTP checks of the live site (scripts/smoke.sh). Deploys nothing and uses no secrets.
+# After a merge to main it waits for Cloudflare Workers Builds to deploy, then checks aurorav.app.
+# On pull requests it reports the current production state without blocking the PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Base URL to test
+        default: https://aurorav.app
+
+permissions:
+  contents: read
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for the Workers Builds deployment
+        if: github.event_name == 'push'
+        run: sleep 180
+      - name: Smoke test
+        run: scripts/smoke.sh "${{ inputs.url || 'https://aurorav.app' }}"
