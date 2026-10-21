@@ -4,6 +4,8 @@ import { handleApi, type Env } from './index';
 import { RateLimiter } from './ratelimit';
 import { magnitudeToSeverity, normalizeUsgs } from './usgs';
 import { compareYears } from './worldbank';
+import { cotUrl, normalizeCot } from './cftc';
+import type { CotResponse } from '../shared/cot';
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
 const env = { ASSETS: {} as Fetcher } as Env;
@@ -181,5 +183,55 @@ describe('GDACS normalisation', () => {
     expect(u.searchParams.get('eventlist')).toBe('TC;FL;VO;DR;WF');
     expect(u.searchParams.get('fromdate')).toBe('2026-09-21');
     expect(u.searchParams.get('todate')).toBe('2026-10-21');
+  });
+});
+
+describe('CFTC Commitments of Traders', () => {
+  const socrata = (code: string, date: string, extra: Record<string, string> = {}) => ({
+    cftc_contract_market_code: code,
+    market_and_exchange_names: 'GOLD - COMMODITY EXCHANGE INC.',
+    report_date_as_yyyy_mm_dd: `${date}T00:00:00.000`,
+    open_interest_all: '500000',
+    noncomm_positions_long_all: '250000',
+    noncomm_positions_short_all: '50000',
+    comm_positions_long_all: '100000',
+    comm_positions_short_all: '330000',
+    nonrept_positions_long_all: '40000',
+    nonrept_positions_short_all: '10000',
+    ...extra,
+  });
+
+  it('normalises rows, sorts by date, de-duplicates and drops incomplete or unknown rows', () => {
+    const out = normalizeCot([
+      socrata('088691', '2026-10-13'),
+      socrata('088691', '2026-10-06'),
+      socrata('088691', '2026-10-06'),
+      socrata('088691', '2026-09-29', { open_interest_all: '' }),
+      socrata('088691', '2026-09-22', { noncomm_positions_long_all: 'n/a' }),
+      socrata('999999', '2026-10-13'),
+    ]);
+    expect([...out.keys()]).toEqual(['088691']);
+    expect(out.get('088691')!.map((r) => r.date)).toEqual(['2026-10-06', '2026-10-13']);
+    expect(out.get('088691')![0]).toMatchObject({ openInterest: 500000, nonCommercialLong: 250000, commercialShort: 330000, cftcName: 'GOLD - COMMODITY EXCHANGE INC.' });
+  });
+
+  it('builds a bounded SoQL query', () => {
+    const u = new URL(cotUrl(['088691', '067651'], Date.UTC(2023, 9, 1)));
+    expect(u.host).toBe('publicreporting.cftc.gov');
+    expect(u.searchParams.get('$where')).toBe("cftc_contract_market_code in('088691','067651') AND report_date_as_yyyy_mm_dd >= '2023-10-01T00:00:00'");
+    expect(u.searchParams.get('$order')).toBe('report_date_as_yyyy_mm_dd ASC');
+  });
+
+  it('serves the overview with missing markets listed and validates the history route', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json([socrata('088691', '2026-10-13'), socrata('067651', '2026-10-13')])));
+    const res = await body<CotResponse>(get('/api/cot'));
+    expect(res.markets.map((m) => m.code)).toEqual(['067651', '088691']);
+    expect(res.missing).toContain('133741');
+    expect(res.source.url).toContain('cftc.gov');
+    expect((await get('/api/cot/088691?years=5')).status).toBe(200);
+    expect((await get('/api/cot/088691?years=50')).status).toBe(400);
+    expect((await get('/api/cot/123456')).status).toBe(400);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
+    expect((await get('/api/cot')).status).toBe(502);
   });
 });

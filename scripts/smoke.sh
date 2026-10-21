@@ -32,6 +32,9 @@ check "World Bank profile"    /api/countries/DEU                       200 '"iso
 check "World Bank comparison" /api/compare/2022                        200 '"points":\[\{'
 check "USGS earthquakes"      /api/events/earthquakes                  200 '"events"'
 check "GDACS disasters"       /api/events/disasters                    200 '"events"'
+check "positioning metadata"  /positioning                             200 '<title>[^<]*Positioning'
+check "CFTC COT overview"     /api/cot                                 200 '"missing":\[\]'
+check "CFTC COT history"      '/api/cot/088691?years=3'                200 '"openInterest":[0-9]'
 check "bad indicator rejected" '/api/compare/2022?x=BAD.ID'            400 'Unsupported'
 check "unknown API route"     /api/does-not-exist                      404 'Not found'
 

@@ -142,7 +142,15 @@ export default function Markets() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Markets Terminal" title="Market analysis">
+      <PageHeader
+        eyebrow="Markets Terminal"
+        title="Market analysis"
+        actions={
+          <Link to="/positioning" className="btn-ghost text-xs">
+            Futures positioning (CFTC data)
+          </Link>
+        }
+      >
         Interactive charts, technical indicators and return statistics, annotated with geopolitical events.
       </PageHeader>
       <DemoNotice>

@@ -153,6 +153,11 @@ export function Layout() {
                 </Link>
               </li>
               <li>
+                <Link className="text-mist hover:text-platinum" to="/positioning">
+                  Futures positioning (CFTC)
+                </Link>
+              </li>
+              <li>
                 <Link className="text-mist hover:text-platinum" to="/tension">
                   World Tension Index
                 </Link>
