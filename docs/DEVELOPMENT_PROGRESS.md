@@ -1,17 +1,18 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 8 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 9 — production merge (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
-| Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
+| Branch / PR | **PR #3 merged to `main`** 2026-10-21 19:56 UTC (merge `dd86938`). Follow-up work restarts `claude/stoic-planck-ojnqng` from `main` |
 | GitHub Actions CI | ✅ lint · typecheck · 81 tests · build |
-| Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
-| Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
+| Cloudflare Workers Builds | ✅ **production build on `main` succeeded** (build `dc74be9e`, Worker Version `7b52857d`). ❌ non-production (PR branch) builds still fail; production is unaffected |
+| PR previews | GitHub Actions `preview` uploads a real Worker version with the owner's token (e.g. `d85b1766` for `0164d99`). Since `0164d99` the step uses `pipefail` and reports the version ID as an annotation. No preview URL is printed (Preview URLs appear disabled on the Worker) |
+| Production check | aurorav.app is unreachable from the cloud sandbox (egress policy); live verification must be done in a browser or from a Cloudflare preview |
 | Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
-| Next recommended action | Owner: fix Workers Builds (or add token). Dev: Supabase preference sync; CFR-style conflict profiles; chart workspace |
+| Next recommended action | Owner: confirm aurorav.app serves the new app (`/api/health`, `/radar`); optionally disable or fix non-production Workers Builds. Dev: CFR-style conflict profiles; Supabase sync verification |
 
 ## Decision (2026-10-20, delegated by owner)
 The Vite + `@cloudflare/vite-plugin` foundation is the project foundation (PR #3). PRs #1 (esbuild) and #2 (same code,
@@ -19,6 +20,11 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 9 (2026-10-21) — production merge
+- Production-readiness audit of PR #3: CI ✅, Actions preview upload ✅ (verified real upload, not a skip), `main` unprotected with no required checks, `wrangler.jsonc` builds before deploy.
+- Fixed the preview workflow so a failed `wrangler versions upload` can no longer report success (`pipefail`), and surfaced the uploaded Worker Version ID.
+- PR #3 merged by the owner (`dd86938`); the production Workers Build on `main` succeeded and created Worker Version `7b52857d`.
+
 ### Run 8 (2026-10-21)
 - **Route metadata for search and link previews**: `shared/meta.ts` defines title/description/canonical/noindex per
   route (country dossiers named, legal drafts + account/sign-in + 404 noindex). Client hook keeps tags in sync on
