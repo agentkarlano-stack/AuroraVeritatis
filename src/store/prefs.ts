@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { DEFAULT_CHART_OPTIONS, type ChartOptions, type Drawing } from '../lib/chart';
 
 export type WidgetId = 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts';
 
@@ -35,6 +36,12 @@ interface PrefsState {
   notes: Note[];
   alerts: AlertRule[];
   introSeen: boolean;
+  chart: ChartOptions & { range: number };
+  drawings: Record<string, Drawing[]>;
+  setChart: (patch: Partial<ChartOptions & { range: number }>) => void;
+  addDrawing: (symbol: string, d: Drawing) => void;
+  removeDrawing: (symbol: string, id: string) => void;
+  clearDrawings: (symbol: string) => void;
   moveWidget: (id: WidgetId, to: number) => void;
   toggleWidget: (id: WidgetId) => void;
   resetLayout: () => void;
@@ -51,7 +58,7 @@ interface PrefsState {
 }
 
 const DEFAULT_LAYOUT = WIDGETS.map((w) => w.id);
-const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2));
+export const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2));
 
 /** Device-local preferences. Synced to Supabase once accounts are enabled (Phase 2). */
 export const usePrefs = create<PrefsState>()(
@@ -64,6 +71,12 @@ export const usePrefs = create<PrefsState>()(
       notes: [],
       alerts: [],
       introSeen: false,
+      chart: { ...DEFAULT_CHART_OPTIONS, range: 126 },
+      drawings: {},
+      setChart: (patch) => set((s) => ({ chart: { ...s.chart, ...patch } })),
+      addDrawing: (symbol, d) => set((s) => ({ drawings: { ...s.drawings, [symbol]: [...(s.drawings[symbol] ?? []), d].slice(-50) } })),
+      removeDrawing: (symbol, id) => set((s) => ({ drawings: { ...s.drawings, [symbol]: (s.drawings[symbol] ?? []).filter((d) => d.id !== id) } })),
+      clearDrawings: (symbol) => set((s) => ({ drawings: { ...s.drawings, [symbol]: [] } })),
       moveWidget: (id, to) =>
         set((s) => {
           const order = s.layout.filter((w) => w !== id);
@@ -108,7 +121,7 @@ export const usePrefs = create<PrefsState>()(
         const p = persisted as Partial<PrefsState>;
         const layout = (p.layout ?? []).filter((w) => DEFAULT_LAYOUT.includes(w));
         for (const w of DEFAULT_LAYOUT) if (!layout.includes(w)) layout.push(w);
-        return { ...current, ...p, layout };
+        return { ...current, ...p, layout, chart: { ...current.chart, ...p.chart } };
       },
     },
   ),

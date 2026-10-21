@@ -24,7 +24,8 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Accounts (Supabase Auth)', to: '/signin', state: 'prototype', note: 'Magic link, password, sign-up and password reset; enabled once SUPABASE_URL / SUPABASE_ANON_KEY are configured.' },
   { name: 'Plan limits & feature access', to: '/account', state: 'working', note: 'Free-tier watchlist and alert limits enforced in the app; all features unlocked during early access.' },
   { name: 'Market Impact Radar', to: '/impact', state: 'prototype', note: 'Transmission channels with evidence classes; event-window study and correlation matrix run on demo data.' },
-  { name: 'Strategy Lab & backtesting', state: 'planned', note: 'Phase 3.' },
+  { name: 'Strategy Lab', to: '/strategy', state: 'working', note: 'Event scenarios vs. baseline with common random numbers, scenario tree and comparison table (model outputs on demo prices).' },
+  { name: 'Backtesting', state: 'planned', note: 'Phase 3.' },
   { name: 'EVE & KNOX assistants', state: 'planned', note: 'Phase 4.' },
   { name: 'Subscriptions', to: '/pricing', state: 'planned', note: 'Phase 5, requires owner approval.' },
 ];

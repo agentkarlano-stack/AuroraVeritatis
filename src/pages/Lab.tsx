@@ -1,6 +1,6 @@
 import { Download, Play, Shuffle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { FanChart, HistogramChart } from '../components/SvgCharts';
 import { PageHeader, Panel, Unavailable } from '../components/ui';
 import { fmtNumber, fmtPct } from '../lib/format';
@@ -243,7 +243,14 @@ export default function Lab() {
               </p>
             </div>
           </Panel>
-          <Unavailable phase="Phase 3">Backtesting, scenario comparison, historical model accuracy tracking and 3D plots.</Unavailable>
+          <p className="text-sm text-mist">
+            Want to test an event? The{' '}
+            <Link to="/strategy" className="text-gold hover:underline">
+              Strategy Lab
+            </Link>{' '}
+            compares a scenario against this baseline.
+          </p>
+          <Unavailable phase="Phase 3">Backtesting, historical model accuracy tracking and 3D plots.</Unavailable>
         </div>
       </div>
     </div>

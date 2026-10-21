@@ -30,7 +30,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - `shared/` — types and indicator catalogue used by both worker and client.
 - `src/pages/` — one lazy-loaded page per route; `src/components/` — UI (`ui.tsx` primitives, `WorldMap`, `PriceChart`, `SvgCharts`).
 - `src/lib/` — pure logic with unit tests (Monte Carlo, technical indicators, tension index, synthetic market data).
-- `src/store/prefs.ts` — Zustand store persisted to localStorage (to be synced to Supabase `user_preferences`).
+- `src/store/prefs.ts` — Zustand store persisted to localStorage (layout, watchlist, alerts, notes, chart settings, drawings;
+  to be synced to Supabase `user_preferences`).
+- Strategy Lab (`pages/Strategy.tsx`) uses `simulateGbm` with a `jump` and `lib/scenario.ts`; quick search is
+  `components/CommandPalette.tsx` + `lib/search.ts`.
 - `supabase/migrations/` — SQL, reviewed and applied manually by the owner.
 
 ## Conventions
@@ -49,6 +52,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 
 ## Gotchas
 - Never `pkill -f`/`pgrep -f` with a pattern that also appears in your own shell command (it kills the shell). Use `fuser -k <port>/tcp`.
+- Lightweight Charts swallows a second click that follows quickly (double-click detection). Chart drawing tools use a
+  native `click` listener + `coordinateToTime/Price` (`components/PriceChart.tsx`), not `subscribeClick`.
+- Scheduled tasks need the repositories attached as sources (set in the Claude app). Without them a run can only clone
+  read-only and cannot push; it should stop and report rather than retry.
 
 ## Sandbox notes
 Cloud sessions may block outbound calls to data APIs (World Bank, USGS). Worker integrations are unit-tested with mocked

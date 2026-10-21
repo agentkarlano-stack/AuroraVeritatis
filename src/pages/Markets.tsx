@@ -1,16 +1,19 @@
-import { Star } from 'lucide-react';
-import { useState } from 'react';
+import { Minus, Spline, Star, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { PriceChart, type ChartAnnotation, type ChartOptions } from '../components/PriceChart';
+import { PriceChart, type ChartAnnotation } from '../components/PriceChart';
 import { Change, DemoNotice, LimitNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
 import { DEMO_EVENTS } from '../data/demoEvents';
 import { INSTRUMENTS, INSTRUMENT_MAP, type AssetClass } from '../data/instruments';
 import { demoBars, lastQuote } from '../lib/demoMarket';
 import { limitOf, useTier } from '../lib/entitlements';
+import type { ChartOptions, ChartPoint, Drawing, DrawMode } from '../lib/chart';
 import { CATEGORY_COLOR } from '../lib/events';
 import { fmtNumber, fmtPct } from '../lib/format';
 import { annualisedVol, maxDrawdown, periodReturn } from '../lib/technical';
-import { usePrefs } from '../store/prefs';
+import { uid, usePrefs } from '../store/prefs';
+
+const NO_DRAWINGS: Drawing[] = [];
 
 const RANGES = [
   { label: '1M', bars: 21 },
@@ -64,8 +67,40 @@ export default function Markets() {
   const maxWatch = limitOf(useTier(), 'assetsPerWatchlist');
   const [limitHit, setLimitHit] = useState(false);
   const [filter, setFilter] = useState<'watchlist' | 'all'>('all');
-  const [range, setRange] = useState(126);
-  const [options, setOptions] = useState<ChartOptions>({ style: 'candles', sma20: true, sma50: false, ema20: false, bollinger: false, volume: true, rsi: false, events: true });
+  // Chart settings and drawings persist across visits (saved research layout).
+  const { chart: options, setChart, drawings: allDrawings, addDrawing, removeDrawing, clearDrawings } = usePrefs();
+  const range = options.range;
+  const drawings = allDrawings[symbol] ?? NO_DRAWINGS;
+  const [mode, setMode] = useState<DrawMode>('none');
+  const [pending, setPending] = useState<ChartPoint | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMode('none');
+        setPending(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const startMode = (m: DrawMode) => {
+    setPending(null);
+    setMode((cur) => (cur === m ? 'none' : m));
+  };
+
+  const onPick = (p: ChartPoint) => {
+    if (mode === 'hline') {
+      addDrawing(symbol, { id: uid(), kind: 'hline', price: p.price });
+      setMode('none');
+    } else if (mode === 'trend') {
+      if (!pending) return setPending(p);
+      if (pending.time !== p.time) addDrawing(symbol, { id: uid(), kind: 'trend', a: pending, b: p });
+      setPending(null);
+      setMode('none');
+    }
+  };
 
   // demoBars and annotationsFor are cached per symbol, so identities are stable across renders.
   const bars = demoBars(symbol);
@@ -157,31 +192,67 @@ export default function Markets() {
             <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
               <div className="flex gap-1" role="group" aria-label="Range">
                 {RANGES.map((r) => (
-                  <button key={r.label} className="chip" aria-pressed={range === r.bars} onClick={() => setRange(r.bars)}>
+                  <button key={r.label} className="chip" aria-pressed={range === r.bars} onClick={() => setChart({ range: r.bars })}>
                     {r.label}
                   </button>
                 ))}
               </div>
               <span className="mx-1 h-5 w-px bg-line" />
               <div className="flex gap-1" role="group" aria-label="Chart style">
-                <button className="chip" aria-pressed={options.style === 'candles'} onClick={() => setOptions((o) => ({ ...o, style: 'candles' }))}>
+                <button className="chip" aria-pressed={options.style === 'candles'} onClick={() => setChart({ style: 'candles' })}>
                   Candles
                 </button>
-                <button className="chip" aria-pressed={options.style === 'line'} onClick={() => setOptions((o) => ({ ...o, style: 'line' }))}>
+                <button className="chip" aria-pressed={options.style === 'line'} onClick={() => setChart({ style: 'line' })}>
                   Line
                 </button>
               </div>
               <span className="mx-1 h-5 w-px bg-line" />
               <div className="flex flex-wrap gap-1" role="group" aria-label="Indicators">
                 {TOGGLES.map((t) => (
-                  <button key={t.key} className="chip" aria-pressed={options[t.key]} onClick={() => setOptions((o) => ({ ...o, [t.key]: !o[t.key] }))}>
+                  <button key={t.key} className="chip" aria-pressed={options[t.key]} onClick={() => setChart({ [t.key]: !options[t.key] })}>
                     {t.label}
                   </button>
                 ))}
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-xs">
+              <span className="text-slate-dim">Draw</span>
+              <button className="chip" aria-pressed={mode === 'hline'} onClick={() => startMode('hline')} title="Horizontal level">
+                <Minus className="h-3.5 w-3.5" aria-hidden /> Level
+              </button>
+              <button className="chip" aria-pressed={mode === 'trend'} onClick={() => startMode('trend')} title="Trend line through two points">
+                <Spline className="h-3.5 w-3.5" aria-hidden /> Trend line
+              </button>
+              {mode !== 'none' && (
+                <span role="status" className="text-gold-soft">
+                  {mode === 'hline' ? 'Click the chart to place a level.' : pending ? `First point ${pending.time} @ ${pending.price} — click the second point.` : 'Click the first point.'}{' '}
+                  <span className="text-slate-dim">(Esc to cancel)</span>
+                </span>
+              )}
+              {drawings.map((d) => (
+                <span key={d.id} className="chip">
+                  {d.kind === 'hline' ? `Level ${d.price}` : `Trend ${d.a.time.slice(5)}→${d.b.time.slice(5)}`}
+                  <button aria-label="Remove drawing" className="hover:text-down" onClick={() => removeDrawing(symbol, d.id)}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              {drawings.length > 0 && (
+                <button className="btn-quiet ml-auto text-xs" onClick={() => clearDrawings(symbol)}>
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden /> Clear
+                </button>
+              )}
+            </div>
             <div className={options.rsi ? 'h-[500px]' : 'h-[420px]'}>
-              <PriceChart bars={bars} options={options} visibleBars={range} annotations={annotations} decimals={inst.decimals} />
+              <PriceChart
+                bars={bars}
+                options={options}
+                visibleBars={range}
+                annotations={annotations}
+                decimals={inst.decimals}
+                drawings={drawings}
+                onPick={mode === 'none' ? undefined : onPick}
+              />
             </div>
           </section>
 

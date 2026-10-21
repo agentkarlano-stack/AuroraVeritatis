@@ -13,6 +13,7 @@ const Compare = lazy(() => import('./pages/Compare'));
 const Markets = lazy(() => import('./pages/Markets'));
 const Lab = lazy(() => import('./pages/Lab'));
 const Impact = lazy(() => import('./pages/Impact'));
+const Strategy = lazy(() => import('./pages/Strategy'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
@@ -35,6 +36,7 @@ export function App() {
             <Route path="markets" element={<Lazy><Markets /></Lazy>} />
             <Route path="lab" element={<Lazy><Lab /></Lazy>} />
             <Route path="impact" element={<Lazy><Impact /></Lazy>} />
+            <Route path="strategy" element={<Lazy><Strategy /></Lazy>} />
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />

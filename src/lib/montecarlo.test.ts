@@ -48,3 +48,28 @@ describe('simulateGbm', () => {
     expect(() => simulateGbm({ ...base, s0: 0 })).toThrow();
   });
 });
+
+describe('simulateGbm with an event shock', () => {
+  it('applies a certain, fixed shock exactly', () => {
+    const r = simulateGbm({ ...base, sigma: 0, paths: 100, jump: { day: 10, probability: 1, mean: -0.2, sd: 0 } });
+    expect(r.stats.median).toBeCloseTo(100 * Math.exp(0.08) * 0.8, 8);
+    expect(r.jumped.every((j) => j === 1)).toBe(true);
+  });
+
+  it('leaves baseline paths unchanged when the event never happens (common random numbers)', () => {
+    const p = { ...base, paths: 500 };
+    const baseline = simulateGbm(p);
+    const never = simulateGbm({ ...p, jump: { day: 10, probability: 0, mean: -0.5, sd: 0.1 } });
+    expect(Array.from(never.terminal)).toEqual(Array.from(baseline.terminal));
+  });
+
+  it('hits roughly the requested share of paths and is reproducible', () => {
+    const p = { ...base, paths: 10000, jump: { day: 30, probability: 0.3, mean: -0.1, sd: 0.05 } };
+    const a = simulateGbm(p);
+    const share = a.jumped.reduce((s, j) => s + j, 0) / 10000;
+    expect(share).toBeGreaterThan(0.28);
+    expect(share).toBeLessThan(0.32);
+    expect(Array.from(simulateGbm(p).terminal)).toEqual(Array.from(a.terminal));
+    expect(a.stats.mean).toBeLessThan(simulateGbm({ ...base, paths: 10000 }).stats.mean);
+  });
+});

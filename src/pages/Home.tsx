@@ -9,7 +9,7 @@ const MODULES = [
   { to: '/radar', icon: Globe2, title: 'Global Radar', text: 'World map of geopolitical and natural-hazard events with layers, filters, timeline and sourced detail.', tags: 'Map · Layers · Timeline', state: 'Live USGS + demo' },
   { to: '/markets', icon: BarChart3, title: 'Market Terminal', text: 'Charts, indicators and statistics, plus the Market Impact Radar linking events to exposed assets.', tags: 'Charts · Watchlists · Impact Radar', state: 'Demo prices' },
   { to: '/countries', icon: Landmark, title: 'Country Dossiers', text: 'World Bank indicators for every economy with history charts and an animated country-comparison explorer.', tags: 'Indicators · Compare · History', state: 'Live data' },
-  { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Reproducible Monte Carlo risk simulation with VaR, expected shortfall, confidence intervals and sensitivity.', tags: 'Simulation · Risk · Export', state: 'Working' },
+  { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Reproducible Monte Carlo risk simulation and a Strategy Lab for comparing event scenarios with visible uncertainty.', tags: 'Simulation · Scenarios · Risk', state: 'Working' },
   { to: '/status', icon: BrainCircuit, title: 'AI Intelligence', text: 'EVE and KNOX research assistants and sourced intelligence reports.', tags: 'EVE · KNOX · Reports', state: 'Planned' },
   { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'Your personalised workspace: widgets, watchlists, favourite countries, alerts and saved research.', tags: 'Personalised workspace', state: 'Prototype' },
 ] as const;

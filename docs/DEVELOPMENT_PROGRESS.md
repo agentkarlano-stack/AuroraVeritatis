@@ -1,16 +1,16 @@
 # Development Progress
 
-_Last updated: 2026-10-20, run 3 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 4 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 37 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 48 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
-| Scheduled task | "AV development (every 2h)" — see DEVELOPMENT_STATUS.md in the Knowledge repo for its current state |
+| Scheduled task | "AV development (every 2h)" **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
 | Next recommended action | Owner: fix Workers Builds (or add token). Dev: Supabase preference sync; CFR-style conflict profiles; chart workspace |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -19,6 +19,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 4 (2026-10-21)
+- Diagnosed the idle scheduled task (no repo sources → push denied) and paused it to stop wasted runs.
+- **Quick search** (Ctrl/⌘+K, "/", header button, mobile): pages, all countries, instruments; ranked matches; keyboard nav.
+- **Mobile bottom navigation** (HQ, Radar, Countries, Markets, Search).
+- **Chart workspace**: horizontal levels and two-point trend lines saved per instrument; chart style, indicators and
+  range remembered; zoom kept when drawings change. Fixed: quick second clicks were swallowed by the chart library →
+  native click handling.
+- **Strategy Lab** (`/strategy`): event scenarios (probability, timing, size, uncertainty) vs. no-event baseline using
+  common random numbers; fan overlay, distribution overlay (out-of-range share disclosed), two-branch scenario tree,
+  comparison table (up to 4); 5 templates linked to Impact Radar channels. Engine: `simulateGbm` `jump` option (tested).
 ### Run 3
 - Restored run-2 work onto PR #3 (verified: tree identical to the previous tip plus `docs/REFERENCES.md`).
 - **Compare countries** (`/countries/compare`): Gapminder-style animated bubble chart on World Bank data —
@@ -35,6 +45,11 @@ timeline, Market Impact Radar, rebrand to the owner's logo (charcoal + gold), br
 Phase 1 foundation: Home, Headquarters, Conflict Radar, Country dossiers, Markets, Research Lab, Plans, Sign-in/Account,
 Status, legal drafts, Worker API, RLS migration, CI, docs.
 
+## Verification (run 4)
+- `npm run check`: 48/48 tests ✅. Playwright: palette Ctrl+K→/countries/DEU, "/"→/markets?symbol=GOLD.D; level + trend
+  drawn, persisted after reload, removable; RSI setting persisted; Strategy templates, comparison (2 rows), validation;
+  mobile no overflow on /, /strategy, /markets; bottom nav + mobile search; 0 console errors.
+
 ## Verification (run 3)
 - `npm run check`: lint ✅ · typecheck ✅ · 37/37 tests ✅ · build ✅
 - Playwright (mocked `/api/compare`): 20 bubbles render; hover tooltip; region filter 20→18; slider → 2000; play
@@ -50,6 +65,8 @@ Worker secret: `RESEND_API_KEY` (unused). GitHub (preview workflow): secret `CLO
 Future: `CLOUDFLARE_RADAR_TOKEN` (internet outages), `UCDP_TOKEN`.
 
 ## Blockers (owner)
+0. Scheduled task: add `agentkarlano-stack/AuroraVeritatis` and `agentkarlano-stack/AuroraVeritatis-Knowledge` as
+   repositories of "AV development (every 2h)" in the Claude app (Routines), then re-enable it.
 1. Cloudflare → Workers & Pages → `auroraveritatis` → Settings → Builds: open the failed log; reconnect the Git
    integration / build token. Working settings: build `npm run build` (or empty), deploy `npx wrangler deploy`,
    non-production `npx wrangler versions upload`.
@@ -58,5 +75,5 @@ Future: `CLOUDFLARE_RADAR_TOKEN` (internet outages), `UCDP_TOKEN`.
 ## Next recommended actions (dev)
 1. Supabase preference sync (when Supabase vars are set).
 2. CFR-style conflict profile pages (trend / impact / sourced timeline) — needs a licensed source (UCDP token or curated).
-3. TradingView-style chart workspace: symbol search, drawing tools, saved layouts.
+3. Chart workspace follow-ups: compare-overlay of two instruments, named saved layouts.
 4. Cloudflare Radar outages → "Communications" dossier section (needs token).

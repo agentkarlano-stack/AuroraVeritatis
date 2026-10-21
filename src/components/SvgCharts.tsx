@@ -90,25 +90,55 @@ export function LineChart({ points, format }: { points: { date: string; value: n
   );
 }
 
-/** Percentile fan chart for Monte Carlo output. */
-export function FanChart({ fan, s0 }: { fan: FanPoint[]; s0: number }) {
-  const ymin = Math.min(...fan.map((f) => f.p05));
-  const ymax = Math.max(...fan.map((f) => f.p95));
+/** Percentile fan chart for Monte Carlo output, optionally overlaid with a second (scenario) fan in blue. */
+export function FanChart({ fan, s0, compare }: { fan: FanPoint[]; s0: number; compare?: FanPoint[] }) {
+  const all = compare ? [...fan, ...compare] : fan;
+  const ymin = Math.min(...all.map((f) => f.p05));
+  const ymax = Math.max(...all.map((f) => f.p95));
   const yt = ticks(ymin, ymax);
   const maxDay = fan.at(-1)!.day;
   const x = scale(0, maxDay, PAD.l, W - PAD.r);
   const y = scale(Math.min(ymin, yt[0] ?? ymin), Math.max(ymax, yt.at(-1) ?? ymax), H - PAD.b, PAD.t);
-  const band = (lo: keyof FanPoint, hi: keyof FanPoint) =>
-    `${fan.map((f, i) => `${i ? 'L' : 'M'}${x(f.day)},${y(f[hi])}`).join('')}${[...fan].reverse().map((f) => `L${x(f.day)},${y(f[lo])}`).join('')}Z`;
-  const median = fan.map((f, i) => `${i ? 'L' : 'M'}${x(f.day)},${y(f.p50)}`).join('');
+  const band = (f0: FanPoint[], lo: keyof FanPoint, hi: keyof FanPoint) =>
+    `${f0.map((f, i) => `${i ? 'L' : 'M'}${x(f.day)},${y(f[hi])}`).join('')}${[...f0].reverse().map((f) => `L${x(f.day)},${y(f[lo])}`).join('')}Z`;
+  const median = (f0: FanPoint[]) => f0.map((f, i) => `${i ? 'L' : 'M'}${x(f.day)},${y(f.p50)}`).join('');
   const xl = ticks(0, maxDay, 6).map((d) => ({ x: x(d), label: `d${d}` }));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Simulated value percentile fan chart">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={compare ? 'Baseline and scenario percentile fans' : 'Simulated value percentile fan chart'}>
       <Axes yTicks={yt} y={y} xLabels={xl} />
-      <path d={band('p05', 'p95')} fill="rgba(201,163,90,0.12)" />
-      <path d={band('p25', 'p75')} fill="rgba(201,163,90,0.25)" />
+      <path d={band(fan, 'p05', 'p95')} fill="rgba(201,163,90,0.12)" />
+      <path d={band(fan, 'p25', 'p75')} fill="rgba(201,163,90,0.25)" />
+      {compare && (
+        <>
+          <path d={band(compare, 'p05', 'p95')} fill="rgba(125,156,192,0.12)" />
+          <path d={band(compare, 'p25', 'p75')} fill="rgba(125,156,192,0.25)" />
+        </>
+      )}
       <line x1={PAD.l} x2={W - PAD.r} y1={y(s0)} y2={y(s0)} stroke="#77756f" strokeDasharray="4 3" />
-      <path d={median} fill="none" stroke="#c9a35a" strokeWidth="2" />
+      <path d={median(fan)} fill="none" stroke="#c9a35a" strokeWidth="2" />
+      {compare && <path d={median(compare)} fill="none" stroke="#7d9cc0" strokeWidth="2" />}
+    </svg>
+  );
+}
+
+/** Two distributions on shared bins (baseline gold, scenario blue). */
+export function OverlayHistogram({ a, b, s0 }: { a: Histogram; b: Histogram; s0: number }) {
+  const max = Math.max(...a.counts, ...b.counts);
+  const lo = a.edges[0]!;
+  const hi = a.edges.at(-1)!;
+  const x = scale(lo, hi, PAD.l, W - PAD.r);
+  const y = scale(0, max, H - PAD.b, PAD.t);
+  const xl = ticks(lo, hi, 6).map((v) => ({ x: x(v), label: fmtAxis(v) }));
+  const outline = (h: Histogram) =>
+    h.counts.map((c, i) => `${i ? 'L' : 'M'}${x(h.edges[i]!)},${y(c)}L${x(h.edges[i + 1]!)},${y(c)}`).join('');
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Baseline versus scenario terminal value distributions">
+      <Axes yTicks={ticks(0, max, 4)} y={y} xLabels={xl} />
+      {a.counts.map((c, i) => (
+        <rect key={i} x={x(a.edges[i]!) + 0.5} width={Math.max(0, x(a.edges[i + 1]!) - x(a.edges[i]!) - 1)} y={y(c)} height={H - PAD.b - y(c)} fill="rgba(201,163,90,0.35)" />
+      ))}
+      <path d={outline(b)} fill="none" stroke="#7d9cc0" strokeWidth="2" />
+      <line x1={x(s0)} x2={x(s0)} y1={PAD.t} y2={H - PAD.b} stroke="#77756f" strokeDasharray="4 3" />
     </svg>
   );
 }

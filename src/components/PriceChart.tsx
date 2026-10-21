@@ -6,23 +6,17 @@ import {
   CrosshairMode,
   HistogramSeries,
   LineSeries,
+  LineStyle,
+  type LogicalRange,
   type SeriesMarker,
   type Time,
 } from 'lightweight-charts';
 import { useEffect, useRef } from 'react';
+import { timeToString, trendPoints, type ChartOptions, type ChartPoint, type Drawing } from '../lib/chart';
 import type { Bar } from '../lib/demoMarket';
 import { bollinger, ema, rsi, sma } from '../lib/technical';
 
-export interface ChartOptions {
-  style: 'candles' | 'line';
-  sma20: boolean;
-  sma50: boolean;
-  ema20: boolean;
-  bollinger: boolean;
-  volume: boolean;
-  rsi: boolean;
-  events: boolean;
-}
+export type { ChartOptions };
 
 export interface ChartAnnotation {
   time: string;
@@ -37,6 +31,9 @@ interface Props {
   visibleBars: number;
   annotations?: ChartAnnotation[];
   decimals: number;
+  drawings?: Drawing[];
+  /** When set, chart clicks are reported as (time, price) points — used by drawing tools. */
+  onPick?: (p: ChartPoint) => void;
 }
 
 const C = {
@@ -52,8 +49,18 @@ function line(values: (number | null)[], bars: Bar[]) {
   return values.flatMap((v, i) => (v == null ? [] : [{ time: bars[i]!.time as Time, value: v }]));
 }
 
-export function PriceChart({ bars, options, visibleBars, annotations = [], decimals }: Props) {
+const NO_DRAWINGS: Drawing[] = [];
+
+export function PriceChart({ bars, options, visibleBars, annotations = [], decimals, drawings = NO_DRAWINGS, onPick }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  // Latest click handler without re-creating the chart when its identity changes.
+  const pickRef = useRef(onPick);
+  // Last user zoom/scroll for these bars, restored when the chart is rebuilt (e.g. after adding a drawing).
+  const viewRef = useRef<{ bars: Bar[]; visibleBars: number; range: LogicalRange } | null>(null);
+
+  useEffect(() => {
+    pickRef.current = onPick;
+  }, [onPick]);
 
   useEffect(() => {
     const el = ref.current;
@@ -119,10 +126,45 @@ export function PriceChart({ bars, options, visibleBars, annotations = [], decim
       createSeriesMarkers(main, markers);
     }
 
-    const n = bars.length;
-    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - visibleBars), to: n + 3 });
-    return () => chart.remove();
-  }, [bars, options, visibleBars, annotations, decimals]);
+    for (const d of drawings) {
+      if (d.kind === 'hline') {
+        main.createPriceLine({ price: d.price, color: C.gold, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '' });
+      } else {
+        const pts = trendPoints(d);
+        if (!pts) continue;
+        chart
+          .addSeries(LineSeries, { color: '#ddbf84', lineWidth: 2, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false })
+          .setData(pts.map((p) => ({ time: p.time as Time, value: p.price })));
+      }
+    }
 
-  return <div ref={ref} className="h-full w-full" />;
+    // Native click listener rather than chart.subscribeClick: the library swallows a second click that follows
+    // quickly (double-click detection), which broke two-point drawing tools. Only clicks in the price pane count.
+    const onClick = (e: MouseEvent) => {
+      const pick = pickRef.current;
+      if (!pick) return;
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (y > (chart.panes()[0]?.getHeight() ?? rect.height)) return;
+      const time = timeToString(chart.timeScale().coordinateToTime(x));
+      const price = main.coordinateToPrice(y);
+      if (time && price !== null) pick({ time, price: Number(price.toFixed(decimals)) });
+    };
+    el.addEventListener('click', onClick);
+
+    const n = bars.length;
+    const saved = viewRef.current;
+    if (saved && saved.bars === bars && saved.visibleBars === visibleBars) chart.timeScale().setVisibleLogicalRange(saved.range);
+    else chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - visibleBars), to: n + 3 });
+    chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (range) viewRef.current = { bars, visibleBars, range };
+    });
+    return () => {
+      el.removeEventListener('click', onClick);
+      chart.remove();
+    };
+  }, [bars, options, visibleBars, annotations, decimals, drawings]);
+
+  return <div ref={ref} className={`h-full w-full ${onPick ? 'cursor-crosshair' : ''}`} />;
 }

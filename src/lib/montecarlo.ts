@@ -14,6 +14,19 @@ export interface GbmParams {
   seed: number;
   /** Trading days per year used to scale mu and sigma. */
   daysPerYear?: number;
+  /** Optional one-off event shock (Strategy Lab scenarios). */
+  jump?: JumpParams;
+}
+
+export interface JumpParams {
+  /** Trading day on which the event may occur (1..days). */
+  day: number;
+  /** Probability that the event occurs on any given path (0..1). */
+  probability: number;
+  /** Mean simple return applied if it occurs, e.g. -0.1 for -10%. */
+  mean: number;
+  /** Standard deviation of that return. */
+  sd: number;
 }
 
 export interface FanPoint {
@@ -26,9 +39,11 @@ export interface FanPoint {
 }
 
 export interface GbmResult {
-  params: Required<GbmParams>;
+  params: Required<Omit<GbmParams, 'jump'>> & Pick<GbmParams, 'jump'>;
   fan: FanPoint[];
   terminal: Float64Array;
+  /** 1 where the jump event occurred on that path (all 0 without a jump). */
+  jumped: Uint8Array;
   histogram: Histogram;
   stats: {
     mean: number;
@@ -58,7 +73,7 @@ export const MC_LIMITS = { maxPaths: 20000, maxDays: 2520 } as const;
  */
 export function simulateGbm(input: GbmParams): GbmResult {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  const params: Required<GbmParams> = {
+  const params: Required<Omit<GbmParams, 'jump'>> & Pick<GbmParams, 'jump'> = {
     daysPerYear: 252,
     ...input,
     paths: Math.max(100, Math.min(MC_LIMITS.maxPaths, Math.round(input.paths))),
@@ -71,6 +86,12 @@ export function simulateGbm(input: GbmParams): GbmResult {
   const drift = (mu - 0.5 * sigma * sigma) * dt;
   const diff = sigma * Math.sqrt(dt);
   const z = normalSampler(mulberry32(seed));
+  // The jump draws come from a separate stream, so the diffusion paths are identical with and without a
+  // scenario (common random numbers): differences between baseline and scenario come from the event alone.
+  const jump = input.jump;
+  const ju = mulberry32((seed ^ 0x9e3779b9) >>> 0);
+  const jz = normalSampler(mulberry32((seed ^ 0x85ebca6b) >>> 0));
+  const jumped = new Uint8Array(paths);
 
   const stride = Math.max(1, Math.ceil(days / 80));
   const checkpoints: number[] = [];
@@ -82,8 +103,12 @@ export function simulateGbm(input: GbmParams): GbmResult {
   for (let p = 0; p < paths; p++) {
     let logS = Math.log(s0);
     let c = 0;
+    const hits = jump ? ju() < jump.probability : false;
+    const jumpReturn = jump && hits ? Math.max(-0.99, jump.mean + jump.sd * jz()) : 0;
+    if (hits) jumped[p] = 1;
     for (let d = 1; d <= days; d++) {
       logS += drift + diff * z();
+      if (hits && d === jump!.day) logS += Math.log1p(jumpReturn);
       if (d === checkpoints[c]) {
         snap[c]![p] = Math.exp(logS);
         c++;
@@ -126,6 +151,7 @@ export function simulateGbm(input: GbmParams): GbmResult {
     params,
     fan,
     terminal,
+    jumped,
     histogram: histogram(sorted, 40),
     stats: {
       mean: m,
