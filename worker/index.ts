@@ -1,4 +1,5 @@
 import type { PublicConfig } from '../shared/types';
+import { cotHistory, cotOverview } from './cftc';
 import { error, json } from './http';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
@@ -119,6 +120,30 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
         return data ? json(data, { maxAge: DAY }) : error(400, 'Unsupported indicator');
       } catch (e) {
         return error(502, 'Country data source unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  // CFTC publishes weekly (Friday 15:30 ET); a 6-hour edge cache picks up new reports the same evening.
+  if (path === '/api/cot') {
+    return cached(request, ctx, async () => {
+      try {
+        return json(await cotOverview(), { maxAge: 6 * 3600 });
+      } catch (e) {
+        return error(502, 'CFTC data source unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  const cot = path.match(/^\/api\/cot\/([0-9A-Z]{6})$/);
+  if (cot) {
+    const years = Number(url.searchParams.get('years') ?? '10');
+    return cached(request, ctx, async () => {
+      try {
+        const data = await cotHistory(cot[1]!, years);
+        return data ? json(data, { maxAge: 6 * 3600 }) : error(400, 'Unsupported market or range');
+      } catch (e) {
+        return error(502, 'CFTC data source unavailable', (e as Error).message);
       }
     });
   }

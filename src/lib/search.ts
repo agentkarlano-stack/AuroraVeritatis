@@ -16,6 +16,7 @@ export const PAGES: SearchItem[] = [
   ['/countries/compare', 'Compare countries', 'Animated indicator comparison'],
   ['/countries/vs', 'Side-by-side countries', 'Compare up to four countries'],
   ['/markets', 'Market Terminal', 'Charts and indicators'],
+  ['/positioning', 'Futures positioning', 'CFTC Commitments of Traders: speculators vs. hedgers'],
   ['/impact', 'Market Impact Radar', 'Events → asset exposure'],
   ['/lab', 'Quant Research', 'Monte Carlo risk simulation'],
   ['/lab?tool=backtest', 'Backtest', 'Test trading rules against buy-and-hold'],

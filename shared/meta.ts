@@ -28,6 +28,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/impact': { title: 'Market Impact Radar', description: 'How geopolitical events can transmit to markets — mechanisms, correlations and hypotheses labelled by strength of evidence.' },
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },
+  '/positioning': { title: 'Futures Positioning (CFTC COT)', description: 'Weekly CFTC Commitments of Traders data for major futures: net speculative and commercial positions, three-year positioning index and extremes.' },
   '/tension': { title: 'World Tension Index', description: 'A transparent composite of geopolitical, humanitarian and financial stress with published formula, weights and robustness check.' },
   '/pricing': { title: 'Plans', description: 'Proposed Aurora Veritatis subscription tiers. The early-access preview is free.' },
   '/status': { title: 'Platform Status & Data Sources', description: 'What works today, what uses demonstration data, and the licences of every data source.' },
