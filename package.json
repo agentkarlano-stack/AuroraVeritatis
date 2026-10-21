@@ -2,7 +2,7 @@
   "name": "aurora-veritatis",
   "private": true,
   "version": "0.1.0",
-  "description": "Aurora Veritatis — Global Analysis & Strategic Insight. Geopolitical, economic and financial intelligence platform.",
+  "description": "Aurora Veritatis \u2014 Global Analysis & Strategic Insight. Geopolitical, economic and financial intelligence platform.",
   "type": "module",
   "engines": {
     "node": ">=20.19"
