@@ -1,16 +1,16 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 6 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 7 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 69 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 72 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
-| Scheduled task | "AV development (every 2h)" **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
+| Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
 | Next recommended action | Owner: fix Workers Builds (or add token). Dev: Supabase preference sync; CFR-style conflict profiles; chart workspace |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -19,6 +19,12 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 7 (2026-10-21)
+- **GDACS disaster-alert layer**: Worker `/api/events/disasters` (cyclones, floods, volcanoes, droughts, wildfires;
+  30-min edge cache; defensive parsing; unsafe report links never passed through) → Radar layer with "Estimate"
+  provenance, HQ priority events and the Tension Index humanitarian input. Tested with representative payloads;
+  live shape unverified from the sandbox.
+- `plural()` helper; wording fixes.
 ### Run 6 (2026-10-21)
 - **Cloud preference sync** (ready; activates when Supabase vars are set and the migration is applied): layout, hidden
   widgets, watchlist, favourites, alerts, chart settings and drawings sync to `user_preferences` for signed-in users.

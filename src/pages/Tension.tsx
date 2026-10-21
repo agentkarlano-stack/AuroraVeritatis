@@ -28,7 +28,7 @@ function volatilityLookup() {
 }
 
 export default function Tension() {
-  const { demo, quakes, quakeStatus } = useEvents();
+  const { demo, quakes, quakeStatus, disasters, disasterStatus } = useEvents();
   const [now] = useState(() => Date.now());
   const [windowDays, setWindowDays] = useState(14);
   const [raw, setRaw] = useState<Weights>(DEFAULT_WEIGHTS);
@@ -36,7 +36,7 @@ export default function Tension() {
   const custom = TENSION_COMPONENTS.some((c) => Math.abs(weights[c.key] - DEFAULT_WEIGHTS[c.key]) > 1e-9);
 
   const volOn = useMemo(() => volatilityLookup(), []);
-  const events = useMemo(() => [...demo, ...quakes], [demo, quakes]);
+  const events = useMemo(() => [...demo, ...quakes, ...disasters], [demo, quakes, disasters]);
   const today = new Date(now).toISOString().slice(0, 10);
   const result = useMemo(() => worldTension(events, volOn(today), now, windowDays, raw), [events, volOn, today, now, windowDays, raw]);
   const history = useMemo(() => tensionHistory(events, volOn, 90, now, windowDays, raw), [events, volOn, now, windowDays, raw]);
@@ -51,7 +51,7 @@ export default function Tension() {
       </PageHeader>
       <DemoNotice>
         <strong>Prototype on demonstration inputs.</strong> Geopolitical event inputs are simulated scenarios and the market input
-        is a synthetic price series; only the natural-hazard input is live (USGS). The index is a methodological sketch, not a
+        is a synthetic price series; only the natural-hazard inputs are live (USGS earthquakes, GDACS disaster alerts). The index is a methodological sketch, not a
         validated or scientifically established measure.
       </DemoNotice>
 
@@ -176,6 +176,9 @@ export default function Tension() {
                     <td className="py-2 pr-2 text-mist">Natural-hazard events</td>
                     <td className="py-2 text-right">
                       <ProvenanceBadge kind="confirmed" /> <span className="text-xs text-slate-dim">USGS · {quakeStatus === 'ready' ? `${quakes.length} live` : 'unavailable'}</span>
+                      <span className="mt-1 block">
+                        <ProvenanceBadge kind="estimate" /> <span className="text-xs text-slate-dim">GDACS alerts · {disasterStatus === 'ready' ? `${disasters.length} live` : 'unavailable'}</span>
+                      </span>
                     </td>
                   </tr>
                   <tr>

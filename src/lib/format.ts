@@ -47,3 +47,8 @@ export function relativeTime(iso: string, now = Date.now()): string {
   const d = Math.round(h / 24);
   return `${d}d ago`;
 }
+
+/** "1 alert", "3 alerts" — pass an explicit plural for irregular nouns. */
+export function plural(n: number, singular: string, pluralForm = `${singular}s`): string {
+  return `${n} ${n === 1 ? singular : pluralForm}`;
+}

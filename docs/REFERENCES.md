@@ -43,6 +43,7 @@ name these products. AV's differentiator stays the *link* between geopolitics an
 | ACLED | Conflict events, index | Registration; commercial use needs licence | Blocked on licence decision |
 | UCDP | Conflict events | CC BY 4.0; API token required | Candidate — needs token |
 | GDELT | News-derived events (unverified) | Open, cite | Candidate; label as "unverified" |
-| ReliefWeb / GDACS | Humanitarian, disasters | Open APIs | Candidate |
+| GDACS | Disaster alerts | Free with attribution | ✅ integrated (live call unverified from sandbox) |
+| ReliefWeb | Humanitarian reports | Open API (appname required) | Candidate |
 | SEC EDGAR (Form 4) | Insider transactions | Public domain; fair-access rate limits | Candidate |
 | Flightradar24, Liveuamap, Koyfin, TradingView data, Quiver | — | Proprietary | Not used |

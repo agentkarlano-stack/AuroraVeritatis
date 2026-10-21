@@ -25,7 +25,7 @@ Instructions for AI development sessions (Claude Code, scheduled routines). Read
 Owner benchmarks, platform map, what to learn from each and data-licence notes: `docs/REFERENCES.md`. Patterns only — never copy their branding, text or data.
 
 ## Codebase map
-- `worker/` — Cloudflare Worker: `/api/*` routes (`index.ts`), upstream clients (`worldbank.ts`, `usgs.ts`),
+- `worker/` — Cloudflare Worker: `/api/*` routes (`index.ts`), upstream clients (`worldbank.ts`, `usgs.ts`, `gdacs.ts`),
   edge caching, per-IP rate limiting. Assets are served by the Workers assets binding (SPA fallback).
 - `shared/` — types and indicator catalogue used by both worker and client.
 - `src/pages/` — one lazy-loaded page per route; `src/components/` — UI (`ui.tsx` primitives, `WorldMap`, `PriceChart`, `SvgCharts`).

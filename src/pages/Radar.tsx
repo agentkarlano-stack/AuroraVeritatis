@@ -7,7 +7,7 @@ import { DemoNotice, PageHeader, Panel, ProvenanceBadge } from '../components/ui
 import { WorldMap } from '../components/WorldMap';
 import { INSTRUMENT_MAP } from '../data/instruments';
 import { CATEGORY_COLOR, CATEGORY_LABEL, REGIONS, regionOf, useEvents } from '../lib/events';
-import { fmtDate, relativeTime } from '../lib/format';
+import { fmtDate, plural, relativeTime } from '../lib/format';
 
 const WINDOWS = [
   { label: '24h', days: 1 },
@@ -18,8 +18,8 @@ const WINDOWS = [
 
 export default function Radar() {
   const navigate = useNavigate();
-  const { demo, quakes, quakeStatus, quakeError, reloadQuakes } = useEvents();
-  const [layers, setLayers] = useState({ demo: true, quakes: true });
+  const { demo, quakes, quakeStatus, quakeError, reloadQuakes, disasters, disasterStatus, reloadDisasters } = useEvents();
+  const [layers, setLayers] = useState({ demo: true, quakes: true, disasters: true });
   const [cats, setCats] = useState<Set<EventCategory>>(new Set(Object.keys(CATEGORY_LABEL) as EventCategory[]));
   const [minSeverity, setMinSeverity] = useState(1);
   const [region, setRegion] = useState('all');
@@ -28,7 +28,10 @@ export default function Radar() {
   const [now] = useState(() => Date.now());
   const [day, setDay] = useState<string | null>(null);
 
-  const all = useMemo(() => [...(layers.demo ? demo : []), ...(layers.quakes ? quakes : [])], [layers, demo, quakes]);
+  const all = useMemo(
+    () => [...(layers.demo ? demo : []), ...(layers.quakes ? quakes : []), ...(layers.disasters ? disasters : [])],
+    [layers, demo, quakes, disasters],
+  );
   const windowed = useMemo(() => {
     return all
       .filter((e) => cats.has(e.category) && e.severity >= minSeverity && now - Date.parse(e.time) <= windowDays * 86_400_000)
@@ -61,10 +64,25 @@ export default function Radar() {
                   Earthquakes M4.5+, past 7 days <ProvenanceBadge kind="confirmed" className="ml-1" />
                   <span className="block text-xs text-slate-dim">
                     USGS ·{' '}
-                    {quakeStatus === 'loading' ? 'loading…' : quakeStatus === 'error' ? 'unavailable' : `${quakes.length} events`}
+                    {quakeStatus === 'loading' ? 'loading…' : quakeStatus === 'error' ? 'unavailable' : plural(quakes.length, 'event')}
                   </span>
                   {quakeError && (
                     <button className="text-xs text-gold hover:underline" onClick={reloadQuakes}>
+                      Retry feed
+                    </button>
+                  )}
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.disasters} onChange={(e) => setLayers((l) => ({ ...l, disasters: e.target.checked }))} />
+                <span>
+                  Disaster alerts <ProvenanceBadge kind="estimate" className="ml-1" />
+                  <span className="block text-xs text-slate-dim">
+                    GDACS · cyclones, floods, volcanoes, droughts, wildfires ·{' '}
+                    {disasterStatus === 'loading' ? 'loading…' : disasterStatus === 'error' ? 'unavailable' : plural(disasters.length, 'alert')}
+                  </span>
+                  {disasterStatus === 'error' && (
+                    <button className="text-xs text-gold hover:underline" onClick={reloadDisasters}>
                       Retry feed
                     </button>
                   )}
@@ -136,8 +154,8 @@ export default function Radar() {
         <div className="min-w-0 space-y-4">
           <DemoNotice>
             Geopolitical markers are <strong>simulated scenarios</strong> (dashed outline) for interface demonstration — they are
-            not real events and contain no casualty figures. The earthquake layer is live public data from the U.S. Geological
-            Survey.
+            not real events and contain no casualty figures. The earthquake layer (U.S. Geological Survey) and disaster alerts (GDACS, modelled impact estimates) are live public
+            data.
           </DemoNotice>
           <div className="relative">
             <WorldMap

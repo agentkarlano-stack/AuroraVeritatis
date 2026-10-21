@@ -23,15 +23,19 @@ export const CATEGORY_LABEL: Record<GeoEvent['category'], string> = {
   energy: 'Energy supply',
 };
 
-/** Demo scenarios plus the live USGS layer (when reachable). */
+/** Demo scenarios plus the live USGS earthquake and GDACS disaster-alert layers (when reachable). */
 export function useEvents() {
   const quakes = useApi<{ events: GeoEvent[] }>('/api/events/earthquakes');
+  const alerts = useApi<{ events: GeoEvent[] }>('/api/events/disasters');
   return {
     demo: DEMO_EVENTS,
     quakes: quakes.status === 'ready' ? quakes.data.events : [],
     quakeStatus: quakes.status,
     quakeError: quakes.status === 'error' ? quakes.error : null,
     reloadQuakes: quakes.reload,
+    disasters: alerts.status === 'ready' ? alerts.data.events : [],
+    disasterStatus: alerts.status,
+    reloadDisasters: alerts.reload,
   };
 }
 

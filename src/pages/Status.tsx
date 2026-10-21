@@ -12,7 +12,7 @@ const STATE: Record<State, { label: string; cls: string }> = {
 
 const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Headquarters dashboard', to: '/hq', state: 'prototype', note: 'Configurable widgets, watchlist, favourites, alerts and notes saved in the browser.' },
-  { name: 'Global Radar — natural hazards', to: '/radar', state: 'working', note: 'Live USGS M4.5+ earthquake feed, cached at the edge for 10 minutes.' },
+  { name: 'Global Radar — natural hazards', to: '/radar', state: 'working', note: 'Live USGS M4.5+ earthquakes (10-min cache) and GDACS disaster alerts for cyclones, floods, volcanoes, droughts and wildfires (30-min cache).' },
   { name: 'Global Radar — geopolitical layer', to: '/radar', state: 'demo', note: 'Simulated scenarios until GDELT / UCDP / ReliefWeb ingestion is built.' },
   { name: 'Global Radar — timeline', to: '/radar', state: 'working', note: 'Daily event counts by category; click a day to filter the map and list.' },
   { name: 'Country dossiers', to: '/countries', state: 'working', note: '23 World Bank indicators with reference years and 1990–present history charts.' },
@@ -34,6 +34,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
 const SOURCES = [
   { name: 'World Bank Open Data (WDI)', url: 'https://data.worldbank.org/', license: 'CC BY 4.0', use: 'Country indicators' },
   { name: 'USGS Earthquake Hazards Program', url: 'https://earthquake.usgs.gov/earthquakes/feed/', license: 'Public domain', use: 'Earthquake layer' },
+  { name: 'GDACS (UN OCHA / EC JRC)', url: 'https://www.gdacs.org/', license: 'Free use with attribution', use: 'Disaster alert layer' },
   { name: 'Natural Earth via world-atlas', url: 'https://www.naturalearthdata.com/', license: 'Public domain', use: 'Map boundaries' },
   { name: 'TradingView Lightweight Charts', url: 'https://github.com/tradingview/lightweight-charts', license: 'Apache 2.0 (attribution)', use: 'Financial charts' },
 ];

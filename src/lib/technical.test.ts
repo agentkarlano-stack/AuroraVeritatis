@@ -50,3 +50,12 @@ describe('rebase', () => {
     expect(rebase([0, 1]).every(Number.isNaN)).toBe(true);
   });
 });
+
+describe('plural', () => {
+  it('pluralises', async () => {
+    const { plural } = await import('./format');
+    expect(plural(1, 'alert')).toBe('1 alert');
+    expect(plural(0, 'alert')).toBe('0 alerts');
+    expect(plural(2, 'country', 'countries')).toBe('2 countries');
+  });
+});

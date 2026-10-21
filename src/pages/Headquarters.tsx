@@ -8,7 +8,7 @@ import { countryByIso3, searchCountries } from '../lib/countries';
 import { demoBars, lastQuote } from '../lib/demoMarket';
 import { limitOf, useTier } from '../lib/entitlements';
 import { CATEGORY_COLOR, CATEGORY_LABEL, useEvents } from '../lib/events';
-import { fmtDate, fmtNumber, relativeTime } from '../lib/format';
+import { fmtDate, fmtNumber, plural, relativeTime } from '../lib/format';
 import { annualisedVol } from '../lib/technical';
 import { tensionBand, worldTension } from '../lib/tension';
 import { WIDGETS, usePrefs, type WidgetId } from '../store/prefs';
@@ -126,10 +126,10 @@ function Widget({ id }: { id: WidgetId }) {
 }
 
 function TensionWidget() {
-  const { demo, quakes } = useEvents();
+  const { demo, quakes, disasters } = useEvents();
   const [showMethod, setShowMethod] = useState(false);
   const vol = useMemo(() => annualisedVol(demoBars('GLB-EQ.D').slice(-21).map((b) => b.close)), []);
-  const t = useMemo(() => worldTension([...demo, ...quakes], vol), [demo, quakes, vol]);
+  const t = useMemo(() => worldTension([...demo, ...quakes, ...disasters], vol), [demo, quakes, disasters, vol]);
   const band = tensionBand(t.value);
   const toneCls = { low: 'text-up', moderate: 'text-gold', elevated: 'text-warn', high: 'text-down' }[band.tone];
   return (
@@ -182,10 +182,10 @@ function TensionWidget() {
 }
 
 function EventsWidget() {
-  const { demo, quakes, quakeStatus } = useEvents();
+  const { demo, quakes, quakeStatus, disasters } = useEvents();
   const top = useMemo(
-    () => [...demo, ...quakes].sort((a, b) => b.severity - a.severity || Date.parse(b.time) - Date.parse(a.time)).slice(0, 6),
-    [demo, quakes],
+    () => [...demo, ...quakes, ...disasters].sort((a, b) => b.severity - a.severity || Date.parse(b.time) - Date.parse(a.time)).slice(0, 6),
+    [demo, quakes, disasters],
   );
   return (
     <div>
@@ -204,7 +204,7 @@ function EventsWidget() {
         ))}
       </ul>
       <div className="mt-3 flex justify-between text-xs">
-        <span className="text-slate-dim">USGS feed: {quakeStatus === 'ready' ? `${quakes.length} live events` : quakeStatus}</span>
+        <span className="text-slate-dim">Live feeds: {quakeStatus === 'ready' ? plural(quakes.length, 'earthquake') : quakeStatus === 'loading' ? 'loading…' : 'earthquakes unavailable'} · {plural(disasters.length, 'disaster alert')}</span>
         <Link to="/radar" className="text-gold hover:underline">
           Open Global Radar →
         </Link>

@@ -1,6 +1,7 @@
 import type { PublicConfig } from '../shared/types';
 import { error, json } from './http';
 import { RateLimiter } from './ratelimit';
+import { disasters } from './gdacs';
 import { earthquakes } from './usgs';
 import { ISO3_RE, compareYear, countryProfile, indicatorSeries } from './worldbank';
 
@@ -66,6 +67,16 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
         return json({ events: await earthquakes() }, { maxAge: 600 });
       } catch (e) {
         return error(502, 'Earthquake feed unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  if (path === '/api/events/disasters') {
+    return cached(request, ctx, async () => {
+      try {
+        return json({ events: await disasters() }, { maxAge: 1800 });
+      } catch (e) {
+        return error(502, 'Disaster alert feed unavailable', (e as Error).message);
       }
     });
   }

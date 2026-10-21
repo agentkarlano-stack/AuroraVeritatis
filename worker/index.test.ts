@@ -135,3 +135,33 @@ describe('country comparison endpoint', () => {
     expect((await get('/api/compare/2022?x=BAD.ID')).status).toBe(400);
   });
 });
+
+describe('GDACS normalisation', () => {
+  it('maps current alerts to estimated natural-disaster events and skips unusable features', async () => {
+    const { normalizeGdacs, alertToSeverity } = await import('./gdacs');
+    const events = normalizeGdacs([
+      {
+        geometry: { type: 'Point', coordinates: [125.5, 14.2] },
+        properties: { eventtype: 'TC', eventid: 1001, episodeid: 7, name: 'Tropical Cyclone TEST-26', alertlevel: 'Orange', country: 'Philippines', todate: '2026-10-20T12:00:00', url: { report: 'https://www.gdacs.org/report.aspx?eventid=1001' }, severitydata: { severitytext: 'Maximum wind speed of 150 km/h' } },
+      },
+      { geometry: { type: 'Polygon', coordinates: [] }, properties: { eventtype: 'FL', eventid: 2 } },
+      { geometry: { type: 'Point', coordinates: [10, 10] }, properties: { eventtype: 'EQ', eventid: 3 } },
+      { geometry: { type: 'Point', coordinates: [30, -2] }, properties: { eventtype: 'DR', eventid: 4, alertlevel: 'Red', url: 'javascript:alert(1)' } },
+    ]);
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({ id: 'gdacs-TC-1001-7', title: 'Tropical Cyclone TEST-26', lat: 14.2, lon: 125.5, severity: 3, provenance: 'estimate', category: 'natural-disaster', region: 'Philippines' });
+    expect(events[0]!.summary).toContain('150 km/h');
+    expect(events[0]!.source.url).toBe('https://www.gdacs.org/report.aspx?eventid=1001');
+    expect(events[1]).toMatchObject({ title: 'Drought', severity: 5, region: 'Unknown' });
+    expect(events[1]!.source.url).toBe('https://www.gdacs.org/'); // unsafe/non-http report links are never passed through
+    expect(alertToSeverity(undefined)).toBe(1);
+  });
+
+  it('serves the feed and reports upstream failures', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ features: [{ geometry: { type: 'Point', coordinates: [1, 2] }, properties: { eventtype: 'VO', eventid: 9, alertlevel: 'Green' } }] })));
+    const ok = await body<{ events: { id: string }[] }>(get('/api/events/disasters'));
+    expect(ok.events.map((e) => e.id)).toEqual(['gdacs-VO-9-0']);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
+    expect((await get('/api/events/disasters')).status).toBe(502);
+  });
+});
