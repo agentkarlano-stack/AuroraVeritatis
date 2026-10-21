@@ -5,6 +5,8 @@ import { RateLimiter } from './ratelimit';
 import { magnitudeToSeverity, normalizeUsgs } from './usgs';
 import { compareYears } from './worldbank';
 import { cotUrl, normalizeCot } from './cftc';
+import { ecbUrls, normalizeEcb, parseCsv } from './ecb';
+import { MACRO_MAP, MACRO_SERIES, type MacroResponse } from '../shared/macro';
 import type { CotResponse } from '../shared/cot';
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
@@ -233,5 +235,48 @@ describe('CFTC Commitments of Traders', () => {
     expect((await get('/api/cot/123456')).status).toBe(400);
     vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
     expect((await get('/api/cot')).status).toBe(502);
+  });
+});
+
+describe('ECB Data Portal', () => {
+  const csv = [
+    'KEY,FREQ,CURRENCY,CURRENCY_DENOM,EXR_TYPE,EXR_SUFFIX,TIME_PERIOD,OBS_VALUE',
+    'EXR.D.USD.EUR.SP00.A,D,USD,EUR,SP00,A,2026-10-21,1.0812',
+    'EXR.D.USD.EUR.SP00.A,D,USD,EUR,SP00,A,2026-10-20,1.0790',
+    'EXR.D.JPY.EUR.SP00.A,D,JPY,EUR,SP00,A,2026-10-21,',
+    'EXR.D.XXX.EUR.SP00.A,D,XXX,EUR,SP00,A,2026-10-21,1',
+  ].join('\r\n');
+
+  it('parses quoted CSV fields', () => {
+    expect(parseCsv('a,b\n"x, y","say ""hi"""\n')).toEqual([['a', 'b'], ['x, y', 'say "hi"']]);
+  });
+
+  it('normalises observations by series, sorted, skipping blanks and unknown keys', () => {
+    const out = normalizeEcb(csv);
+    expect([...out.keys()]).toEqual(['EURUSD']);
+    expect(out.get('EURUSD')).toEqual([{ date: '2026-10-20', value: 1.079 }, { date: '2026-10-21', value: 1.0812 }]);
+    expect(normalizeEcb('').size).toBe(0);
+    expect(normalizeEcb('A,B\n1,2').size).toBe(0);
+  });
+
+  it('combines FX keys into one request and keeps other series separate', () => {
+    const urls = ecbUrls([MACRO_MAP.get('EURUSD')!, MACRO_MAP.get('EURJPY')!, MACRO_MAP.get('HICP')!], Date.UTC(2025, 0, 1));
+    expect(urls).toEqual([
+      'https://data-api.ecb.europa.eu/service/data/EXR/D.USD+JPY.EUR.SP00.A?startPeriod=2025-01-01&format=csvdata&detail=dataonly',
+      'https://data-api.ecb.europa.eu/service/data/ICP/M.U2.N.000000.4.ANR?startPeriod=2025-01-01&format=csvdata&detail=dataonly',
+    ]);
+  });
+
+  it('serves the overview, lists missing series, tolerates 404 and validates history requests', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (u: string) => (String(u).includes('/EXR/') ? new Response(csv) : new Response('No results found', { status: 404 }))));
+    const res = await body<MacroResponse>(get('/api/macro'));
+    expect(res.series.map((s) => s.id)).toEqual(['EURUSD']);
+    expect(res.missing).toHaveLength(MACRO_SERIES.length - 1);
+    expect(res.source.name).toContain('ECB');
+    expect((await get('/api/macro/EURUSD?years=25')).status).toBe(200);
+    expect((await get('/api/macro/EURUSD?years=26')).status).toBe(400);
+    expect((await get('/api/macro/NOPE')).status).toBe(400);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 500 })));
+    expect((await get('/api/macro')).status).toBe(502);
   });
 });

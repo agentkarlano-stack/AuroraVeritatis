@@ -1,5 +1,6 @@
 import type { PublicConfig } from '../shared/types';
 import { cotHistory, cotOverview } from './cftc';
+import { macroHistory, macroOverview } from './ecb';
 import { error, json } from './http';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
@@ -144,6 +145,30 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
         return data ? json(data, { maxAge: 6 * 3600 }) : error(400, 'Unsupported market or range');
       } catch (e) {
         return error(502, 'CFTC data source unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  // ECB reference rates are published around 16:00 CET on TARGET working days; 3-hour edge cache.
+  if (path === '/api/macro') {
+    return cached(request, ctx, async () => {
+      try {
+        return json(await macroOverview(), { maxAge: 3 * 3600 });
+      } catch (e) {
+        return error(502, 'ECB data source unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  const macro = path.match(/^\/api\/macro\/([A-Z0-9-]{3,12})$/);
+  if (macro) {
+    const years = Number(url.searchParams.get('years') ?? '10');
+    return cached(request, ctx, async () => {
+      try {
+        const data = await macroHistory(macro[1]!, years);
+        return data ? json(data, { maxAge: 3 * 3600 }) : error(400, 'Unsupported series or range');
+      } catch (e) {
+        return error(502, 'ECB data source unavailable', (e as Error).message);
       }
     });
   }

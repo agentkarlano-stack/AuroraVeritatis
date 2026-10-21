@@ -146,9 +146,14 @@ export default function Markets() {
         eyebrow="Markets Terminal"
         title="Market analysis"
         actions={
-          <Link to="/positioning" className="btn-ghost text-xs">
-            Futures positioning (CFTC data)
-          </Link>
+          <>
+            <Link to="/macro" className="btn-ghost text-xs">
+              Macro &amp; FX (ECB data)
+            </Link>
+            <Link to="/positioning" className="btn-ghost text-xs">
+              Futures positioning (CFTC data)
+            </Link>
+          </>
         }
       >
         Interactive charts, technical indicators and return statistics, annotated with geopolitical events.

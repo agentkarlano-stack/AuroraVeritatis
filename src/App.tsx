@@ -18,6 +18,7 @@ const Impact = lazy(() => import('./pages/Impact'));
 const Strategy = lazy(() => import('./pages/Strategy'));
 const Tension = lazy(() => import('./pages/Tension'));
 const Positioning = lazy(() => import('./pages/Positioning'));
+const Macro = lazy(() => import('./pages/Macro'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
@@ -45,6 +46,7 @@ export function App() {
             <Route path="strategy" element={<Lazy><Strategy /></Lazy>} />
             <Route path="tension" element={<Lazy><Tension /></Lazy>} />
             <Route path="positioning" element={<Lazy><Positioning /></Lazy>} />
+            <Route path="macro" element={<Lazy><Macro /></Lazy>} />
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />
