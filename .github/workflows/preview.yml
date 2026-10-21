@@ -43,11 +43,15 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          set -o pipefail
           npx wrangler versions upload --preview-alias "pr-${{ github.event.pull_request.number }}" \
             --message "PR #${{ github.event.pull_request.number }} ${GITHUB_SHA::7}" | tee upload.log
           url=$(grep -oE 'https://[^ ]+\.workers\.dev' upload.log | tail -1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
+          version=$(grep -oE 'Worker Version ID: [0-9a-f-]+' upload.log | tail -1 || true)
           echo "### Preview: ${url:-not reported (enable Preview URLs on the Worker)}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${version:-Worker Version ID not reported}" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Cloudflare preview::${version:-Worker Version ID not reported} · ${url:-no preview URL reported}"
       - name: Comment preview URL
         if: env.HAS_TOKEN == 'true' && steps.upload.outputs.url != ''
         env:
