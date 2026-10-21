@@ -1,7 +1,9 @@
 # CLAUDE.md — Aurora Veritatis
 
 Instructions for AI development sessions (Claude Code, scheduled routines). Read this first, then
-`docs/DEVELOPMENT_PROGRESS.md`.
+`docs/DEVELOPMENT_PROGRESS.md`. The owner's standing directive ("Continue" protocol, priorities A–H, approved
+homepage copy, writing rules, beta checklist) is `MASTER-DIRECTIVE.md` in the Knowledge repository; owner to-dos are
+`OWNER-ACTIONS.md` there.
 
 ## Session protocol
 1. `git fetch` and check open PRs on `agentkarlano-stack/AuroraVeritatis`; continue the open development PR's branch
@@ -66,7 +68,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   unit tests run in Node and cannot catch Workers-runtime failures.
 - Never compute time-dependent values at Worker module scope (`new Date()`, `Date.now()`): during global
   initialisation the Workers clock reads as the Unix epoch. (This made `/api/compare/:year` reject every year.)
-- `scripts/smoke.sh <base-url>` is the read-only HTTP smoke test; CI runs it on each PR preview and on aurorav.app.
+- `scripts/smoke.sh <base-url>` is the read-only HTTP smoke test; CI runs it on each PR preview and on aurorav.app. It
+  also prints an informational "Auth status" line (Supabase configured? schema applied? sign-up settings) from public values.
+- Public copy: approved homepage strings live in `shared/copy.ts` (pinned by a test); `scripts/copyStyle.test.ts` enforces
+  the house style (no em dashes in prose, no hype, consistent names).
 - The Worker serves page navigations (route `<head>` metadata via HTMLRewriter, `worker/meta.ts`) through the
   `ASSETS` binding; `run_worker_first` excludes `/assets/*`, `/brand/*` and static files so they bypass the Worker.
 - Scheduled tasks need the repositories attached as sources (set in the Claude app). Without them a run can only clone
