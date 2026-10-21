@@ -16,6 +16,7 @@ export const PAGES: SearchItem[] = [
   ['/countries/compare', 'Compare countries', 'Animated indicator comparison'],
   ['/countries/vs', 'Side-by-side countries', 'Compare up to four countries'],
   ['/markets', 'Market Terminal', 'Charts and indicators'],
+  ['/brain', 'Personal Intelligence Brain', 'Your own graph of events, countries, markets and hypotheses'],
   ['/macro', 'Macro & FX', 'ECB rates, euro-area inflation, yields and reference exchange rates'],
   ['/positioning', 'Futures positioning', 'CFTC Commitments of Traders: speculators vs. hedgers'],
   ['/impact', 'Market Impact Radar', 'Events → asset exposure'],

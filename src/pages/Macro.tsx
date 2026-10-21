@@ -14,6 +14,7 @@ import {
   type MacroResponse,
   type MacroSeriesDef,
 } from '../../shared/macro';
+import { AddToBrain } from '../components/AddToBrain';
 import { PerformanceChart, type PerformanceSeries } from '../components/PerformanceChart';
 import { ErrorState, Loading, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
 import { useApi } from '../lib/api';
@@ -254,6 +255,9 @@ export default function Macro() {
                   </div>
                 ))}
               </Panel>
+              <AddToBrain
+                entity={{ kind: selected.group === 'fx' ? 'instrument' : 'indicator', label: selected.group === 'fx' ? `${selected.id.slice(3)} per EUR (${selected.label})` : selected.label, ref: { type: 'macro', id: selected.id } }}
+              />
               <Panel title="Other series">
                 <div className="flex flex-wrap gap-1.5">
                   {MACRO_SERIES.filter((s) => s.group !== 'fx').map((s) => (

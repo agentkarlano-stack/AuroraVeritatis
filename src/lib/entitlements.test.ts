@@ -21,3 +21,13 @@ describe('entitlements', () => {
     expect(hasFeature('free', 'strategyLab', true)).toBe(true);
   });
 });
+
+describe('Brain quotas', () => {
+  it('uses the proposed per-plan limits, with the Premium quota during early access', async () => {
+    const { brainLimits } = await import('./entitlements');
+    expect(brainLimits('free', false)).toEqual({ graphs: 1, nodesPerGraph: 10, edgesPerGraph: 40 });
+    expect(brainLimits('free', true)).toEqual({ graphs: 3, nodesPerGraph: 100, edgesPerGraph: 400 });
+    expect(brainLimits('prime', true)).toEqual({ graphs: 15, nodesPerGraph: 500, edgesPerGraph: 2000 });
+    expect(brainLimits('intelligence', false).nodesPerGraph).toBe(2000);
+  });
+});

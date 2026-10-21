@@ -2,6 +2,7 @@ import { ExternalLink, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { EventCategory, GeoEvent } from '../../shared/types';
+import { AddToBrain } from '../components/AddToBrain';
 import { EventTimeline } from '../components/EventTimeline';
 import { DemoNotice, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
@@ -243,6 +244,17 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
           <span className="block text-slate-dim">{e.source.license}</span>
         </dd>
       </dl>
+      <AddToBrain
+        className="mt-3"
+        entity={{
+          kind: e.provenance === 'simulated' ? 'scenario' : 'event',
+          label: e.title,
+          date: e.time.slice(0, 10),
+          notes: `${e.provenance === 'simulated' ? 'Simulated demo scenario — not a real event. ' : ''}${e.summary}`.slice(0, 5000),
+          ref: { type: 'event', id: e.id },
+          sources: e.source.url.startsWith('http') ? [{ title: e.source.name, url: e.source.url, date: e.time.slice(0, 10) }] : [],
+        }}
+      />
       {e.marketLinks && e.marketLinks.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
           <div className="eyebrow mb-1">Potential market exposure</div>

@@ -11,8 +11,8 @@ const NAV = [
   { to: '/radar', label: 'Global Radar' },
   { to: '/countries', label: 'Countries' },
   { to: '/markets', label: 'Markets' },
-  { to: '/impact', label: 'Impact Radar' },
   { to: '/lab', label: 'Quant Research' },
+  { to: '/brain', label: 'Brain' },
 ];
 
 const LEGAL = [
@@ -53,7 +53,7 @@ export function Layout() {
   }, []);
 
   const navCls = ({ isActive }: { isActive: boolean }) =>
-    `rounded-md px-3 py-2 text-sm transition-colors ${isActive ? 'text-gold-soft' : 'text-mist hover:text-platinum'}`;
+    `whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors ${isActive ? 'text-gold-soft' : 'text-mist hover:text-platinum'}`;
 
   return (
     <div className="flex min-h-dvh flex-col pb-16 lg:pb-0">
@@ -81,7 +81,7 @@ export function Layout() {
             <NavLink to="/pricing" className={(s) => `${navCls(s)} hidden sm:block`}>
               Plans
             </NavLink>
-            <Link to={status === 'signed-in' ? '/account' : '/signin'} className="btn-ghost hidden sm:inline-flex" aria-label="Account">
+            <Link to={status === 'signed-in' ? '/account' : '/signin'} className="btn-ghost hidden whitespace-nowrap sm:inline-flex" aria-label="Account">
               <UserRound className="h-4 w-4" aria-hidden />
               {status === 'signed-in' ? (session?.user.email?.split('@')[0] ?? 'Account') : 'Sign in'}
             </Link>
@@ -147,6 +147,11 @@ export function Layout() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link className="text-mist hover:text-platinum" to="/impact">
+                  Market Impact Radar
+                </Link>
+              </li>
               <li>
                 <Link className="text-mist hover:text-platinum" to="/strategy">
                   Strategy Lab
