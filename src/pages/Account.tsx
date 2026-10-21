@@ -176,7 +176,7 @@ function SyncLine() {
     <div className={`mt-1 text-xs ${tone}`} role="status">
       {label}
       {sync.message && <span className="block text-slate-dim">{sync.message}</span>}
-      <span className="block text-[11px] text-slate-dim">Watchlist, layout, alerts, favourites, chart settings and drawings sync across devices. Notes stay on this device for now.</span>
+      <span className="block text-[11px] text-slate-dim">Watchlist, layout, alerts, favourites, chart settings, drawings and research notes sync across devices.</span>
     </div>
   );
 }

@@ -58,3 +58,30 @@ describe('preference sync', () => {
     await expect(initialSync(backend, 'u1', {}, null, NOW)).rejects.toThrow('RLS denied');
   });
 });
+
+describe('notes sync', () => {
+  const n = (id: string, createdAt: string) => ({ id, title: id, body: '', createdAt });
+  const A = '00000000-0000-4000-8000-00000000000a';
+  const B = '00000000-0000-4000-8000-00000000000b';
+  const C = '00000000-0000-4000-8000-00000000000c';
+
+  it('merges by id, newest first, and uploads only local-only notes', async () => {
+    const { mergeNotes } = await import('./sync');
+    const r = mergeNotes([n(A, '2026-10-21'), n(B, '2026-10-19')], [n(B, '2026-10-19'), n(C, '2026-10-20')]);
+    expect(r.merged.map((x) => x.id)).toEqual([A, C, B]);
+    expect(r.toUpload.map((x) => x.id)).toEqual([A]);
+  });
+
+  it('keeps non-uuid notes local only', async () => {
+    const { mergeNotes, diffNotes } = await import('./sync');
+    expect(mergeNotes([n('12345', '2026-10-21')], []).toUpload).toEqual([]);
+    expect(diffNotes([], [n('12345', '2026-10-21')]).added).toEqual([]);
+  });
+
+  it('diffs additions and removals', async () => {
+    const { diffNotes } = await import('./sync');
+    const d = diffNotes([n(A, '1'), n(B, '2')], [n(B, '2'), n(C, '3')]);
+    expect(d.added.map((x) => x.id)).toEqual([C]);
+    expect(d.removed).toEqual([A]);
+  });
+});

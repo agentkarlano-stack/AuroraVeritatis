@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/** Preference keys synced to the cloud. Notes are excluded: they can exceed the row size limit (own table later). */
+/** Preference keys synced in the `user_preferences` row. Notes sync separately via `research_notes` (size limit). */
 export const SYNCED_KEYS = ['layout', 'hidden', 'watchlist', 'favorites', 'alerts', 'chart', 'drawings'] as const;
 export type SyncedKey = (typeof SYNCED_KEYS)[number];
 export type SyncedPrefs = Partial<Record<SyncedKey, unknown>>;
@@ -63,6 +63,66 @@ export function supabaseBackend(client: SupabaseClient): PrefsBackend {
     },
     async save(userId, data, updatedAt) {
       const { error } = await client.from('user_preferences').upsert({ user_id: userId, data, updated_at: updatedAt }, { onConflict: 'user_id' });
+      if (error) throw new Error(error.message);
+    },
+  };
+}
+
+export interface SyncNote {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
+
+/** Notes live in their own RLS-protected table (`research_notes`), one row per note. */
+export interface NotesBackend {
+  list(userId: string): Promise<SyncNote[]>;
+  upsert(userId: string, notes: SyncNote[]): Promise<void>;
+  remove(userId: string, ids: string[]): Promise<void>;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Union of local and remote notes by id (newest first) plus the local notes the server does not have yet.
+ * Notes with non-UUID ids (created without crypto.randomUUID) stay local-only, since the table's key is a uuid.
+ */
+export function mergeNotes(local: SyncNote[], remote: SyncNote[]): { merged: SyncNote[]; toUpload: SyncNote[] } {
+  const byId = new Map(remote.map((n) => [n.id, n]));
+  const toUpload = local.filter((n) => !byId.has(n.id) && UUID_RE.test(n.id));
+  for (const n of local) if (!byId.has(n.id)) byId.set(n.id, n);
+  const merged = [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100);
+  return { merged, toUpload };
+}
+
+/** Ids added and removed between two note lists (for incremental uploads). */
+export function diffNotes(prev: SyncNote[], next: SyncNote[]): { added: SyncNote[]; removed: string[] } {
+  const prevIds = new Set(prev.map((n) => n.id));
+  const nextIds = new Set(next.map((n) => n.id));
+  return {
+    added: next.filter((n) => !prevIds.has(n.id) && UUID_RE.test(n.id)),
+    removed: prev.filter((n) => !nextIds.has(n.id) && UUID_RE.test(n.id)).map((n) => n.id),
+  };
+}
+
+export function supabaseNotesBackend(client: SupabaseClient): NotesBackend {
+  return {
+    async list(userId) {
+      const { data, error } = await client.from('research_notes').select('id, title, body, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(100);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r: { id: string; title: string; body: string; created_at: string }) => ({ id: r.id, title: r.title, body: r.body, createdAt: r.created_at }));
+    },
+    async upsert(userId, notes) {
+      if (!notes.length) return;
+      const { error } = await client
+        .from('research_notes')
+        .upsert(notes.map((n) => ({ id: n.id, user_id: userId, title: n.title, body: n.body, created_at: n.createdAt })), { onConflict: 'id' });
+      if (error) throw new Error(error.message);
+    },
+    async remove(userId, ids) {
+      if (!ids.length) return;
+      const { error } = await client.from('research_notes').delete().eq('user_id', userId).in('id', ids);
       if (error) throw new Error(error.message);
     },
   };

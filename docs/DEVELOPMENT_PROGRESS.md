@@ -7,7 +7,7 @@ _Last updated: 2026-10-21, run 6 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 |---|---|
 | Phase | 1 complete; Phase 2/3 items in progress |
 | Branch / PR | `claude/stoic-planck-ojnqng` → **PR #3** (the chosen foundation) |
-| GitHub Actions CI | ✅ lint · typecheck · 65 tests · build |
+| GitHub Actions CI | ✅ lint · typecheck · 68 tests · build |
 | Cloudflare Workers Builds | ❌ fails in 0 s on every commit of every branch (before clone) → dashboard/Git-connection issue |
 | Preview URL | none yet (Workers Builds failing; Actions preview workflow needs `CLOUDFLARE_API_TOKEN`) |
 | Scheduled task | "AV development (every 2h)" **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
@@ -23,9 +23,11 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 - **Cloud preference sync** (ready; activates when Supabase vars are set and the migration is applied): layout, hidden
   widgets, watchlist, favourites, alerts, chart settings and drawings sync to `user_preferences` for signed-in users.
   Newer side wins on sign-in (local change timestamp vs. row `updated_at`), debounced upserts (1.5 s), 60 KB guard,
-  status on the Account page. Notes excluded (row size); next: `research_notes` table sync.
+  status on the Account page. **Research notes** sync via `research_notes` (merge by id on sign-in, then per-note
+  upsert/delete). Known limitation: a note deleted on one device can return if another device that still has it signs in.
   Verified: 7 unit tests + Playwright against an intercepted Supabase API (pull of newer remote, single upsert with
-  user_id + bearer token after a change, notes not sent). Not verified against a live Supabase project.
+  user_id + bearer token after a change; notes merged, local-only note uploaded, new note upserted, deleted note removed
+  with a user-scoped DELETE). Not verified against a live Supabase project.
 ### Run 5 (2026-10-21)
 - **World Tension Index page** (`/tension`): published component definitions (categories, weights, saturation
   constants), adjustable weights (re-normalised), 7/14/30-day window, 90-day rolling history, weight-sensitivity
@@ -98,7 +100,7 @@ Future: `CLOUDFLARE_RADAR_TOKEN` (internet outages), `UCDP_TOKEN`.
 2. Optional tokens for new data layers: Cloudflare Radar (outages), UCDP (conflict events).
 
 ## Next recommended actions (dev)
-1. Notes sync to `research_notes`; verify preference sync on a live Supabase project once configured.
+1. Verify sync on a live Supabase project once configured (apply migration, set Worker vars).
 2. CFR-style conflict profile pages (trend / impact / sourced timeline) — needs a licensed source (UCDP token or curated).
 3. Chart workspace follow-up: named saved layouts.
 4. Cloudflare Radar outages → "Communications" dossier section (needs token).
