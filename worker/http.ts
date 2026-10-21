@@ -27,3 +27,14 @@ export async function fetchJson<T>(url: string, timeoutMs = 8000): Promise<T> {
   const text = await res.text();
   return (text.trim() ? JSON.parse(text) : null) as T;
 }
+
+/** Fetch text from an upstream provider with a timeout. Throws on non-2xx except the listed statuses (→ empty string). */
+export async function fetchText(url: string, timeoutMs = 8000, emptyOn: number[] = []): Promise<string> {
+  const res = await fetch(url, {
+    headers: { Accept: 'text/csv', 'User-Agent': 'AuroraVeritatis/0.1 (+https://aurorav.app)' },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (emptyOn.includes(res.status)) return '';
+  if (!res.ok) throw new Error(`Upstream ${new URL(url).host} responded ${res.status}`);
+  return res.text();
+}
