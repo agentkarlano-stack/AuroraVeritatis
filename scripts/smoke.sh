@@ -45,6 +45,29 @@ check "unknown API route"     /api/does-not-exist                      404 'Not 
 asset=$(curl -sS -m 20 "$base/" 2>/dev/null | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1 || true)
 if [[ -n "$asset" ]]; then check "JS bundle" "$asset" 200 ''; else results+=("FAIL JS bundle (no /assets/index-*.js in homepage)"); fail=1; fi
 
+# Informational (never fails the run): is Supabase auth configured, is the schema applied, how is sign-up set up?
+# Uses only public values: /api/config exposes the project URL and anon key by design. No key is printed.
+auth_status() {
+  local cfg url key code settings
+  cfg=$(curl -sS -m 20 "$base/api/config" 2>/dev/null || true)
+  url=$(printf '%s' "$cfg" | python3 -c 'import json,sys; c=json.load(sys.stdin).get("supabase") or {}; print(c.get("url",""))' 2>/dev/null || true)
+  key=$(printf '%s' "$cfg" | python3 -c 'import json,sys; c=json.load(sys.stdin).get("supabase") or {}; print(c.get("anonKey",""))' 2>/dev/null || true)
+  if [[ -z "$url" || -z "$key" ]]; then echo "not configured (SUPABASE_URL / SUPABASE_ANON_KEY not set on the Worker)"; return; fi
+  code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -H "apikey: $key" -H "Authorization: Bearer $key" "$url/rest/v1/profiles?select=id&limit=1" 2>/dev/null || echo 000)
+  local schema="profiles table missing (migration not applied, HTTP $code)"
+  [[ "$code" == "200" ]] && schema="schema applied (profiles table reachable, RLS returns no rows to anon)"
+  settings=$(curl -sS -m 20 -H "apikey: $key" "$url/auth/v1/settings" 2>/dev/null | python3 -c '
+import json, sys
+s = json.load(sys.stdin)
+signup = "on" if s.get("external", {}).get("email") and not s.get("disable_signup") else "off"
+confirm = "off" if s.get("mailer_autoconfirm") else "required"
+print("email sign-up " + signup + ", email confirmation " + confirm)' 2>/dev/null || echo "auth settings unreadable")
+  echo "configured ($(printf '%s' "$url" | sed -E 's#https?://([^.]+)\..*#\1#')…); $schema; $settings"
+}
+auth="Auth: $(auth_status)"
+echo "$auth"
+[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Auth status::$auth"
+
 printf '%s\n' "${results[@]}"
 passed=$(printf '%s\n' "${results[@]}" | grep -c '^PASS' || true)
 summary="$base: $passed/${#results[@]} checks passed"
