@@ -60,6 +60,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Worker/shared code must not import the `i18n-iso-countries` entry point (it `require()`s every locale and the Worker
   fails to start). Use `shared/countryNames.ts`. Always smoke-test Worker changes with `vite preview` + curl: CI and
   unit tests run in Node and cannot catch Workers-runtime failures.
+- Never compute time-dependent values at Worker module scope (`new Date()`, `Date.now()`): during global
+  initialisation the Workers clock reads as the Unix epoch. (This made `/api/compare/:year` reject every year.)
+- `scripts/smoke.sh <base-url>` is the read-only HTTP smoke test; CI runs it on each PR preview and on aurorav.app.
 - The Worker serves page navigations (route `<head>` metadata via HTMLRewriter, `worker/meta.ts`) through the
   `ASSETS` binding; `run_worker_first` excludes `/assets/*`, `/brand/*` and static files so they bypass the Worker.
 - Scheduled tasks need the repositories attached as sources (set in the Claude app). Without them a run can only clone

@@ -1,8 +1,15 @@
 import type { GeoEvent } from '../shared/types';
 import { fetchJson } from './http';
 
-// Current events, excluding earthquakes (covered by the USGS layer).
-const FEED = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventlist=TC;FL;VO;DR;WF';
+// Event types requested (earthquakes are covered by the USGS layer) and the look-back window.
+const EVENT_TYPES = 'TC;FL;VO;DR;WF';
+const WINDOW_DAYS = 30;
+
+/** Documented GDACS search endpoint (geoJSON); dates are computed per request, never at module load. */
+export function gdacsUrl(now = Date.now()): string {
+  const day = (t: number) => new Date(t).toISOString().slice(0, 10);
+  return `https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=${EVENT_TYPES}&fromdate=${day(now - WINDOW_DAYS * 86_400_000)}&todate=${day(now)}`;
+}
 
 const TYPE_LABEL: Record<string, string> = {
   TC: 'Tropical cyclone',
@@ -83,6 +90,7 @@ export function normalizeGdacs(features: GdacsFeature[]): GeoEvent[] {
 }
 
 export async function disasters(): Promise<GeoEvent[]> {
-  const data = await fetchJson<{ features?: GdacsFeature[] }>(FEED);
-  return normalizeGdacs(data.features ?? []);
+  // GDACS search is slow (often >8 s); the result is edge-cached for 30 minutes.
+  const data = await fetchJson<{ features?: GdacsFeature[] } | null>(gdacsUrl(), 25_000);
+  return normalizeGdacs(data?.features ?? []);
 }

@@ -17,12 +17,13 @@ export function error(status: number, message: string, detail?: string): Respons
   return json(detail ? { error: message, detail } : { error: message }, { status });
 }
 
-/** Fetch JSON from an upstream provider with a timeout. Throws on non-2xx. */
+/** Fetch JSON from an upstream provider with a timeout. Throws on non-2xx; an empty body (e.g. 204) yields null. */
 export async function fetchJson<T>(url: string, timeoutMs = 8000): Promise<T> {
   const res = await fetch(url, {
     headers: { Accept: 'application/json', 'User-Agent': 'AuroraVeritatis/0.1 (+https://aurorav.app)' },
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`Upstream ${new URL(url).host} responded ${res.status}`);
-  return (await res.json()) as T;
+  const text = await res.text();
+  return (text.trim() ? JSON.parse(text) : null) as T;
 }

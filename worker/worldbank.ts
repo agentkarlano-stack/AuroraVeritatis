@@ -106,12 +106,19 @@ async function yearValues(indicator: string, year: number): Promise<Map<string, 
   return out;
 }
 
-export const COMPARE_YEARS = { min: 1990, max: new Date().getUTCFullYear() - 1 } as const;
+/**
+ * Valid comparison years. Evaluated per request: in the Workers runtime the clock reads as the Unix epoch during
+ * global-scope initialisation, so a module-level `new Date()` would reject every year.
+ */
+export function compareYears(now = Date.now()): { min: number; max: number } {
+  return { min: 1990, max: new Date(now).getUTCFullYear() - 1 };
+}
 
 /** One year of a three-indicator cross-section (x, y, bubble size) for all economies. */
 export async function compareYear(year: number, x: string, y: string, size: string): Promise<CompareYear | null> {
   if (![x, y, size].every((id) => INDICATOR_IDS.has(id))) return null;
-  if (!Number.isInteger(year) || year < COMPARE_YEARS.min || year > COMPARE_YEARS.max) return null;
+  const years = compareYears();
+  if (!Number.isInteger(year) || year < years.min || year > years.max) return null;
   const [meta, xs, ys, ss] = await Promise.all([economies(), yearValues(x, year), yearValues(y, year), yearValues(size, year)]);
   const points: ComparePoint[] = [];
   for (const [iso3, m] of meta) {

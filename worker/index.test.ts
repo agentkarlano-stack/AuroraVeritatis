@@ -3,6 +3,7 @@ import type { CompareYear, CountryProfile, IndicatorSeries, PublicConfig } from 
 import { handleApi, type Env } from './index';
 import { RateLimiter } from './ratelimit';
 import { magnitudeToSeverity, normalizeUsgs } from './usgs';
+import { compareYears } from './worldbank';
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
 const env = { ASSETS: {} as Fetcher } as Env;
@@ -134,6 +135,12 @@ describe('country comparison endpoint', () => {
     expect((await get('/api/compare/1800')).status).toBe(400);
     expect((await get('/api/compare/2022?x=BAD.ID')).status).toBe(400);
   });
+
+  it('derives the valid year range from the request-time clock, not module load', () => {
+    // Workers report the Unix epoch during global-scope initialisation; a load-time bound rejected every year.
+    expect(compareYears(Date.UTC(2026, 9, 21))).toEqual({ min: 1990, max: 2025 });
+    expect(compareYears(0).max).toBe(1969);
+  });
 });
 
 describe('GDACS normalisation', () => {
@@ -161,7 +168,18 @@ describe('GDACS normalisation', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ features: [{ geometry: { type: 'Point', coordinates: [1, 2] }, properties: { eventtype: 'VO', eventid: 9, alertlevel: 'Green' } }] })));
     const ok = await body<{ events: { id: string }[] }>(get('/api/events/disasters'));
     expect(ok.events.map((e) => e.id)).toEqual(['gdacs-VO-9-0']);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })));
+    expect((await body<{ events: unknown[] }>(get('/api/events/disasters'))).events).toEqual([]);
     vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
     expect((await get('/api/events/disasters')).status).toBe(502);
+  });
+
+  it('queries the documented search endpoint for the last 30 days', async () => {
+    const { gdacsUrl } = await import('./gdacs');
+    const u = new URL(gdacsUrl(Date.UTC(2026, 9, 21, 12)));
+    expect(u.pathname).toBe('/gdacsapi/api/events/geteventlist/SEARCH');
+    expect(u.searchParams.get('eventlist')).toBe('TC;FL;VO;DR;WF');
+    expect(u.searchParams.get('fromdate')).toBe('2026-09-21');
+    expect(u.searchParams.get('todate')).toBe('2026-10-21');
   });
 });
