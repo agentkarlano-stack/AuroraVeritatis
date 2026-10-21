@@ -173,6 +173,11 @@ export function Layout() {
                 </Link>
               </li>
               <li>
+                <Link className="text-mist hover:text-platinum" to="/share">
+                  Share Aurora Veritatis
+                </Link>
+              </li>
+              <li>
                 <Link className="text-mist hover:text-platinum" to="/status">
                   Platform status &amp; data sources
                 </Link>

@@ -1,4 +1,5 @@
 import { countryName } from './countryNames';
+import { shareImageFor } from './share';
 
 export const SITE = {
   name: 'Aurora Veritatis',
@@ -15,6 +16,8 @@ export interface PageMeta {
   canonical: string;
   /** Ask search engines not to index (private or utility pages). */
   noindex?: boolean;
+  /** Link-preview image (absolute URL) with its size and alt text. */
+  image: { url: string; width: number; height: number; alt: string };
 }
 
 const STATIC: Record<string, { title: string; description: string; noindex?: boolean }> = {
@@ -29,6 +32,8 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },
   '/brain': { title: 'Personal Intelligence Brain', description: 'Build your own research graph linking events, countries, companies, markets and indicators with typed, sourced relationships. Stored privately in your browser.' },
+  '/share': { title: 'Share Aurora Veritatis', description: 'Link previews, Story and post images for Aurora Veritatis. Download them or copy a link to share.' },
+  '/share/card': { title: 'Share card', description: 'Render target for social images.', noindex: true },
   '/macro': { title: 'Macro & FX', description: 'ECB policy rates, euro-area inflation, 10-year yields and euro reference exchange rates with history, cross rates and CSV export.' },
   '/positioning': { title: 'Futures positioning (CFTC)', description: 'Weekly CFTC Commitments of Traders data for major futures: net speculative and commercial positions, three-year positioning index and extremes.' },
   '/tension': { title: 'World Tension Index', description: 'One transparent number for geopolitical, humanitarian and financial stress, with its formula, weights and a robustness check.' },
@@ -50,9 +55,14 @@ const LEGAL: Record<string, string> = {
 
 const withSite = (t: string) => (t === SITE.defaultTitle ? t : `${t} · ${SITE.name}`);
 
-/** Title, description and canonical URL for an app path. Unknown paths fall back to site defaults and noindex. */
+/** Title, description, canonical URL and preview image for an app path. Unknown paths fall back to site defaults and noindex. */
 export function metaFor(pathname: string): PageMeta {
   const path = pathname.replace(/\/+$/, '') || '/';
+  const img = shareImageFor(path, SITE.origin);
+  return { ...baseMeta(path), image: { url: img.url, width: img.width, height: img.height, alt: img.alt } };
+}
+
+function baseMeta(path: string): Omit<PageMeta, 'image'> {
   const canonical = `${SITE.origin}${path === '/' ? '/' : path}`;
   const s = STATIC[path];
   if (s) return { title: withSite(s.title), description: s.description, canonical, noindex: s.noindex };

@@ -23,6 +23,14 @@ export function withRouteMeta(res: Response, pathname: string): Response {
     .on('meta[property="og:description"]', set('content', m.description))
     .on('meta[property="og:url"]', set('content', m.canonical))
     .on('link[rel="canonical"]', set('href', m.canonical))
+    .on('meta[property="og:image"]', set('content', m.image.url))
+    .on('meta[property="og:image:width"]', set('content', String(m.image.width)))
+    .on('meta[property="og:image:height"]', set('content', String(m.image.height)))
+    .on('meta[property="og:image:alt"]', set('content', m.image.alt))
+    .on('meta[name="twitter:title"]', set('content', m.title))
+    .on('meta[name="twitter:description"]', set('content', m.description))
+    .on('meta[name="twitter:image"]', set('content', m.image.url))
+    .on('meta[name="twitter:image:alt"]', set('content', m.image.alt))
     .on('head', {
       element(el) {
         if (m.noindex) el.append('<meta name="robots" content="noindex">', { html: true });

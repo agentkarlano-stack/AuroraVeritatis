@@ -20,6 +20,8 @@ const Tension = lazy(() => import('./pages/Tension'));
 const Positioning = lazy(() => import('./pages/Positioning'));
 const Macro = lazy(() => import('./pages/Macro'));
 const Brain = lazy(() => import('./pages/Brain'));
+const Share = lazy(() => import('./pages/Share'));
+const ShareCard = lazy(() => import('./pages/ShareCard'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
@@ -33,6 +35,7 @@ export function App() {
       <PrefsSync />
       <BrowserRouter>
         <Routes>
+          <Route path="share/card" element={<Lazy><ShareCard /></Lazy>} />
           <Route element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="hq" element={<Lazy><Headquarters /></Lazy>} />
@@ -49,6 +52,7 @@ export function App() {
             <Route path="positioning" element={<Lazy><Positioning /></Lazy>} />
             <Route path="macro" element={<Lazy><Macro /></Lazy>} />
             <Route path="brain" element={<Lazy><Brain /></Lazy>} />
+            <Route path="share" element={<Lazy><Share /></Lazy>} />
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />
