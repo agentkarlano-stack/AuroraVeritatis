@@ -27,7 +27,7 @@ export const LEGAL: Record<string, LegalDoc> = {
       { heading: 'Data we process', body: 'As a guest, your preferences are stored only in your browser (localStorage), and your Personal Intelligence Brain graphs only in your browser (IndexedDB). We do not receive them. If you create an account, we process your email address and the preferences you choose to sync, stored with Supabase. Server logs are processed by Cloudflare.' },
       { heading: 'Legal bases', body: 'Contract performance (Art. 6(1)(b) GDPR) for accounts; legitimate interests (Art. 6(1)(f)) for security logging; consent (Art. 6(1)(a)) for optional analytics.' },
       { heading: 'Processors', body: 'Cloudflare (hosting), Supabase (database and authentication), Resend (transactional email), PostHog EU (analytics, only with consent). Further processors will be listed before launch.' },
-      { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection, and the right to complain to a supervisory authority (in Austria: Datenschutzbehörde). Local data can be exported or deleted from the Account page.' },
+      { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection, and the right to complain to a supervisory authority (in Austria: Datenschutzbehörde). Local data can be exported or deleted from the Account page. Signed-in users can delete their account and all synced data there too.' },
     ],
   },
   cookies: {

@@ -61,7 +61,9 @@ auth_status() {
   if [[ -z "$url" || -z "$key" ]]; then echo "not configured (SUPABASE_URL / SUPABASE_ANON_KEY not set on the Worker)"; return; fi
   code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -H "apikey: $key" -H "Authorization: Bearer $key" "$url/rest/v1/profiles?select=id&limit=1" 2>/dev/null || echo 000)
   local schema="profiles table missing (migration not applied, HTTP $code)"
-  [[ "$code" == "200" ]] && schema="schema applied (profiles table reachable, RLS returns no rows to anon)"
+  # The migration revokes all guest (anon) access, so PostgREST answers 401/403 for an existing table and 404 for a missing one.
+  [[ "$code" == "401" || "$code" == "403" ]] && schema="schema applied (profiles table exists, guest access denied)"
+  [[ "$code" == "200" ]] && schema="profiles table readable by guests (older migration: re-run the current one)"
   settings=$(curl -sS -m 20 -H "apikey: $key" "$url/auth/v1/settings" 2>/dev/null | python3 -c '
 import json, sys
 s = json.load(sys.stdin)

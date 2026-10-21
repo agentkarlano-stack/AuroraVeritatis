@@ -1,6 +1,6 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 15 — social sharing assets and link previews (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-21, run 16 — Supabase migration security review and hardening (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
@@ -20,6 +20,21 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 16 (2026-10-21) — Supabase migration review (master directive F, before owner execution)
+- Security review of `supabase/migrations/20261020000000_initial_profiles.sql` (not yet applied). **Fixed a privilege
+  escalation:** `revoke update (tier)` does not override Supabase's default table-level UPDATE grant, so any signed-in
+  user could set their own `tier` to `intelligence` (reproduced on Postgres 16). Now the table grant is revoked and only
+  `display_name`, `updated_at` are granted back.
+- Also: guests (anon) get no table or function access; policies are `to authenticated` with `(select auth.uid())`;
+  the file is idempotent (drop-if-exists policies and triggers) and refuses to run if a non-Aurora `profiles` table exists
+  (wrong project in a shared organisation); Aurora-prefixed trigger/function names so no other `auth.users` trigger is
+  replaced; 1000-notes-per-account cap; `delete_my_account()` RPC (GDPR erasure, cascades to all user rows).
+- `supabase/tests/rls.sql` + `scripts/test-migrations.sh`: applies migrations twice on a Supabase stub and runs a
+  two-account RLS test (cross-account read/write/delete, tier escalation, guest access, internal function calls, account
+  deletion). New CI job `migrations` (postgres:16 service). The old migration fails it.
+- Account page: "Delete my account" (signed-in only). Privacy text mentions it. Smoke "Auth status" treats 401/403 as
+  "schema applied, guest access denied".
+
 ### Run 15 (2026-10-21) — Social sharing (master directive B)
 - Share assets rendered from the real interface (`/share/card`, noindex, outside the site layout) by
   `scripts/render-share-assets.ts` (Playwright + system ffmpeg): OG 1200×630 (+ Radar, Countries, Markets, Brain variants),

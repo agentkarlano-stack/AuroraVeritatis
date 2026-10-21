@@ -128,6 +128,8 @@ export default function Account() {
           </button>
         </Panel>
 
+        {status === 'signed-in' && <DeleteAccount />}
+
         <p className="text-xs text-slate-dim">Environment: {config?.environment ?? 'unknown'}</p>
       </div>
     </div>
@@ -158,6 +160,33 @@ function NewPassword() {
         <button className="btn-primary">Update password</button>
       </form>
       {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-up' : 'text-down'}`}>{msg.text}</p>}
+    </Panel>
+  );
+}
+
+/** GDPR erasure: deletes the Supabase account and, through cascading keys, its profile, synced preferences and notes. */
+function DeleteAccount() {
+  const { client, signOut } = useAuth();
+  const [state, setState] = useState<'idle' | 'deleting' | 'failed'>('idle');
+  const remove = async () => {
+    if (!client) return;
+    if (!confirm('Delete your account permanently? Your profile, synced preferences and cloud notes are erased. This cannot be undone.')) return;
+    setState('deleting');
+    const { error } = await client.rpc('delete_my_account');
+    if (error) return setState('failed');
+    await signOut().catch(() => {});
+  };
+  return (
+    <Panel title="Delete account">
+      <p className="text-sm text-mist">Erases your account and everything synced to it. Data stored in this browser stays until you delete it above.</p>
+      <button className="btn-ghost mt-3 hover:border-down hover:text-down" onClick={() => void remove()} disabled={!client || state === 'deleting'}>
+        {state === 'deleting' ? 'Deleting…' : 'Delete my account'}
+      </button>
+      {state === 'failed' && (
+        <p className="mt-2 text-sm text-down" role="alert">
+          The account could not be deleted. Try again, or contact us from the legal notice page.
+        </p>
+      )}
     </Panel>
   );
 }
