@@ -9,6 +9,8 @@ interface AuthContextValue {
   status: AuthStatus;
   session: Session | null;
   config: PublicConfig | null;
+  /** Supabase client when accounts are configured (used for data sync), otherwise null. */
+  client: SupabaseClient | null;
   sendMagicLink: (email: string) => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -91,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       session,
       config,
+      client,
       sendMagicLink: async (email) => {
         const { error } = await require().auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/account` } });
         if (error) throw error;
@@ -118,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recovery,
       urlError,
     }),
-    [status, session, config, require, recovery, urlError],
+    [status, session, config, client, require, recovery, urlError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

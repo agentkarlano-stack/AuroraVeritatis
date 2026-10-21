@@ -5,6 +5,7 @@ import { Loading, PageHeader, Panel, Unavailable } from '../components/ui';
 import { TIERS } from '../data/tiers';
 import { limitOf, useTier } from '../lib/entitlements';
 import { usePrefs } from '../store/prefs';
+import { useSyncStatus } from '../store/syncStatus';
 
 export default function Account() {
   const { status, session, signOut, config, recovery } = useAuth();
@@ -42,6 +43,7 @@ export default function Account() {
               <div className="text-sm">
                 <div className="text-platinum">{session?.user.email}</div>
                 <div className="text-xs text-slate-dim">Plan: Free preview</div>
+                <SyncLine />
               </div>
               <button className="btn-ghost" onClick={() => void signOut()}>
                 Sign out
@@ -157,5 +159,24 @@ function NewPassword() {
       </form>
       {msg && <p className={`mt-2 text-sm ${msg.ok ? 'text-up' : 'text-down'}`}>{msg.text}</p>}
     </Panel>
+  );
+}
+
+function SyncLine() {
+  const sync = useSyncStatus();
+  const label = {
+    off: 'Cloud sync off',
+    syncing: 'Syncing preferences…',
+    synced: `Preferences synced${sync.at ? ` · ${new Date(sync.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}`,
+    skipped: 'Sync paused',
+    error: 'Sync failed',
+  }[sync.state];
+  const tone = sync.state === 'error' ? 'text-down' : sync.state === 'skipped' ? 'text-warn' : sync.state === 'synced' ? 'text-up' : 'text-slate-dim';
+  return (
+    <div className={`mt-1 text-xs ${tone}`} role="status">
+      {label}
+      {sync.message && <span className="block text-slate-dim">{sync.message}</span>}
+      <span className="block text-[11px] text-slate-dim">Watchlist, layout, alerts, favourites, chart settings and drawings sync across devices. Notes stay on this device for now.</span>
+    </div>
   );
 }

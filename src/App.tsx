@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
+import { PrefsSync } from './auth/PrefsSync';
 import { Layout } from './components/Layout';
 import { Loading } from './components/ui';
 import Home from './pages/Home';
@@ -25,6 +26,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 export function App() {
   return (
     <AuthProvider>
+      <PrefsSync />
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>

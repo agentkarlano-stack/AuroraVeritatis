@@ -7,7 +7,7 @@ Status legend: ✅ in use · 🟡 wired, not enabled · ⏳ planned · ❔ unver
 | Cloudflare Workers (`auroraveritatis`, aurorav.app) | ❔ | Config in `wrangler.jsonc`. Not verifiable from the dev sandbox; confirm Workers Builds succeeds on this branch. |
 | World Bank API (`api.worldbank.org/v2`) | ✅ code, ❔ live | No key. CC BY 4.0 — attribution shown in dossiers. |
 | USGS earthquake feed | ✅ code, ❔ live | Public domain. 10-minute edge cache. |
-| Supabase (project "AuroraVeritatis") | 🟡 | Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` as Worker vars. Apply `supabase/migrations/*` after review. Add `https://aurorav.app/account` to Auth redirect URLs. |
+| Supabase (project "AuroraVeritatis") | 🟡 | Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` as Worker vars. Apply `supabase/migrations/*` after review. Add `https://aurorav.app/account` to Auth redirect URLs. Once enabled, `auth/PrefsSync.tsx` syncs preferences to `user_preferences` automatically (verified against an intercepted API, not a live project). |
 | Resend (`aurorav.app` domain, `RESEND_API_KEY` secret) | ⏳ ❔ | Not used yet. Option: configure Supabase Auth SMTP to use Resend for branded magic-link emails. |
 | PostHog | ⏳ | `POSTHOG_KEY`, `POSTHOG_HOST` exposed via `/api/config`; client integration pending consent banner. |
 | n8n Cloud | ⏳ | Phase 4. |

@@ -34,6 +34,8 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   to be synced to Supabase `user_preferences`).
 - Strategy Lab (`pages/Strategy.tsx`) uses `simulateGbm` with a `jump` and `lib/scenario.ts`; quick search is
   `components/CommandPalette.tsx` + `lib/search.ts`.
+- Cloud sync: `lib/sync.ts` (backend-agnostic, tested) + `auth/PrefsSync.tsx` (subscribes to the prefs store, newer side
+  wins on sign-in, debounced upserts). Synced keys are `SYNCED_KEYS`; notes are excluded (row size limit).
 - `supabase/migrations/` — SQL, reviewed and applied manually by the owner.
 
 ## Conventions
