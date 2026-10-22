@@ -428,6 +428,7 @@ async function main() {
         await pageA.goto(`${BASE}/account`);
         await sleep(3000);
         const status = ((await pageA.getByRole('status').first().textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').slice(0, 160);
+        await pageA.goto(`${BASE}/hq`);
         throw new Error(`cloud watchlist ${JSON.stringify(watchlist)} (updated ${cloudAt}); browser ${local}; status "${status}"`);
       }
       return `cloud watchlist ${watchlist.join(', ')}`;
