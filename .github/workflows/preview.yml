@@ -8,6 +8,7 @@ name: Cloudflare preview
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
@@ -70,6 +71,9 @@ jobs:
         run: |
           for i in $(seq 1 12); do curl -sf -o /dev/null "${{ steps.upload.outputs.url }}/api/health" && break; sleep 5; done
           scripts/smoke.sh "${{ steps.upload.outputs.url }}"
+      - name: Remind to run the live account test
+        if: env.HAS_TOKEN == 'true' && steps.changes.outputs.auth == 'true' && !contains(github.event.pull_request.labels.*.name, 'live-auth')
+        run: echo "::notice title=Live account test::This PR touches accounts. Add the 'live-auth' label to run the real-email test (3 emails) on the preview."
       - name: Comment preview URL
         if: env.HAS_TOKEN == 'true' && steps.upload.outputs.url != ''
         env:
@@ -78,10 +82,11 @@ jobs:
           gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none \
             --body "🔎 Preview for \`${GITHUB_SHA::7}\`: ${{ steps.upload.outputs.url }}"
 
-  # Real-browser account test on the preview when a PR touches accounts, sync or the Worker.
+  # Real-browser account test on the preview. It sends 3 real emails per run (Supabase hourly auth-email limit, Resend
+  # free tier 100/day), so it runs only when the PR carries the "live-auth" label. Account-related PRs get a reminder.
   live-auth:
     needs: preview
-    if: needs.preview.outputs.url != '' && needs.preview.outputs.auth_changed == 'true'
+    if: needs.preview.outputs.url != '' && contains(github.event.pull_request.labels.*.name, 'live-auth')
     uses: ./.github/workflows/live-auth.yml
     with:
       url: ${{ needs.preview.outputs.url }}

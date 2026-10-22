@@ -47,7 +47,7 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   hardening `20261022…` pending). `supabase/tests/rls.sql` + `scripts/test-migrations.sh` (CI job `migrations`) apply them
   twice on a Supabase stub and run the two-account RLS test.
 - Accounts are live (Supabase project `oscdwaeofqdiwcnxsich`). `e2e/live/auth.ts` (`live-auth.yml`) is the real-browser,
-  real-email end-to-end test; it runs on PR previews that touch accounts and on demand against production. Local data
+  real-email end-to-end test; it runs on PR previews labelled `live-auth` (3 real emails per run; Supabase hourly and Resend 100/day limits) and on demand against production. Local data
   belongs to one account at a time (`auth/localAccount.ts`); changes during the first sync are uploaded afterwards.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 

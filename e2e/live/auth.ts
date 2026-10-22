@@ -159,7 +159,11 @@ interface Mail {
 }
 
 /** Waits for the next unseen message and returns its sender, subject and the Supabase verification link. */
+/** Real emails received during this run (reported in the summary to track the email budget). */
+const emailLog: { subject: string; seconds: number }[] = [];
+
 async function waitForMail(inbox: Inbox, timeoutMs = 240_000): Promise<Mail> {
+  const started = Date.now();
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
     const next = (await inbox.list()).find((m) => !inbox.seen.has(m.id));
@@ -168,6 +172,7 @@ async function waitForMail(inbox: Inbox, timeoutMs = 240_000): Promise<Mail> {
       const body = (await inbox.body(next.id)).replace(/&amp;/g, '&');
       const link = body.match(/https:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>]+/)?.[0];
       assert(link, `email "${next.subject}" has no verification link`);
+      emailLog.push({ subject: next.subject, seconds: Math.round((Date.now() - started) / 1000) });
       return { from: next.from, subject: next.subject, link };
     }
     await sleep(5000);
@@ -671,10 +676,12 @@ main()
     const passed = results.filter((r) => r.status === 'pass').length;
     const skipped = results.length - passed - failed.length;
     const lines = [`### Live auth test: ${BASE}`, '', `${passed} passed, ${failed.length} failed, ${results.length - passed - failed.length} skipped`, '', '| # | Check | Kind | Result | Detail |', '|---|---|---|---|---|', ...results.map((r) => `| ${r.id} | ${r.name} | ${r.kind} | ${r.status} | ${r.detail.replace(/\|/g, '/')} |`)];
-    writeFileSync('live-auth-results.json', JSON.stringify({ base: BASE, at: new Date().toISOString(), results }, null, 2));
+    const mails = `Real emails received: ${emailLog.length}${emailLog.length ? ` (${emailLog.map((m) => `"${m.subject}" after ${m.seconds} s`).join(', ')})` : ''}`;
+    lines.push('', mails);
+    writeFileSync('live-auth-results.json', JSON.stringify({ base: BASE, at: new Date().toISOString(), results, emails: emailLog }, null, 2));
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
     const all = results.map((r) => `${r.status.toUpperCase()} [${r.kind}] ${r.id} ${r.name}${r.detail ? `: ${r.detail}` : ''}`).join('%0A');
-    console.log(`::notice title=Live auth results::${BASE}: ${passed} passed, ${failed.length} failed, ${skipped} skipped%0A${all}`);
+    console.log(`::notice title=Live auth results::${BASE}: ${passed} passed, ${failed.length} failed, ${skipped} skipped. ${mails}%0A${all}`);
     for (const f of failed) console.log(`::error title=Live auth ${f.id}::${f.name}: ${f.detail}`);
     process.exit(failed.length ? 1 : 0);
   });
