@@ -38,6 +38,7 @@ export function PrefsSync() {
   const changedDuringInit = useRef(false);
   const removedDuringInit = useRef(new Set<string>());
   const editedDuringInit = useRef(new Set<string>());
+  const addedDuringInit = useRef(new Set<string>());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Record when synced preferences last changed locally, and upload changes (debounced) once the initial sync is done.
@@ -49,6 +50,7 @@ export function PrefsSync() {
         const d = diffNotes(prev.notes as SyncNote[], state.notes as SyncNote[]);
         for (const id of d.removed) removedDuringInit.current.add(id);
         for (const n of d.changed) editedDuringInit.current.add(n.id);
+        for (const n of d.added) addedDuringInit.current.add(n.id);
       }
       if (state.notes !== prev.notes && notesBackend && userId && ready.current) {
         const { added, changed, removed } = diffNotes(prev.notes as SyncNote[], state.notes as SyncNote[]);
@@ -88,6 +90,7 @@ export function PrefsSync() {
     changedDuringInit.current = false;
     removedDuringInit.current = new Set();
     editedDuringInit.current = new Set();
+    addedDuringInit.current = new Set();
     useSyncStatus.setState({ state: 'syncing' });
     // Data left in this browser by a different account must never be merged into this one.
     const owner = readOwner();
@@ -100,11 +103,8 @@ export function PrefsSync() {
       .then(async (first) => {
         let r = first;
         if (cancelled) return;
-        if (r.action === 'pulled' && changedDuringInit.current) {
-          // The user changed something while the cloud copy was loading: keep the local state and upload it.
-          r = await push(backend, userId, pickSynced(usePrefs.getState() as unknown as Record<string, unknown>), readLocalUpdatedAt() ?? new Date().toISOString());
-          if (cancelled) return;
-        } else if (r.action === 'pulled') {
+        // A local change made while the first sync runs wins over the cloud copy (it is uploaded below).
+        if (r.action === 'pulled' && !changedDuringInit.current) {
           applyingRemote.current = true;
           usePrefs.setState(r.data as Partial<ReturnType<typeof usePrefs.getState>>);
           applyingRemote.current = false;
@@ -129,6 +129,18 @@ export function PrefsSync() {
           /* storage unavailable */
         }
         ready.current = true;
+        // Changes made at any point during the first sync (preferences or notes stage) are uploaded now; later changes
+        // go through the normal debounced path.
+        if (notesBackend) {
+          // Notes added, edited or deleted while the first sync ran (idempotent if already handled above).
+          const pending = usePrefs.getState().notes.filter((n) => addedDuringInit.current.has(n.id) || editedDuringInit.current.has(n.id));
+          await Promise.all([notesBackend.upsert(userId, pending), notesBackend.remove(userId, [...removedDuringInit.current])]);
+          if (cancelled) return;
+        }
+        if (changedDuringInit.current) {
+          r = await push(backend, userId, pickSynced(usePrefs.getState() as unknown as Record<string, unknown>), readLocalUpdatedAt() ?? new Date().toISOString());
+          if (cancelled) return;
+        }
         useSyncStatus.setState(r.action === 'skipped' ? { state: 'skipped', message: r.reason } : { state: 'synced', at: r.updatedAt });
       })
       .catch((e: Error) => !cancelled && useSyncStatus.setState({ state: 'error', message: e.message }));

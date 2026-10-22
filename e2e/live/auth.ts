@@ -410,11 +410,27 @@ async function main() {
       await waitSynced(pageA);
       await pageA.goto(`${BASE}/hq`);
       await pageA.getByRole('button', { name: 'Remove GOLD.D' }).click();
-      await sleep(4000);
-      const { data, error } = await a!.from('user_preferences').select('data');
-      assert(!error, error?.message ?? '');
-      const watchlist = (data?.[0]?.data as { watchlist?: string[] } | undefined)?.watchlist;
-      assert(Array.isArray(watchlist) && !watchlist.includes('GOLD.D'), `cloud watchlist: ${JSON.stringify(watchlist)}`);
+      let watchlist: string[] | undefined;
+      let cloudAt = '';
+      for (let i = 0; i < 10; i++) {
+        await sleep(1500);
+        const { data, error } = await a!.from('user_preferences').select('data, updated_at');
+        assert(!error, error?.message ?? '');
+        watchlist = (data?.[0]?.data as { watchlist?: string[] } | undefined)?.watchlist;
+        cloudAt = String(data?.[0]?.updated_at ?? '');
+        if (Array.isArray(watchlist) && !watchlist.includes('GOLD.D')) break;
+      }
+      if (!Array.isArray(watchlist) || watchlist.includes('GOLD.D')) {
+        // Diagnostics: what this browser holds and what the sync status says.
+        const local = (await pageA.evaluate(
+          'JSON.stringify({ w: JSON.parse(localStorage.getItem("av-prefs-v1") || "{}").state?.watchlist, at: localStorage.getItem("av-prefs-updated-at"), owner: !!localStorage.getItem("av-prefs-owner") })',
+        )) as string;
+        await pageA.goto(`${BASE}/account`);
+        await sleep(3000);
+        const status = ((await pageA.getByRole('status').first().textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').slice(0, 160);
+        await pageA.goto(`${BASE}/hq`);
+        throw new Error(`cloud watchlist ${JSON.stringify(watchlist)} (updated ${cloudAt}); browser ${local}; status "${status}"`);
+      }
       return `cloud watchlist ${watchlist.join(', ')}`;
     });
 
