@@ -37,13 +37,41 @@ function publicConfig(env: Env, url: URL): PublicConfig {
 }
 
 /** Serve from the Cloudflare edge cache when possible; populate it on successful responses. */
+const STALE_SECONDS = 7 * 86_400;
+
+/**
+ * Edge cache with a stale fallback. Every good response is also kept as a "last good" copy for a week. When the
+ * upstream source fails (5xx), that copy is served instead, with `stale: { since, reason }` added to the JSON so the UI
+ * can say the data is not current. Without a saved copy the error is passed through.
+ */
 async function cached(request: Request, ctx: ExecutionContext, produce: () => Promise<Response>): Promise<Response> {
   const cache = typeof caches !== 'undefined' ? (caches as unknown as { default: Cache }).default : undefined;
-  const key = new Request(new URL(request.url).toString(), { method: 'GET' });
+  const url = new URL(request.url);
+  const key = new Request(url.toString(), { method: 'GET' });
+  const staleUrl = new URL(url);
+  staleUrl.searchParams.set('__last_good', '1');
+  const staleKey = new Request(staleUrl.toString(), { method: 'GET' });
   const hit = cache ? await cache.match(key) : undefined;
   if (hit) return hit;
   const res = await produce();
-  if (cache && res.ok) ctx.waitUntil(cache.put(key, res.clone()));
+  if (cache && res.ok) {
+    ctx.waitUntil(cache.put(key, res.clone()));
+    const copy = new Response(res.clone().body, res);
+    copy.headers.set('Cache-Control', `public, max-age=${STALE_SECONDS}`);
+    copy.headers.set('X-Aurora-Saved', new Date().toISOString());
+    ctx.waitUntil(cache.put(staleKey, copy));
+    return res;
+  }
+  if (cache && res.status >= 500) {
+    const last = await cache.match(staleKey);
+    if (last) {
+      const body = (await last.json().catch(() => null)) as Record<string, unknown> | null;
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        const reason = ((await res.clone().json().catch(() => ({}))) as { error?: string }).error ?? 'Upstream source unavailable';
+        return json({ ...body, stale: { since: last.headers.get('X-Aurora-Saved'), reason } }, { maxAge: 60 });
+      }
+    }
+  }
   return res;
 }
 

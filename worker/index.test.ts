@@ -311,3 +311,35 @@ describe('currency endpoint', () => {
     expect((await get('/api/currency/FRA')).status).toBe(502);
   });
 });
+
+describe('stale fallback', () => {
+  it('serves the last good response, flagged stale, when the upstream source fails', async () => {
+    const store = new Map<string, Response>();
+    const cache = {
+      match: async (r: Request) => store.get(r.url)?.clone(),
+      put: async (r: Request, res: Response) => void store.set(r.url, res),
+    };
+    vi.stubGlobal('caches', { default: cache });
+    const pending: Promise<unknown>[] = [];
+    const ctx2 = { waitUntil: (p: Promise<unknown>) => pending.push(p), passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
+    const req = (path: string) => handleApi(new Request(`https://aurorav.app${path}`, { headers: { 'CF-Connecting-IP': String(Math.random()) } }), env, ctx2);
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ type: 'FeatureCollection', features: [] })));
+    expect((await req('/api/events/earthquakes')).status).toBe(200);
+    await Promise.all(pending);
+    // The fresh entry expires; the upstream is down.
+    store.delete('https://aurorav.app/api/events/earthquakes');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
+    const res = await req('/api/events/earthquakes');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { events: unknown[]; stale?: { since: string; reason: string } };
+    expect(body.events).toEqual([]);
+    expect(body.stale?.reason).toMatch(/unavailable/);
+    expect(body.stale?.since).toMatch(/^\d{4}-/);
+  });
+
+  it('passes the error through when there is no saved copy', async () => {
+    vi.stubGlobal('caches', { default: { match: async () => undefined, put: async () => {} } });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
+    expect((await get('/api/events/disasters')).status).toBe(502);
+  });
+});

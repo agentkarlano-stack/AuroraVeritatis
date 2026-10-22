@@ -19,7 +19,7 @@ const WINDOWS = [
 
 export default function Radar() {
   const navigate = useNavigate();
-  const { demo, quakes, quakeStatus, quakeError, reloadQuakes, disasters, disasterStatus, reloadDisasters } = useEvents();
+  const { demo, quakes, quakeStatus, quakeError, reloadQuakes, quakeStale, disasters, disasterStatus, reloadDisasters, disasterStale } = useEvents();
   const [layers, setLayers] = useState({ demo: true, quakes: true, disasters: true });
   const [cats, setCats] = useState<Set<EventCategory>>(new Set(Object.keys(CATEGORY_LABEL) as EventCategory[]));
   const [minSeverity, setMinSeverity] = useState(1);
@@ -67,6 +67,7 @@ export default function Radar() {
                     USGS ·{' '}
                     {quakeStatus === 'loading' ? 'loading…' : quakeStatus === 'error' ? 'unavailable' : plural(quakes.length, 'event')}
                   </span>
+                  {quakeStale && <StaleNote stale={quakeStale} />}
                   {quakeError && (
                     <button className="text-xs text-gold hover:underline" onClick={reloadQuakes}>
                       Retry feed
@@ -82,6 +83,7 @@ export default function Radar() {
                     GDACS · cyclones, floods, volcanoes, droughts, wildfires ·{' '}
                     {disasterStatus === 'loading' ? 'loading…' : disasterStatus === 'error' ? 'unavailable' : plural(disasters.length, 'alert')}
                   </span>
+                  {disasterStale && <StaleNote stale={disasterStale} />}
                   {disasterStatus === 'error' && (
                     <button className="text-xs text-gold hover:underline" onClick={reloadDisasters}>
                       Retry feed
@@ -274,5 +276,13 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
         </div>
       )}
     </div>
+  );
+}
+
+function StaleNote({ stale }: { stale: { since: string | null; reason: string } }) {
+  return (
+    <span className="block text-xs text-warn" role="status">
+      Source not responding. Showing the last saved copy{stale.since ? ` from ${stale.since.slice(0, 16).replace('T', ' ')} UTC` : ''}.
+    </span>
   );
 }
