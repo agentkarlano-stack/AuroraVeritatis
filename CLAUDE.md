@@ -53,6 +53,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   real-email end-to-end test; it runs on PR previews labelled `live-auth` (3 real emails per run; Supabase hourly and Resend 100/day limits) and on demand against production. Local data
   belongs to one account at a time (`auth/localAccount.ts`); changes during the first sync are uploaded afterwards.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
+- World Briefing (`pages/Briefing.tsx`): pure logic in `lib/worldBriefing.ts` (status labels, reliability, fixed
+  background per event type, period window, cross-source de-duplication, consent-based `briefing` prefs synced via
+  `SYNCED_KEYS`); `components/BriefingGlobe.tsx`; `WorldMap` exposes a `focus()` handle via `ref` for guided views.
 - Chart editor (`components/chart/`): `ChartEditor` (toolbar, menus, templates, saved charts, export, full screen),
   `ChartCanvas` (Lightweight Charts rendering, panes, drawings), `IndicatorPanel`, `useDataset`. Pure logic in `lib/chart/`:
   `intervals.ts` (interval ≠ range; exact aggregation, never finer than the source), `chartTypes.ts`, `indicators.ts`

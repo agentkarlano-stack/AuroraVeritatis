@@ -1,17 +1,17 @@
 # Development Progress
 
-_Last updated: 2026-10-22, run 24: Brain risk, relevance and linked intelligence (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-22, run 25: guided World Briefing and Headquarters widgets (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3/5 items in progress |
-| Branch / PR | Work branches start from `main` per task; PRs #11–#22 merged (2026-10-21/22); `claude/brain-intel` open |
+| Branch / PR | Work branches start from `main` per task; PRs #11–#23 merged (2026-10-21/22); `claude/world-briefing` open |
 | GitHub Actions | `ci.yml`: lint · typecheck · 146 tests · build · `migrations` (Postgres 16, two-account RLS). `preview.yml`: Worker version per PR + smoke + `live-auth` when accounts code changes. `smoke.yml`: aurorav.app after merges. `live-auth.yml`: on demand against production |
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Intelligence directive phase 6: Headquarters customisation and the guided, non-AI World Briefing (globe tour, sources, reliability labels). Then phase 7 (Quant probabilistic forecasts) |
+| Next recommended action | Intelligence directive phase 7: Quant probabilistic forecasts (probabilities of up/down/range/target, distributions, calibration, walk-forward, fan charts), linked to the chart editor and the Brain |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,29 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 25 (2026-10-22) — Phase 6: guided World Briefing, Headquarters widgets
+- `/briefing` (`pages/Briefing.tsx`, pure logic `lib/worldBriefing.ts`), a guided tour with no AI:
+  - Period: guests see 24 hours, 3 days or 7 days. Signed-in users who opt in ("Remember when I finish a briefing")
+    continue from their last finished briefing, capped at 7 days. The timestamp syncs with the account and is deleted
+    when the option is turned off.
+  - Order: chronological or most severe first. Simulated scenarios are off by default and always labelled.
+  - De-duplication: repeated ids, and the same real event from two sources (same category, within 100 km and 6 h,
+    e.g. a USGS earthquake and its GDACS alert) shown once with both sources.
+  - Status: Confirmed / Reported / Modelled / Unverified / Simulated. GDACS hazards are "reported" and their alert
+    level is a model estimate; simulated is never confirmed.
+  - Each event shows location with coordinates, UTC time, summary, fixed background and typical consequences for the
+    event type (labelled as general, not about this event), source reliability, severity on the Brain risk scale,
+    sources and the country dossier (or the reason it is unavailable).
+  - Controls: start, next, previous, pause, resume (12 s per event, progress bar), skip, restart, exit, sources,
+    dossier. Keys: arrows, Space, Esc.
+  - Views: a briefing globe that turns to each event (`components/BriefingGlobe.tsx`; instant with reduced motion)
+    or the flat map, which zooms to the event through the new `WorldMap` `focus()` handle.
+- Headquarters: new Brain widget (local graphs) and Data Freshness widget (live, last saved copy or unavailable per
+  feed), plus a link from the Daily Briefing to the guided tour. `normalizeLayout` keeps synced layouts saved before
+  new widgets existed valid.
+- Smoke test: new check for `/briefing` metadata (30 checks).
+- Tests: 8 new unit tests; browser test 33/33 (guest and mocked signed-in account), 390 px check with a failed feed.
+
 ### Runs 21–24 (2026-10-22) — Intelligence platform directive, phases 1–5
 - Phase 1 (PR #20): Country Dossier map. Wheel and pinch zoom around the cursor, the page scrolls normally at the zoom
   limits (no scroll trap), one-finger pan only when zoomed, double-click zoom, keyboard controls (`lib/mapView.ts`, tested).

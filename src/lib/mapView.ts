@@ -40,3 +40,9 @@ export function canZoom(v: MapView, deltaY: number): boolean {
 export function pinch(a: { x: number; y: number }, b: { x: number; y: number }): { d: number; cx: number; cy: number } {
   return { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
 }
+
+/** View that centres the point (px, py) at zoom k, clamped to the frame. */
+export function centerOn(px: number, py: number, k: number, w: number, h: number): MapView {
+  const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k));
+  return clampView({ k: z, x: w / 2 - px * z, y: h / 2 - py * z }, w, h);
+}

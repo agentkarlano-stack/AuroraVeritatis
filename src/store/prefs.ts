@@ -3,9 +3,10 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BrainBackground, BrainColorMode } from '../lib/brainDisplay';
 import type { Drawing } from '../lib/chart';
 import type { IntroMode } from '../lib/intro';
+import { DEFAULT_BRIEFING_PREFS, normalizeBriefingPrefs, type BriefingPrefs } from '../lib/worldBriefing';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
 
-export type WidgetId = 'briefing' | 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts';
+export type WidgetId = 'briefing' | 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts' | 'brain' | 'freshness';
 
 export const WIDGETS: { id: WidgetId; title: string }[] = [
   { id: 'briefing', title: 'Daily Briefing' },
@@ -16,6 +17,8 @@ export const WIDGETS: { id: WidgetId; title: string }[] = [
   { id: 'countries', title: 'Favourite Countries' },
   { id: 'alerts', title: 'Price Alerts' },
   { id: 'notes', title: 'Saved Research' },
+  { id: 'brain', title: 'Brain' },
+  { id: 'freshness', title: 'Data Freshness' },
 ];
 
 export interface Note {
@@ -43,6 +46,9 @@ interface PrefsState {
   /** When the brand intro plays (lib/intro.ts). */
   introMode: IntroMode;
   setIntroMode: (m: IntroMode) => void;
+  /** World Briefing settings; the last-briefing time is kept only with consent (`remember`). Read via normalizeBriefingPrefs. */
+  briefing: BriefingPrefs;
+  setBriefing: (patch: Partial<BriefingPrefs>) => void;
   /** Brain canvas display (this device only). */
   brainCanvas: { background: BrainBackground; colorMode: BrainColorMode };
   setBrainCanvas: (patch: Partial<PrefsState['brainCanvas']>) => void;
@@ -73,6 +79,18 @@ interface PrefsState {
 }
 
 const DEFAULT_LAYOUT = WIDGETS.map((w) => w.id);
+
+/**
+ * A valid layout: unknown ids dropped, duplicates removed, and widgets added in a later release inserted at their
+ * default position (a synced or stored layout may predate them).
+ */
+export function normalizeLayout(raw: unknown): WidgetId[] {
+  const layout = (Array.isArray(raw) ? raw : []).filter((w, i, a): w is WidgetId => DEFAULT_LAYOUT.includes(w as WidgetId) && a.indexOf(w) === i);
+  DEFAULT_LAYOUT.forEach((w, i) => {
+    if (!layout.includes(w)) layout.splice(Math.min(i, layout.length), 0, w);
+  });
+  return layout;
+}
 const DEFAULT_WATCHLIST = ['GLB-EQ.D', 'CRUDE.D', 'GOLD.D', 'EURUSD.D'];
 const DEFAULT_FAVORITES = ['DEU', 'USA', 'JPN'];
 export const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2));
@@ -90,6 +108,8 @@ export const usePrefs = create<PrefsState>()(
       introSeen: false,
       introMode: 'session',
       setIntroMode: (introMode) => set({ introMode }),
+      briefing: DEFAULT_BRIEFING_PREFS,
+      setBriefing: (patch) => set((s) => ({ briefing: normalizeBriefingPrefs({ ...normalizeBriefingPrefs(s.briefing), ...patch }) })),
       brainCanvas: { background: 'dots', colorMode: 'type' },
       setBrainCanvas: (patch) => set((s) => ({ brainCanvas: { ...s.brainCanvas, ...patch } })),
       chart: DEFAULT_SETTINGS,
@@ -101,7 +121,7 @@ export const usePrefs = create<PrefsState>()(
       clearDrawings: (symbol) => set((s) => ({ drawings: { ...s.drawings, [symbol]: [] } })),
       moveWidget: (id, to) =>
         set((s) => {
-          const order = s.layout.filter((w) => w !== id);
+          const order = normalizeLayout(s.layout).filter((w) => w !== id);
           order.splice(Math.max(0, Math.min(order.length, to)), 0, id);
           return { layout: order };
         }),
@@ -137,6 +157,7 @@ export const usePrefs = create<PrefsState>()(
           alerts: [],
           chart: DEFAULT_SETTINGS,
           drawings: {},
+          briefing: DEFAULT_BRIEFING_PREFS,
         }),
       addAlert: (rule, max = 100) => {
         if (get().alerts.length >= max) return false;
@@ -154,17 +175,13 @@ export const usePrefs = create<PrefsState>()(
       // Keep layouts valid if widgets are added or removed between releases.
       merge: (persisted, current) => {
         const p = persisted as Partial<PrefsState>;
-        const layout = (p.layout ?? []).filter((w) => DEFAULT_LAYOUT.includes(w));
-        // New widgets appear at their default position rather than at the end.
-        DEFAULT_LAYOUT.forEach((w, i) => {
-          if (!layout.includes(w)) layout.splice(Math.min(i, layout.length), 0, w);
-        });
+        const layout = normalizeLayout(p.layout);
         const bc = { ...current.brainCanvas, ...p.brainCanvas };
         const brainCanvas = {
           background: ['dots', 'grid', 'plain', 'night'].includes(bc.background) ? bc.background : 'dots',
           colorMode: bc.colorMode === 'risk' ? 'risk' : 'type',
         } as PrefsState['brainCanvas'];
-        return { ...current, ...p, layout, chart: normalizeSettings(p.chart ?? current.chart), brainCanvas };
+        return { ...current, ...p, layout, chart: normalizeSettings(p.chart ?? current.chart), brainCanvas, briefing: normalizeBriefingPrefs(p.briefing) };
       },
     },
   ),

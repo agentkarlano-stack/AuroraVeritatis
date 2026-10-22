@@ -16,6 +16,7 @@ export const PAGES: SearchItem[] = [
   ['/countries/compare', 'Compare countries over time', 'Animated indicator comparison'],
   ['/countries/vs', 'Side-by-side countries', 'Compare up to four countries'],
   ['/markets', 'Market Terminal', 'Charts and indicators'],
+  ['/briefing', 'World Briefing', 'Guided tour of recent events with sources and reliability'],
   ['/brain', 'Personal Intelligence Brain', 'Your own graph of events, countries, markets and hypotheses'],
   ['/macro', 'Macro & FX', 'ECB rates, euro-area inflation, yields and reference exchange rates'],
   ['/currency', 'Currency and purchasing power', 'Inflation calculator, purchasing power, PPP, currency converter and historical exchange rates'],

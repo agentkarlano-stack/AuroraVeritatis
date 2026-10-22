@@ -31,6 +31,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/impact': { title: 'Market Impact Radar', description: 'How geopolitical events can reach markets: mechanisms, correlations and hypotheses, each labelled by strength of evidence.' },
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },
+  '/briefing': { title: 'World Briefing', description: 'A guided tour of recent earthquakes and disaster alerts, one event at a time, with location, background, severity, reliability and sources. No AI.' },
   '/brain': { title: 'Personal Intelligence Brain', description: 'Build your own research graph linking events, countries, companies, markets and indicators with typed, sourced relationships. Stored privately in your browser.' },
   '/share': { title: 'Share Aurora Veritatis', description: 'Link previews, Story and post images for Aurora Veritatis. Download them or copy a link to share.' },
   '/share/card': { title: 'Share card', description: 'Render target for social images.', noindex: true },

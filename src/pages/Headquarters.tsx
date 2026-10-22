@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Pencil, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Network, Pencil, Play, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Change, LimitNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
@@ -9,16 +9,18 @@ import { demoBars, lastQuote } from '../lib/demoMarket';
 import { limitOf, useTier } from '../lib/entitlements';
 import { CATEGORY_COLOR, CATEGORY_LABEL, useEvents } from '../lib/events';
 import { fmtDate, fmtNumber, plural, relativeTime } from '../lib/format';
+import { listGraphs, type GraphSummary } from '../lib/brainStore';
 import { annualisedVol } from '../lib/technical';
 import { buildBriefing } from '../lib/briefing';
 import { tensionBand, worldTension } from '../lib/tension';
-import { WIDGETS, usePrefs, type WidgetId } from '../store/prefs';
+import { WIDGETS, normalizeLayout, usePrefs, type WidgetId } from '../store/prefs';
 
 const WIDE: WidgetId[] = ['tension', 'events'];
 const FULL: WidgetId[] = ['briefing'];
 
 export default function Headquarters() {
-  const { layout, hidden, moveWidget, toggleWidget, resetLayout } = usePrefs();
+  const { layout: rawLayout, hidden, moveWidget, toggleWidget, resetLayout } = usePrefs();
+  const layout = normalizeLayout(rawLayout);
   const { status, session } = useAuth();
   const [editing, setEditing] = useState(false);
   const [dragging, setDragging] = useState<WidgetId | null>(null);
@@ -126,6 +128,10 @@ function Widget({ id }: { id: WidgetId }) {
       return <AlertsWidget />;
     case 'notes':
       return <NotesWidget />;
+    case 'brain':
+      return <BrainWidget />;
+    case 'freshness':
+      return <FreshnessWidget />;
   }
 }
 
@@ -187,9 +193,12 @@ function BriefingWidget() {
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[11px] text-slate-dim">
-        Generated from platform data for {briefing.date}. Rule-based, no AI. Each line shows how reliable its inputs are.
-      </p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] text-slate-dim">Generated from platform data for {briefing.date}. Rule-based, no AI. Each line shows how reliable its inputs are.</p>
+        <Link to="/briefing" className="btn-ghost h-8 text-xs">
+          <Play className="h-3.5 w-3.5" aria-hidden /> Guided World Briefing
+        </Link>
+      </div>
     </div>
   );
 }
@@ -557,6 +566,83 @@ function NotesWidget() {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** The user's Brain graphs (stored in this browser only). */
+function BrainWidget() {
+  const [graphs, setGraphs] = useState<GraphSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    listGraphs()
+      .then((g) => live && setGraphs(g))
+      .catch((e: Error) => live && setError(e.message));
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (error) return <p className="text-xs text-slate-dim">Browser storage is unavailable ({error}).</p>;
+  if (!graphs) return <p className="text-xs text-slate-dim">Opening local storage…</p>;
+  return (
+    <div className="space-y-2 text-sm">
+      {graphs.length === 0 ? (
+        <p className="text-xs text-slate-dim">No research graphs yet. Map how events, countries and markets connect, with your own sources and certainty.</p>
+      ) : (
+        <ul className="space-y-1">
+          {graphs.slice(0, 4).map((g) => (
+            <li key={g.id} className="flex items-baseline justify-between gap-2">
+              <Link to="/brain" className="truncate text-platinum hover:text-gold-soft">
+                {g.name}
+              </Link>
+              <span className="shrink-0 text-[11px] text-slate-dim">
+                {plural(g.nodes, 'node')} · {relativeTime(g.updatedAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Link to="/brain" className="btn-ghost h-8 text-xs">
+        <Network className="h-3.5 w-3.5" aria-hidden /> Open Brain
+      </Link>
+      <p className="text-[11px] text-slate-dim">Stored only in this browser.</p>
+    </div>
+  );
+}
+
+/** Whether the live feeds behind Headquarters are current, stale (last saved copy) or unavailable. */
+function FreshnessWidget() {
+  const { quakes, quakeStatus, quakeStale, disasters, disasterStatus, disasterStale } = useEvents();
+  const rows: { name: string; status: string; count: number; stale: { since: string | null } | null; note: string }[] = [
+    { name: 'USGS earthquakes (M4.5+, 7 days)', status: quakeStatus, count: quakes.length, stale: quakeStale, note: 'Updated every 10 minutes' },
+    { name: 'GDACS disaster alerts (30 days)', status: disasterStatus, count: disasters.length, stale: disasterStale, note: 'Updated every 30 minutes' },
+  ];
+  return (
+    <div className="space-y-2 text-xs">
+      <ul className="space-y-2">
+        {rows.map((r) => (
+          <li key={r.name}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-platinum">{r.name}</span>
+              <span className={r.status === 'error' ? 'text-down' : r.stale ? 'text-warn' : r.status === 'ready' ? 'text-up' : 'text-slate-dim'}>
+                {r.status === 'loading' ? 'Loading' : r.status === 'error' ? 'Unavailable' : r.stale ? 'Last saved copy' : 'Live'}
+              </span>
+            </div>
+            <div className="text-slate-dim">
+              {r.status === 'ready' && `${plural(r.count, 'event')} · `}
+              {r.stale?.since ? `saved ${relativeTime(r.stale.since)} · ` : ''}
+              {r.note}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="text-slate-dim">
+        Market prices on Aurora are simulated (instruments ending in .D). ECB and World Bank data are official.{' '}
+        <Link to="/status" className="text-gold hover:underline">
+          All sources
+        </Link>
+      </p>
     </div>
   );
 }

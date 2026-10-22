@@ -150,3 +150,25 @@
 @media (prefers-reduced-motion: reduce) {
   .av-load-mono, .av-load-bar { animation: none; }
 }
+
+/* World Briefing: dwell-time bar for the current event (plain linear fill; hidden with reduced motion). */
+@keyframes av-brief-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+.av-brief-progress {
+  width: 0;
+  animation-name: av-brief-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .av-brief-progress {
+    animation: none;
+    width: 0;
+  }
+}

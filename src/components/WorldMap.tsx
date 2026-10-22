@@ -1,14 +1,14 @@
 import { geoGraticule10, geoNaturalEarth1, geoPath } from 'd3-geo';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type Ref } from 'react';
 import { feature } from 'topojson-client';
 import type { GeometryCollection, Topology } from 'topojson-specification';
 import world from 'world-atlas/countries-110m.json';
 import type { GeoEvent } from '../../shared/types';
 import { countryByNumeric } from '../lib/countries';
 import { CATEGORY_COLOR } from '../lib/events';
-import { canZoom, clampView, pinch, wheelFactor, zoomAround, type MapView } from '../lib/mapView';
+import { canZoom, centerOn, clampView, pinch, wheelFactor, zoomAround, type MapView } from '../lib/mapView';
 
 const W = 960;
 const H = 500;
@@ -18,7 +18,15 @@ type CountryFeature = Feature<Geometry, { name: string }> & { id?: string };
 const topo = world as unknown as Topology<{ countries: GeometryCollection<{ name: string }> }>;
 const COUNTRY_FEATURES = (feature(topo, topo.objects.countries) as FeatureCollection<Geometry, { name: string }>).features as CountryFeature[];
 
+/** Imperative controls for guided views (e.g. the World Briefing tour), called from event handlers. */
+export interface WorldMapHandle {
+  /** Centres on a coordinate at zoom k (1 = whole world), with a slow transition unless reduced motion is preferred. */
+  focus: (lat: number, lon: number, k: number) => void;
+  reset: () => void;
+}
+
 interface Props {
+  ref?: Ref<WorldMapHandle>;
   events: GeoEvent[];
   selectedEventId?: string | null;
   highlightIso3?: string[];
@@ -27,7 +35,7 @@ interface Props {
   className?: string;
 }
 
-export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventClick, onCountryClick, className = '' }: Props) {
+export function WorldMap({ ref, events, selectedEventId, highlightIso3 = [], onEventClick, onCountryClick, className = '' }: Props) {
   const projection = useMemo(() => geoNaturalEarth1().fitExtent([[8, 8], [W - 8, H - 8]], { type: 'Sphere' }), []);
   const path = useMemo(() => geoPath(projection), [projection]);
   const shapes = useMemo(
@@ -44,7 +52,8 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
   const [view, setViewState] = useState<MapView>({ k: 1, x: 0, y: 0 });
   // Latest view for the native wheel listener (registered once, outside React's render cycle).
   const viewRef = useRef<MapView>(view);
-  const [animate, setAnimate] = useState(false);
+  /** Transition length in ms for the next view change (0: immediate). */
+  const [animate, setAnimate] = useState(0);
   const [hint, setHint] = useState<string | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hover, setHover] = useState<{ label: string; x: number; y: number } | null>(null);
@@ -53,11 +62,21 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
   const gesture = useRef<{ px: number; py: number; x: number; y: number; moved: boolean; pinch?: { d: number; cx: number; cy: number; view: MapView } } | null>(null);
   const [grabbing, setGrabbing] = useState(false);
 
-  const setView = (next: MapView, smooth = false) => {
+  const setView = (next: MapView, smooth: boolean | number = false) => {
     viewRef.current = next;
-    setAnimate(smooth);
+    setAnimate(smooth === true ? 180 : smooth || 0);
     setViewState(next);
   };
+
+  useImperativeHandle(ref, () => ({
+    focus: (lat, lon, k) => {
+      const pt = projection([lon, lat]);
+      if (!pt) return;
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      setView(centerOn(pt[0], pt[1], k, W, H), reduced ? 0 : 900);
+    },
+    reset: () => setView({ k: 1, x: 0, y: 0 }, true),
+  }));
   const flashHint = (text: string) => {
     setHint(text);
     if (hintTimer.current) clearTimeout(hintTimer.current);
@@ -209,7 +228,7 @@ export function WorldMap({ events, selectedEventId, highlightIso3 = [], onEventC
         onKeyDown={onKeyDown}
         style={{ cursor: grabbing ? 'grabbing' : 'grab', touchAction: view.k > 1 ? 'none' : 'pan-y' }}
       >
-        <g style={{ transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: '0 0', transition: animate ? 'transform 180ms ease-out' : undefined }}>
+        <g style={{ transform: `translate(${view.x}px,${view.y}px) scale(${view.k})`, transformOrigin: '0 0', transition: animate ? `transform ${animate}ms cubic-bezier(0.22, 0.61, 0.36, 1)` : undefined }}>
           <path d={sphere} fill="#141416" />
           <path d={graticule} fill="none" stroke="#1f1f23" strokeWidth={0.5 / view.k} />
           {shapes.map((s) => (

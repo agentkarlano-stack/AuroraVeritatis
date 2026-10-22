@@ -48,3 +48,13 @@ export function parseIsoList(raw: string | null, max = 4): string[] {
   }
   return out.slice(0, max);
 }
+
+/** Country by English name (official names and common aliases), e.g. from a feed's location text. */
+export function countryByName(name: string | null | undefined): CountryRef | undefined {
+  const n = name?.trim();
+  if (!n) return undefined;
+  const iso2 = countries.getAlpha2Code(n, 'en');
+  if (iso2) return byIso3.get(countries.alpha2ToAlpha3(iso2) ?? '');
+  const lower = n.toLowerCase();
+  return COUNTRIES.find((c) => c.name.toLowerCase() === lower);
+}
