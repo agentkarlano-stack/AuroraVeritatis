@@ -42,6 +42,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/status': { title: 'Platform status and data sources', description: 'What works today, what uses simulated data, and the licence of every data source.' },
   '/signin': { title: 'Sign in', description: 'Sign in to Aurora Veritatis.', noindex: true },
   '/account': { title: 'Account', description: 'Your Aurora Veritatis account.', noindex: true },
+  '/admin': { title: 'Administration', description: 'Administrator area.', noindex: true },
 };
 
 const LEGAL: Record<string, string> = {

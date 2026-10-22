@@ -1,16 +1,19 @@
 import { Check, Clock } from 'lucide-react';
 import { DemoNotice, PageHeader } from '../components/ui';
 import { TIERS } from '../data/tiers';
+import { useTier } from '../lib/entitlements';
 
 export default function Pricing() {
+  const tierId = useTier();
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader eyebrow="Plans" title="Plans">
-        These are the plans we propose for launch. During early access everything on the site is free.
+        Plan limits are active and enforced. Paid subscriptions are not available yet: an administrator can grant complimentary access, and
+        everyone else uses the Free plan.
       </PageHeader>
       <DemoNotice>
-        Prices and limits are <strong>proposals, not offers</strong>. Paid plans are not available yet and no payments are
-        taken. Final terms will be published before launch. Items marked “Planned” do not exist yet.
+        Prices are <strong>proposals, not offers</strong>. Paid plans cannot be bought yet and no payments are taken. Final terms will
+        be published before launch. Items marked “Planned” do not exist yet, whatever the plan.
       </DemoNotice>
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {TIERS.map((t) => (
@@ -42,6 +45,9 @@ export default function Pricing() {
                   ['Alert rules', t.limits.alertRules],
                   ['Brain graphs', t.limits.brainGraphs],
                   ['Nodes per Brain graph', t.limits.brainNodesPerGraph],
+                  ['Research notes (account)', t.limits.researchNotes],
+                  ['Saved charts', t.limits.savedCharts],
+                  ['Chart templates', t.limits.chartTemplates],
                 ] as const
               ).map(([k, v]) => (
                 <div key={k} className="flex justify-between">
@@ -50,8 +56,8 @@ export default function Pricing() {
                 </div>
               ))}
             </dl>
-            <button className={`${t.id === 'free' ? 'btn-ghost' : 'btn-primary'} mt-5`} disabled title="Paid plans are not available yet">
-              {t.id === 'free' ? 'Available now' : 'Not available yet'}
+            <button className={`${t.id === 'free' ? 'btn-ghost' : 'btn-primary'} mt-5`} disabled title={t.id === 'free' ? 'Every account starts on Free' : 'Paid plans cannot be bought yet'}>
+              {t.id === 'free' ? (tierId === 'free' ? 'Your plan' : 'Available') : tierId === t.id ? 'Your plan (complimentary)' : 'Purchase not available yet'}
             </button>
           </div>
         ))}

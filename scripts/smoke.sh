@@ -72,7 +72,12 @@ s = json.load(sys.stdin)
 signup = "on" if s.get("external", {}).get("email") and not s.get("disable_signup") else "off"
 confirm = "off" if s.get("mailer_autoconfirm") else "required"
 print("email sign-up " + signup + ", email confirmation " + confirm)' 2>/dev/null || echo "auth settings unreadable")
-  echo "configured ($(printf '%s' "$url" | sed -E 's#https?://([^.]+)\..*#\1#')…); $schema; $settings"
+  # Plans and admin functions (migration 20261023): guests are refused (401/403) when they exist, 404 when missing.
+  local ent
+  ent=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}' "$url/rest/v1/rpc/my_entitlements" 2>/dev/null || echo 000)
+  local plans="plans and admin functions missing (migration 20261023 not applied, HTTP $ent)"
+  [[ "$ent" == "401" || "$ent" == "403" ]] && plans="plans and admin functions present (guests refused)"
+  echo "configured ($(printf '%s' "$url" | sed -E 's#https?://([^.]+)\..*#\1#')…); $schema; $plans; $settings"
 }
 auth="Auth: $(auth_status)"
 echo "$auth"
