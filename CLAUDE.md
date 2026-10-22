@@ -43,7 +43,13 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   IndexedDB persistence in `lib/brainStore.ts` (local-first, no server copy), layouts in `lib/brainLayout.ts` (d3-force,
   seeded), Aurora entity links + "Add to Brain" in `lib/brainEntities.ts` / `components/AddToBrain.tsx`. Quotas:
   `brainLimits()` in `lib/entitlements.ts`.
-- `supabase/migrations/` — SQL, reviewed and applied manually by the owner.
+- `supabase/migrations/` — SQL, reviewed and applied manually by the owner (initial schema applied 2026-10-22; deletion
+  hardening `20261022…` pending). `supabase/tests/rls.sql` + `scripts/test-migrations.sh` (CI job `migrations`) apply them
+  twice on a Supabase stub and run the two-account RLS test.
+- Accounts are live (Supabase project `oscdwaeofqdiwcnxsich`). `e2e/live/auth.ts` (`live-auth.yml`) is the real-browser,
+  real-email end-to-end test; it runs on PR previews that touch accounts and on demand against production. Local data
+  belongs to one account at a time (`auth/localAccount.ts`); changes during the first sync are uploaded afterwards.
+- Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 
 ## Conventions
 - TypeScript strict, `noUncheckedIndexedAccess`. React 19 + React Compiler lint rules (no setState in effects, no impure render).
@@ -74,6 +80,8 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   the house style (no em dashes in prose, no hype, consistent names).
 - The Worker serves page navigations (route `<head>` metadata via HTMLRewriter, `worker/meta.ts`) through the
   `ASSETS` binding; `run_worker_first` excludes `/assets/*`, `/brand/*` and static files so they bypass the Worker.
+- Cloud sessions cannot download GitHub job logs or artifacts (blob storage is blocked). Read results from check-run
+  annotations: smoke prints notices, `live-auth` posts every result in one notice titled "Live auth results".
 - Scheduled tasks need the repositories attached as sources (set in the Claude app). Without them a run can only clone
   read-only and cannot push; it should stop and report rather than retry.
 
