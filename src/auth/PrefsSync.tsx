@@ -3,8 +3,8 @@ import { diffNotes, initialSync, mergeNotes, pickSynced, push, supabaseBackend, 
 import { usePrefs } from '../store/prefs';
 import { useSyncStatus } from '../store/syncStatus';
 import { useAuth } from './AuthProvider';
+import { clearLocalAccountData, LOCAL_OWNER_KEY, LOCAL_UPDATED_KEY, readOwner } from './localAccount';
 
-const LOCAL_UPDATED_KEY = 'av-prefs-updated-at';
 const PUSH_DELAY_MS = 1500;
 
 function readLocalUpdatedAt(): string | null {
@@ -28,7 +28,7 @@ function writeLocalUpdatedAt(v: string) {
  * Supabase `user_preferences` row. Renders nothing. Inactive for guests or when accounts are not configured.
  */
 export function PrefsSync() {
-  const { client, session } = useAuth();
+  const { client, session, status } = useAuth();
   const userId = session?.user.id ?? null;
   const backend = useMemo(() => (client ? supabaseBackend(client) : null), [client]);
   const notesBackend = useMemo(() => (client ? supabaseNotesBackend(client) : null), [client]);
@@ -42,8 +42,8 @@ export function PrefsSync() {
       if (applyingRemote.current) return;
       // Notes: upload additions and deletions individually once the initial merge has run.
       if (state.notes !== prev.notes && notesBackend && userId && ready.current) {
-        const { added, removed } = diffNotes(prev.notes as SyncNote[], state.notes as SyncNote[]);
-        Promise.all([notesBackend.upsert(userId, added), notesBackend.remove(userId, removed)])
+        const { added, changed, removed } = diffNotes(prev.notes as SyncNote[], state.notes as SyncNote[]);
+        Promise.all([notesBackend.upsert(userId, [...added, ...changed]), notesBackend.remove(userId, removed)])
           .then(() => useSyncStatus.setState({ state: 'synced', at: new Date().toISOString() }))
           .catch((e: Error) => useSyncStatus.setState({ state: 'error', message: e.message }));
       }
@@ -66,10 +66,23 @@ export function PrefsSync() {
     ready.current = false;
     if (!backend || !userId) {
       useSyncStatus.setState({ state: 'off', at: undefined, message: undefined });
+      // After sign-out (or an expired session) the account's copy leaves this browser; it stays in the cloud.
+      if (status === 'signed-out' && readOwner()) {
+        applyingRemote.current = true;
+        clearLocalAccountData();
+        applyingRemote.current = false;
+      }
       return;
     }
     let cancelled = false;
     useSyncStatus.setState({ state: 'syncing' });
+    // Data left in this browser by a different account must never be merged into this one.
+    const owner = readOwner();
+    if (owner && owner !== userId) {
+      applyingRemote.current = true;
+      clearLocalAccountData();
+      applyingRemote.current = false;
+    }
     initialSync(backend, userId, pickSynced(usePrefs.getState() as unknown as Record<string, unknown>), readLocalUpdatedAt())
       .then(async (r) => {
         if (cancelled) return;
@@ -88,6 +101,11 @@ export function PrefsSync() {
           await notesBackend.upsert(userId, toUpload);
         }
         if (cancelled) return;
+        try {
+          localStorage.setItem(LOCAL_OWNER_KEY, userId);
+        } catch {
+          /* storage unavailable */
+        }
         ready.current = true;
         useSyncStatus.setState(r.action === 'skipped' ? { state: 'skipped', message: r.reason } : { state: 'synced', at: r.updatedAt });
       })
@@ -96,7 +114,7 @@ export function PrefsSync() {
       cancelled = true;
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [backend, notesBackend, userId]);
+  }, [backend, notesBackend, userId, status]);
 
   return null;
 }

@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Pencil, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -483,9 +483,10 @@ function AlertsWidget() {
 }
 
 function NotesWidget() {
-  const { notes, addNote, removeNote } = usePrefs();
+  const { notes, addNote, updateNote, removeNote } = usePrefs();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
   return (
     <div>
       <form
@@ -493,25 +494,55 @@ function NotesWidget() {
         onSubmit={(e) => {
           e.preventDefault();
           if (!title.trim()) return;
-          addNote(title.trim(), body.trim());
+          if (editing) updateNote(editing, title.trim(), body.trim());
+          else addNote(title.trim(), body.trim());
+          setEditing(null);
           setTitle('');
           setBody('');
         }}
       >
         <input className="input" placeholder="Note title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} aria-label="Note title" />
         <textarea className="input min-h-16" placeholder="Observations, hypotheses, sources…" value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} aria-label="Note body" />
-        <button className="btn-ghost w-full" disabled={!title.trim()}>
-          Save note
-        </button>
+        <div className="flex gap-2">
+          <button className="btn-ghost flex-1" disabled={!title.trim()}>
+            {editing ? 'Save changes' : 'Save note'}
+          </button>
+          {editing && (
+            <button
+              type="button"
+              className="btn-quiet"
+              onClick={() => {
+                setEditing(null);
+                setTitle('');
+                setBody('');
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
       <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
         {notes.map((n) => (
-          <li key={n.id} className="rounded-md border border-line p-2">
+          <li key={n.id} className={`rounded-md border p-2 ${editing === n.id ? 'border-gold/60' : 'border-line'}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="text-sm font-medium">{n.title}</div>
-              <button className="btn-quiet -mr-1 -mt-1 px-1" aria-label={`Delete note ${n.title}`} onClick={() => removeNote(n.id)}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="-mr-1 -mt-1 flex shrink-0">
+                <button
+                  className="btn-quiet px-1"
+                  aria-label={`Edit note ${n.title}`}
+                  onClick={() => {
+                    setEditing(n.id);
+                    setTitle(n.title);
+                    setBody(n.body);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button className="btn-quiet px-1" aria-label={`Delete note ${n.title}`} onClick={() => removeNote(n.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
             {n.body && <p className="mt-1 whitespace-pre-wrap text-xs text-mist">{n.body}</p>}
             <div className="mt-1 text-[10px] text-slate-dim">{fmtDate(n.createdAt)}</div>

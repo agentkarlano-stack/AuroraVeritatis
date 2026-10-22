@@ -84,4 +84,13 @@ describe('notes sync', () => {
     expect(d.added.map((x) => x.id)).toEqual([C]);
     expect(d.removed).toEqual([A]);
   });
+
+  it('detects edited notes', async () => {
+    const { diffNotes } = await import('./sync');
+    const before = n(A, '1');
+    const d = diffNotes([before, n(B, '2')], [{ ...before, title: 'Edited' }, n(B, '2')]);
+    expect(d.changed.map((x) => x.id)).toEqual([A]);
+    expect(d.added).toEqual([]);
+    expect(d.removed).toEqual([]);
+  });
 });

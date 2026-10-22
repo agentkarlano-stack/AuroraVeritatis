@@ -1,0 +1,47 @@
+name: Live auth test
+
+# Real-browser, real-email end-to-end test of accounts (e2e/live/auth.ts) against a live deployment and the real
+# Supabase project: sign-up, confirmation email, sign-in/out, password reset, sync, notes, export, two-account RLS and
+# account deletion. Creates two throwaway accounts on disposable inboxes and deletes them at the end. Uses no secrets.
+# Run on demand against production, and from preview.yml on PRs that touch accounts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Base URL to test
+        default: https://aurorav.app
+  workflow_call:
+    inputs:
+      url:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-auth
+  cancel-in-progress: false
+
+jobs:
+  live-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Live auth test
+        run: node e2e/live/auth.ts
+        env:
+          BASE_URL: ${{ inputs.url || 'https://aurorav.app' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-auth-results
+          path: live-auth-results.json
+          if-no-files-found: ignore

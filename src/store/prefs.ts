@@ -50,7 +50,10 @@ interface PrefsState {
   toggleWatch: (symbol: string, max?: number) => boolean;
   toggleFavorite: (iso3: string) => void;
   addNote: (title: string, body: string) => void;
+  updateNote: (id: string, title: string, body: string) => void;
   removeNote: (id: string) => void;
+  /** Restores the synced preferences and notes to their defaults (used when the browser's data belongs to another account). */
+  resetSynced: () => void;
   /** Returns false when adding would exceed `max`. */
   addAlert: (rule: Omit<AlertRule, 'id'>, max?: number) => boolean;
   removeAlert: (id: string) => void;
@@ -59,6 +62,8 @@ interface PrefsState {
 }
 
 const DEFAULT_LAYOUT = WIDGETS.map((w) => w.id);
+const DEFAULT_WATCHLIST = ['GLB-EQ.D', 'CRUDE.D', 'GOLD.D', 'EURUSD.D'];
+const DEFAULT_FAVORITES = ['DEU', 'USA', 'JPN'];
 export const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2));
 
 /** Device-local preferences. Synced to Supabase once accounts are enabled (Phase 2). */
@@ -67,8 +72,8 @@ export const usePrefs = create<PrefsState>()(
     (set, get) => ({
       layout: DEFAULT_LAYOUT,
       hidden: [],
-      watchlist: ['GLB-EQ.D', 'CRUDE.D', 'GOLD.D', 'EURUSD.D'],
-      favorites: ['DEU', 'USA', 'JPN'],
+      watchlist: DEFAULT_WATCHLIST,
+      favorites: DEFAULT_FAVORITES,
       notes: [],
       alerts: [],
       introSeen: false,
@@ -103,7 +108,20 @@ export const usePrefs = create<PrefsState>()(
         })),
       addNote: (title, body) =>
         set((s) => ({ notes: [{ id: uid(), title: title.slice(0, 120), body: body.slice(0, 4000), createdAt: new Date().toISOString() }, ...s.notes].slice(0, 100) })),
+      updateNote: (id, title, body) =>
+        set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, title: title.slice(0, 120), body: body.slice(0, 4000) } : n)) })),
       removeNote: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
+      resetSynced: () =>
+        set({
+          layout: DEFAULT_LAYOUT,
+          hidden: [],
+          watchlist: DEFAULT_WATCHLIST,
+          favorites: DEFAULT_FAVORITES,
+          notes: [],
+          alerts: [],
+          chart: { ...DEFAULT_CHART_OPTIONS, range: 126 },
+          drawings: {},
+        }),
       addAlert: (rule, max = 100) => {
         if (get().alerts.length >= max) return false;
         set((s) => ({ alerts: [...s.alerts, { ...rule, id: uid() }] }));

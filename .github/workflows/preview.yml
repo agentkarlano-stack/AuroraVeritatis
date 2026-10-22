@@ -23,12 +23,25 @@ jobs:
     timeout-minutes: 15
     env:
       HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+    outputs:
+      url: ${{ steps.upload.outputs.url }}
+      auth_changed: ${{ steps.changes.outputs.auth }}
     steps:
       - name: Skip when Cloudflare credentials are not configured
         if: env.HAS_TOKEN != 'true'
         run: echo "::notice::CLOUDFLARE_API_TOKEN is not set; skipping preview upload."
       - uses: actions/checkout@v4
         if: env.HAS_TOKEN == 'true'
+        with:
+          fetch-depth: 0
+      - name: Detect account-related changes
+        id: changes
+        if: env.HAS_TOKEN == 'true'
+        run: |
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          if echo "$files" | grep -qE '^(src/auth/|src/pages/(Account|SignIn|Headquarters)\.tsx|src/lib/sync|src/store/prefs|supabase/|e2e/live/|worker/|\.github/workflows/(live-auth|preview)\.yml)'; then
+            echo "auth=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
         if: env.HAS_TOKEN == 'true'
         with:
@@ -64,3 +77,11 @@ jobs:
         run: |
           gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none \
             --body "🔎 Preview for \`${GITHUB_SHA::7}\`: ${{ steps.upload.outputs.url }}"
+
+  # Real-browser account test on the preview when a PR touches accounts, sync or the Worker.
+  live-auth:
+    needs: preview
+    if: needs.preview.outputs.url != '' && needs.preview.outputs.auth_changed == 'true'
+    uses: ./.github/workflows/live-auth.yml
+    with:
+      url: ${{ needs.preview.outputs.url }}

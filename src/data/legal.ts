@@ -3,7 +3,7 @@ export interface LegalDoc {
   sections: { heading: string; body: string }[];
 }
 
-const OPERATOR = '[Operator legal name, address and registration details: to be completed]';
+const OPERATOR = 'Aurora Veritatis, a student initiative in formation (not yet a registered association or company), 6353 Going am Wilden Kaiser, Austria';
 
 /**
  * DRAFT legal texts. They are placeholders structured for review by a qualified lawyer
@@ -65,7 +65,7 @@ export const LEGAL: Record<string, LegalDoc> = {
     title: 'Legal Notice (Impressum)',
     sections: [
       { heading: 'Information pursuant to § 5 ECG / § 25 MedienG', body: `${OPERATOR}. Email: auroraveritatissup@gmail.com.` },
-      { heading: 'Separation', body: 'The Aurora Veritatis platform and the Aurora Veritatis student organisation are distinct; ownership and legal status will be stated here once the operating entity is confirmed.' },
+      { heading: 'About the operator', body: 'The platform is built by co-founders of the Aurora Veritatis student group, which is being established. Members of the group are its first users and help with testing and development. The legal form and registration details will be added here once the group is registered.' },
     ],
   },
 };
