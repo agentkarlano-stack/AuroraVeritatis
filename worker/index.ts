@@ -44,7 +44,15 @@ const STALE_SECONDS = 7 * 86_400;
  * upstream source fails (5xx), that copy is served instead, with `stale: { since, reason }` added to the JSON so the UI
  * can say the data is not current. Without a saved copy the error is passed through.
  */
-async function cached(request: Request, ctx: ExecutionContext, produce: () => Promise<Response>): Promise<Response> {
+/** How long a request waits for the upstream before the last good copy is served instead (refresh continues). */
+const SLOW_MS = 3000;
+
+/**
+ * Edge cache with a last-good copy (kept 7 days). Fresh hits are served directly. On a miss the upstream is asked;
+ * if it fails (5xx) or has not answered within `slowMs` while a last-good copy exists, that copy is served, flagged
+ * `stale: { since, reason }`, and a slow refresh completes in the background so the next request is fresh.
+ */
+async function cached(request: Request, ctx: ExecutionContext, produce: () => Promise<Response>, slowMs = SLOW_MS): Promise<Response> {
   const cache = typeof caches !== 'undefined' ? (caches as unknown as { default: Cache }).default : undefined;
   const url = new URL(request.url);
   const key = new Request(url.toString(), { method: 'GET' });
@@ -53,26 +61,33 @@ async function cached(request: Request, ctx: ExecutionContext, produce: () => Pr
   const staleKey = new Request(staleUrl.toString(), { method: 'GET' });
   const hit = cache ? await cache.match(key) : undefined;
   if (hit) return hit;
-  const res = await produce();
-  if (cache && res.ok) {
-    ctx.waitUntil(cache.put(key, res.clone()));
-    const copy = new Response(res.clone().body, res);
-    copy.headers.set('Cache-Control', `public, max-age=${STALE_SECONDS}`);
-    copy.headers.set('X-Aurora-Saved', new Date().toISOString());
-    ctx.waitUntil(cache.put(staleKey, copy));
-    return res;
-  }
-  if (cache && res.status >= 500) {
-    const last = await cache.match(staleKey);
-    if (last) {
-      const body = (await last.json().catch(() => null)) as Record<string, unknown> | null;
-      if (body && typeof body === 'object' && !Array.isArray(body)) {
-        const reason = ((await res.clone().json().catch(() => ({}))) as { error?: string }).error ?? 'Upstream source unavailable';
-        return json({ ...body, stale: { since: last.headers.get('X-Aurora-Saved'), reason } }, { maxAge: 60 });
+  const last = cache ? await cache.match(staleKey) : undefined;
+
+  const refresh = produce()
+    .catch((e: Error) => error(502, 'Upstream source unavailable', e.message))
+    .then(async (res) => {
+      if (cache && res.ok) {
+        const copy = new Response(res.clone().body, res);
+        copy.headers.set('Cache-Control', `public, max-age=${STALE_SECONDS}`);
+        copy.headers.set('X-Aurora-Saved', new Date().toISOString());
+        await Promise.all([cache.put(key, res.clone()), cache.put(staleKey, copy)]);
       }
-    }
-  }
-  return res;
+      return res;
+    });
+  if (!last) return refresh;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const slow = new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), slowMs)));
+  const first = await Promise.race([refresh, slow]);
+  if (timer !== undefined) clearTimeout(timer);
+  if (first && first.status < 500) return first;
+  if (!first) ctx.waitUntil(refresh);
+  const reason = first
+    ? (((await first.clone().json().catch(() => ({}))) as { error?: string }).error ?? 'Upstream source unavailable')
+    : 'The source is responding slowly. Showing the last saved copy while it updates.';
+  const body = (await last.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return first ?? refresh;
+  return json({ ...body, stale: { since: last.headers.get('X-Aurora-Saved'), reason } }, { maxAge: 60 });
 }
 
 export async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
