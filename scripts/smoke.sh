@@ -46,6 +46,7 @@ check "macro metadata"        /macro                                   200 '<tit
 check "ECB macro overview"    /api/macro                               200 '"missing":\[\]'
 check "ECB series history"    '/api/macro/ECB-DFR?years=10'            200 '"value":[0-9-]'
 check "currency metadata"     /currency                                200 '<title>[^<]*[Pp]urchasing power'
+check "briefing metadata"     /briefing                                200 '<title>World Briefing'
 check "currency (World Bank)" /api/currency/AUT                        200 '"cpi":\[\{"year"'
 check "bad indicator rejected" '/api/compare/2022?x=BAD.ID'            400 'Unsupported'
 check "unknown API route"     /api/does-not-exist                      404 'Not found'
