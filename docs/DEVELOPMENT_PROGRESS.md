@@ -1,6 +1,6 @@
 # Development Progress
 
-_Last updated: 2026-10-22, runs 17–19 — accounts live and verified end to end; currency and purchasing power (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-22, run 20 — interactive chart editor, phase 1–2 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
@@ -11,7 +11,8 @@ _Last updated: 2026-10-22, runs 17–19 — accounts live and verified end to en
 | Production check | Smoke **29/29** after PR #14 (2026-10-22). Auth status: configured, schema applied, guest access denied, email confirmation required |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Deletion-hardening SQL + Security Advisor re-run; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
+| Next recommended action | Chart editor phase 3: drawing toolbar (ray, rectangle, text, arrow, Fibonacci, measure) with object editing; then multi-chart layouts and advanced chart types. Currency slice 2; C mobile suite; D audit |
+| Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
 The Vite + `@cloudflare/vite-plugin` foundation is the project foundation (PR #3). PRs #1 (esbuild) and #2 (same code,
@@ -19,6 +20,21 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 20 (2026-10-22) — Interactive chart editor (owner chart directive, phases 1–2 and parts of 3–4)
+- Reusable `ChartEditor` on the Market Terminal, also reachable from Macro & FX and Currency:
+  - Instruments: search across simulated `.D` instruments and official ECB reference rates.
+  - Time controls: candle interval and history range are separate (1D–All presets plus a custom date range). Intraday intervals are listed but disabled, with the reason.
+  - Chart types: 12, with Renko, Line Break, Kagi and Point & Figure planned.
+  - Indicators: a searchable catalogue of 57 functional indicators with categories, favourites, parameters, colours, hide/show, own pane and remove. VWAP is listed as unavailable because it needs intraday data.
+  - Drawings: level and trend line, with undo and redo.
+  - Organising: 6 built-in templates plus user templates; saved charts with JSON export and import.
+  - Export: PNG of the visible chart with indicators and drawings, plus optional details, branding and source.
+  - Full screen through the Fullscreen API, with an in-app fallback.
+  - A data disclosure bar, and Add to Brain.
+- Close-only sources (ECB) disable the chart types and indicators that need OHLC or volume, and say why.
+- Tests: 49 new unit tests (hand-computed references and exact identities) and a 38-check browser test at 1280 and 390 px (local workerd, mocked ECB data).
+- CI: the real-email live account test now runs only on PRs labelled `live-auth` (PR #18).
+
 ### Runs 17–19 (2026-10-22) — Accounts live; Currency and purchasing power
 - Owner applied the migration and configured Supabase Auth, SMTP (Resend) and the Worker vars.
 - `e2e/live/auth.ts` + `live-auth.yml`: real browser (Chrome), real email (disposable inboxes: mail.tm, mail.gw, Guerrilla Mail fallbacks) and the real Supabase project. Covers sign-up (desktop + 390 px), confirmation email and redirect, sign-in/out, invalid credentials, used links, password reset, profile creation, cloud preferences, note save/edit/delete, cross-device sync, export, two-account RLS through PostgREST, tier escalation, guest access, a bundle scan for secret keys, and deletion. Both accounts are deleted at the end. No secrets.

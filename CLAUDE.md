@@ -50,6 +50,13 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   real-email end-to-end test; it runs on PR previews labelled `live-auth` (3 real emails per run; Supabase hourly and Resend 100/day limits) and on demand against production. Local data
   belongs to one account at a time (`auth/localAccount.ts`); changes during the first sync are uploaded afterwards.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
+- Chart editor (`components/chart/`): `ChartEditor` (toolbar, menus, templates, saved charts, export, full screen),
+  `ChartCanvas` (Lightweight Charts rendering, panes, drawings), `IndicatorPanel`, `useDataset`. Pure logic in `lib/chart/`:
+  `intervals.ts` (interval ≠ range; exact aggregation, never finer than the source), `chartTypes.ts`, `indicators.ts`
+  (catalogue; only tested, functional entries; `unavailable` explains data needs), `workspace.ts` (settings v2,
+  migration, templates, layout JSON), `sources.ts` (simulated `.D` and close-only ECB datasets), `exportImage.ts`.
+  Settings live in `prefs.chart` (always read through `normalizeSettings`); favourites, templates and saved charts in
+  `store/chartLibrary.ts` (this browser).
 
 ## Conventions
 - TypeScript strict, `noUncheckedIndexedAccess`. React 19 + React Compiler lint rules (no setState in effects, no impure render).
