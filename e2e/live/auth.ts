@@ -510,16 +510,18 @@ async function main() {
       const next = password();
       await page.getByLabel('New password').fill(next);
       await page.getByRole('button', { name: 'Update password' }).click();
+      await page.getByText('Set a new password').waitFor({ state: 'detached', timeout: 15_000 });
+      // From here the new password is the valid one, whatever happens next (cleanup depends on it).
+      if (await apiClient(sbUrl, anonKey, inboxA.address, next).then(() => true, () => false)) pwA2 = next;
       await page.getByText('Password updated.').waitFor({ timeout: 15_000 });
       await page.getByRole('button', { name: 'Sign out' }).click();
       await page.getByRole('heading', { name: 'Guest session' }).waitFor({ timeout: 15_000 });
       await signInViaUi(page, inboxA.address, next);
       await waitSignedIn(page, inboxA.address);
-      pwA2 = next;
       await ctx.close();
       return `from ${mail.from}, subject "${mail.subject}"; new password works`;
     });
-    a = await apiClient(sbUrl, anonKey, inboxA.address, pwA2);
+    a = await apiClient(sbUrl, anonKey, inboxA.address, pwA2).catch(() => a);
 
     // RLS with two real accounts ----------------------------------------------------------------------------------
     if (a && b) {

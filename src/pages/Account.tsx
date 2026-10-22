@@ -10,6 +10,7 @@ import { useSyncStatus } from '../store/syncStatus';
 export default function Account() {
   const { status, session, signOut, config, recovery, urlError, client } = useAuth();
   const [exportState, setExportState] = useState<'idle' | 'working' | 'failed'>('idle');
+  const [passwordDone, setPasswordDone] = useState(false);
   const prefs = usePrefs();
   const tierId = useTier();
   const plan = TIERS.find((t) => t.id === tierId)!;
@@ -59,7 +60,12 @@ export default function Account() {
             {urlError}
           </p>
         )}
-        {recovery && <NewPassword />}
+        {recovery && <NewPassword onDone={() => setPasswordDone(true)} />}
+        {passwordDone && !recovery && (
+          <p role="status" className="rounded-md border border-up/40 p-3 text-sm text-up">
+            Password updated. Use it the next time you sign in.
+          </p>
+        )}
         <Panel title="Profile">
           {status === 'signed-in' ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -164,7 +170,7 @@ export default function Account() {
   );
 }
 
-function NewPassword() {
+function NewPassword({ onDone }: { onDone: () => void }) {
   const { updatePassword } = useAuth();
   const [pw, setPw] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -177,8 +183,9 @@ function NewPassword() {
           if (pw.length < 10) return setMsg({ ok: false, text: 'Passwords must be at least 10 characters.' });
           try {
             await updatePassword(pw);
-            setMsg({ ok: true, text: 'Password updated.' });
             setPw('');
+            // Recovery ends here, which removes this panel; the page shows the confirmation instead.
+            onDone();
           } catch (err) {
             setMsg({ ok: false, text: (err as Error).message });
           }
