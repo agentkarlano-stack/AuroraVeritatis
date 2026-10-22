@@ -2,6 +2,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { PublicConfig } from '../../shared/types';
 import { getJson } from '../lib/api';
+import { friendlyLinkError } from './linkErrors';
 
 type AuthStatus = 'loading' | 'unconfigured' | 'signed-out' | 'signed-in';
 
@@ -28,7 +29,7 @@ function readUrlError(): string | null {
   if (typeof location === 'undefined') return null;
   const params = new URLSearchParams(location.hash.replace(/^#/, '') || location.search);
   const msg = params.get('error_description');
-  return msg ? msg.replace(/\+/g, ' ').slice(0, 200) : null;
+  return msg ? friendlyLinkError(msg.replace(/\+/g, ' ').slice(0, 200)) : null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [recovery, setRecovery] = useState(false);
-  const [urlError] = useState(readUrlError);
+  const [urlError, setUrlError] = useState(readUrlError);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -64,6 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (cancelled) return;
         setClient(sb);
+        // A PKCE link opened in a different browser from the one that requested it cannot sign in there.
+        const init = await sb.auth.initialize();
+        if (init.error && !cancelled) setUrlError(friendlyLinkError(init.error.message));
         const { data } = await sb.auth.getSession();
         setSession(data.session);
         setStatus(data.session ? 'signed-in' : 'signed-out');

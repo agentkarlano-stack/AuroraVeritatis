@@ -96,12 +96,17 @@ export function mergeNotes(local: SyncNote[], remote: SyncNote[]): { merged: Syn
   return { merged, toUpload };
 }
 
-/** Ids added and removed between two note lists (for incremental uploads). */
-export function diffNotes(prev: SyncNote[], next: SyncNote[]): { added: SyncNote[]; removed: string[] } {
-  const prevIds = new Set(prev.map((n) => n.id));
+/** Notes added, edited and removed between two note lists (for incremental uploads). */
+export function diffNotes(prev: SyncNote[], next: SyncNote[]): { added: SyncNote[]; changed: SyncNote[]; removed: string[] } {
+  const prevById = new Map(prev.map((n) => [n.id, n]));
   const nextIds = new Set(next.map((n) => n.id));
+  const synced = next.filter((n) => UUID_RE.test(n.id));
   return {
-    added: next.filter((n) => !prevIds.has(n.id) && UUID_RE.test(n.id)),
+    added: synced.filter((n) => !prevById.has(n.id)),
+    changed: synced.filter((n) => {
+      const p = prevById.get(n.id);
+      return p !== undefined && (p.title !== n.title || p.body !== n.body);
+    }),
     removed: prev.filter((n) => !nextIds.has(n.id) && UUID_RE.test(n.id)).map((n) => n.id),
   };
 }

@@ -55,11 +55,23 @@ do $$ begin
   perform public.delete_my_account();
   raise exception 'FAIL: guests can call delete_my_account';
 exception when insufficient_privilege then null; end $$;
+do $$ begin
+  perform aurora_private.delete_account();
+  raise exception 'FAIL: guests can call the private deletion function';
+exception when insufficient_privilege then null; end $$;
 reset role;
 
--- A deletes its own account: its rows go, B's stay.
+-- A deletes its own account: refused without a recent sign-in, then allowed. Only A's rows go; B's stay.
 set role authenticated;
 set request.jwt.claim.sub = 'aaaaaaaa-0000-0000-0000-000000000001';
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001',
+  'amr', json_build_array(json_build_object('method', 'password', 'timestamp', extract(epoch from now())::bigint - 3600)))::text, false) \g /dev/null
+do $$ begin
+  perform public.delete_my_account();
+  raise exception 'FAIL: deletion allowed with a sign-in older than 10 minutes';
+exception when insufficient_privilege then null; end $$;
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001',
+  'amr', json_build_array(json_build_object('method', 'password', 'timestamp', extract(epoch from now())::bigint - 30)))::text, false) \g /dev/null
 do $$ begin perform public.delete_my_account(); end $$;
 reset role;
 do $$ begin
@@ -67,5 +79,11 @@ do $$ begin
   if exists (select 1 from public.profiles where id = 'aaaaaaaa-0000-0000-0000-000000000001') then raise exception 'FAIL: profile left behind'; end if;
   if (select count(*) from public.user_preferences) + (select count(*) from public.research_notes) <> 0 then raise exception 'FAIL: data left behind'; end if;
   if not exists (select 1 from public.profiles where id = 'bbbbbbbb-0000-0000-0000-000000000002') then raise exception 'FAIL: B was affected'; end if;
+end $$;
+-- The exposed wrapper must not be SECURITY DEFINER (Security Advisor lint 0029).
+do $$ begin
+  if (select prosecdef from pg_proc where oid = 'public.delete_my_account()'::regprocedure) then raise exception 'FAIL: public.delete_my_account is SECURITY DEFINER'; end if;
+  if exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef
+             and has_function_privilege('authenticated', p.oid, 'execute')) then raise exception 'FAIL: an exposed SECURITY DEFINER function is executable by authenticated'; end if;
 end $$;
 \echo 'RLS test: all checks passed'

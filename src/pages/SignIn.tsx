@@ -12,9 +12,7 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(() =>
-    auth.urlError ? { kind: 'err', text: `Sign-in link problem: ${auth.urlError}` } : null,
-  );
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   if (auth.status === 'loading') return <div className="mx-auto max-w-md px-4 py-16"><Loading /></div>;
   if (auth.status === 'signed-in') return <Navigate to="/account" replace />;
@@ -58,6 +56,11 @@ export default function SignIn() {
           </p>
         ) : (
           <p className="mt-2 text-sm text-mist">Accounts let you sync watchlists, layouts and research across devices.</p>
+        )}
+        {auth.urlError && (
+          <p role="alert" className="mt-3 rounded-md border border-down/40 p-3 text-sm text-mist">
+            {auth.urlError}
+          </p>
         )}
         <div className="mt-5 flex gap-1" role="tablist">
           {(

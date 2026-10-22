@@ -8,22 +8,40 @@ import { usePrefs } from '../store/prefs';
 import { useSyncStatus } from '../store/syncStatus';
 
 export default function Account() {
-  const { status, session, signOut, config, recovery } = useAuth();
+  const { status, session, signOut, config, recovery, urlError, client } = useAuth();
+  const [exportState, setExportState] = useState<'idle' | 'working' | 'failed'>('idle');
   const prefs = usePrefs();
   const tierId = useTier();
   const plan = TIERS.find((t) => t.id === tierId)!;
 
   if (status === 'loading') return <div className="mx-auto max-w-3xl px-4 py-8"><Loading /></div>;
 
-  const exportData = () => {
-    const { layout, hidden, watchlist, favorites, notes, alerts } = prefs;
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), layout, hidden, watchlist, favorites, notes, alerts }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'aurora-veritatis-preferences.json';
-    a.click();
-    URL.revokeObjectURL(url);
+  /** Everything Aurora holds about the user: this browser's data and, when signed in, the account's cloud records. */
+  const exportData = async () => {
+    setExportState('working');
+    try {
+      const { layout, hidden, watchlist, favorites, notes, alerts, chart, drawings } = usePrefs.getState();
+      const out: Record<string, unknown> = { exportedAt: new Date().toISOString(), browser: { layout, hidden, watchlist, favorites, notes, alerts, chart, drawings } };
+      if (client && session) {
+        const [profile, prefsRow, cloudNotes] = await Promise.all([
+          client.from('profiles').select('display_name, tier, created_at, updated_at').eq('id', session.user.id).maybeSingle(),
+          client.from('user_preferences').select('data, updated_at').eq('user_id', session.user.id).maybeSingle(),
+          client.from('research_notes').select('id, title, body, created_at').eq('user_id', session.user.id).order('created_at', { ascending: false }),
+        ]);
+        const error = profile.error ?? prefsRow.error ?? cloudNotes.error;
+        if (error) throw error;
+        out.account = { email: session.user.email, createdAt: session.user.created_at, profile: profile.data, preferences: prefsRow.data, notes: cloudNotes.data };
+      }
+      const url = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = session ? 'aurora-veritatis-account-data.json' : 'aurora-veritatis-preferences.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportState('idle');
+    } catch {
+      setExportState('failed');
+    }
   };
 
   const clearLocal = () => {
@@ -36,6 +54,11 @@ export default function Account() {
     <div className="mx-auto max-w-3xl px-4 py-8">
       <PageHeader eyebrow="Account" title={status === 'signed-in' ? 'Your account' : 'Guest session'} />
       <div className="space-y-4">
+        {urlError && (
+          <p role="alert" className="rounded-md border border-down/40 p-3 text-sm text-mist">
+            {urlError}
+          </p>
+        )}
         {recovery && <NewPassword />}
         <Panel title="Profile">
           {status === 'signed-in' ? (
@@ -61,7 +84,7 @@ export default function Account() {
           )}
         </Panel>
 
-        <Panel title="Data stored in this browser">
+        <Panel title="Data stored in this browser" eyebrow={status === 'signed-in' ? 'Synced to your account. Signing out removes this copy from the browser.' : undefined}>
           <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             {(
               [
@@ -78,13 +101,18 @@ export default function Account() {
             ))}
           </ul>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button className="btn-ghost" onClick={exportData}>
-              Export as JSON
+            <button className="btn-ghost" onClick={() => void exportData()} disabled={exportState === 'working'}>
+              {exportState === 'working' ? 'Preparing…' : status === 'signed-in' ? 'Export my data (JSON)' : 'Export as JSON'}
             </button>
             <button className="btn-ghost hover:border-down hover:text-down" onClick={clearLocal}>
               Delete local data
             </button>
           </div>
+          {exportState === 'failed' && (
+            <p className="mt-2 text-sm text-down" role="alert">
+              The export could not be completed. Check your connection and try again.
+            </p>
+          )}
         </Panel>
 
         <Panel title="Plan & usage">
@@ -164,27 +192,56 @@ function NewPassword() {
   );
 }
 
-/** GDPR erasure: deletes the Supabase account and, through cascading keys, its profile, synced preferences and notes. */
+/**
+ * GDPR erasure: deletes the Supabase account and, through cascading keys, its profile, synced preferences and notes.
+ * The server requires a sign-in within the last 10 minutes, so the password is confirmed first.
+ */
 function DeleteAccount() {
-  const { client, signOut } = useAuth();
-  const [state, setState] = useState<'idle' | 'deleting' | 'failed'>('idle');
-  const remove = async () => {
-    if (!client) return;
+  const { client, session, signOut } = useAuth();
+  const [password, setPassword] = useState('');
+  const [state, setState] = useState<{ kind: 'idle' | 'deleting' | 'failed'; text?: string }>({ kind: 'idle' });
+  const remove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = session?.user.email;
+    if (!client || !email) return;
     if (!confirm('Delete your account permanently? Your profile, synced preferences and cloud notes are erased. This cannot be undone.')) return;
-    setState('deleting');
+    setState({ kind: 'deleting' });
+    if (password) {
+      const { error } = await client.auth.signInWithPassword({ email, password });
+      if (error) return setState({ kind: 'failed', text: 'That password is not correct.' });
+    }
     const { error } = await client.rpc('delete_my_account');
-    if (error) return setState('failed');
+    if (error) {
+      return setState({
+        kind: 'failed',
+        text: /recent sign-in/i.test(error.message)
+          ? 'For your security, confirm your password first. If you signed in with an email link, sign out, sign in again with a new link and delete within 10 minutes.'
+          : 'The account could not be deleted. Try again, or contact us from the legal notice page.',
+      });
+    }
+    setPassword('');
     await signOut().catch(() => {});
   };
   return (
     <Panel title="Delete account">
-      <p className="text-sm text-mist">Erases your account and everything synced to it. Data stored in this browser stays until you delete it above.</p>
-      <button className="btn-ghost mt-3 hover:border-down hover:text-down" onClick={() => void remove()} disabled={!client || state === 'deleting'}>
-        {state === 'deleting' ? 'Deleting…' : 'Delete my account'}
-      </button>
-      {state === 'failed' && (
+      <p className="text-sm text-mist">Erases your account and everything synced to it. This cannot be undone.</p>
+      <form className="mt-3 flex flex-wrap gap-2" onSubmit={(e) => void remove(e)}>
+        <input
+          type="password"
+          autoComplete="current-password"
+          className="input max-w-xs"
+          placeholder="Confirm your password"
+          aria-label="Confirm your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button className="btn-ghost hover:border-down hover:text-down" disabled={!client || state.kind === 'deleting'}>
+          {state.kind === 'deleting' ? 'Deleting…' : 'Delete my account'}
+        </button>
+      </form>
+      {state.kind === 'failed' && (
         <p className="mt-2 text-sm text-down" role="alert">
-          The account could not be deleted. Try again, or contact us from the legal notice page.
+          {state.text}
         </p>
       )}
     </Panel>

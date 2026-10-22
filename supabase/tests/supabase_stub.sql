@@ -9,3 +9,5 @@ grant usage on schema public to anon, authenticated;
 -- Supabase default: new public tables are fully granted to anon and authenticated.
 alter default privileges in schema public grant all on tables to anon, authenticated;
 alter default privileges in schema public grant all on functions to anon, authenticated;
+create function auth.jwt() returns jsonb language sql stable as $$ select nullif(current_setting('request.jwt.claims', true), '')::jsonb $$;
+grant execute on function auth.jwt() to anon, authenticated;
