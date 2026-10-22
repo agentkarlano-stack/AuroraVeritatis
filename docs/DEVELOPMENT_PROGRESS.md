@@ -1,17 +1,17 @@
 # Development Progress
 
-_Last updated: 2026-10-22, run 20 — interactive chart editor, phase 1–2 (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-22, run 24: Brain risk, relevance and linked intelligence (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
 | Phase | 1 complete; Phase 2/3/5 items in progress |
-| Branch / PR | Work branches start from `main` per task; PRs #11–#15 (2026-10-21/22) |
+| Branch / PR | Work branches start from `main` per task; PRs #11–#22 merged (2026-10-21/22); `claude/brain-intel` open |
 | GitHub Actions | `ci.yml`: lint · typecheck · 146 tests · build · `migrations` (Postgres 16, two-account RLS). `preview.yml`: Worker version per PR + smoke + `live-auth` when accounts code changes. `smoke.yml`: aurorav.app after merges. `live-auth.yml`: on demand against production |
-| Production check | Smoke **29/29** after PR #14 (2026-10-22). Auth status: configured, schema applied, guest access denied, email confirmation required |
+| Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
-| Owner-dependent | Deletion-hardening SQL + Security Advisor re-run; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Chart editor phase 3: drawing toolbar (ray, rectangle, text, arrow, Fibonacci, measure) with object editing; then multi-chart layouts and advanced chart types. Currency slice 2; C mobile suite; D audit |
+| Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
+| Next recommended action | Intelligence directive phase 6: Headquarters customisation and the guided, non-AI World Briefing (globe tour, sources, reliability labels). Then phase 7 (Quant probabilistic forecasts) |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,33 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Runs 21–24 (2026-10-22) — Intelligence platform directive, phases 1–5
+- Phase 1 (PR #20): Country Dossier map. Wheel and pinch zoom around the cursor, the page scrolls normally at the zoom
+  limits (no scroll trap), one-finger pan only when zoomed, double-click zoom, keyboard controls (`lib/mapView.ts`, tested).
+- Phases 2–3 (PR #21): profile editor, secure email/password changes, Administrator role (owner bootstrap SQL only),
+  manual complimentary plan grants with expiry, reason, history, revocation and audit log; server-enforced plan limits
+  (`limit_for`, quota triggers) and `my_entitlements()`; `/admin` dashboard. Payments stay disabled. Migration
+  `20261023000000` is reviewed and tested (`supabase/tests/admin.sql`) but **not applied**: it needs the owner.
+- Phase 4 (PR #22): AV intro (letters glide into the monogram, about 2.6 s, skippable, never with reduced motion) with a
+  user setting (once per session, every visit, after sign-in, never) and a restrained route loading state.
+- Phase 5 (this PR): Brain.
+  - Risk scale `lib/brainRisk.ts`: low, elevated, significant, severe, critical, grey for insufficient or outdated
+    data. Automatic risk only from documented methods (USGS magnitude band, GDACS alert level), each naming its method,
+    source and date. GDACS assessments turn grey after 14 days without a refresh. The user's own assessment is stored
+    separately and never alters the automatic one. Relevance (1–5) is separate from risk.
+  - Canvas: colour by type or by risk, with a legend; relevance as outline weight; background options (dots, grid,
+    plain, night).
+  - Undo/redo (`lib/history.ts`): toolbar buttons and Ctrl/Cmd+Z, Ctrl+Shift+Z; bursts of typing and a whole drag are
+    one step each.
+  - Intelligence panel (`components/brain/NodeIntel.tsx`): World Bank figures for country nodes and the latest ECB
+    value for macro nodes, both with source. Module buttons (Dossier, Radar, Market Terminal, Macro & FX, Currency,
+    Quant); unavailable ones are disabled with the reason. Also: Add linked research, View sources, and Refresh from
+    source for Radar events.
+  - Fix: Brain autosave could lose a burst of quick edits when the page was reloaded or closed within about half a
+    second. Saves now happen at least once a second, and unsaved edits are stashed synchronously on unload and restored
+    on the next load (`stashPending` / `recoverPending`).
+  - Tests: 13 new unit tests; browser test 22/22 at 1440 px plus a 390 px overflow check (local workerd, mocked APIs).
+
 ### Run 20 (2026-10-22) — Interactive chart editor (owner chart directive, phases 1–2 and parts of 3–4)
 - Reusable `ChartEditor` on the Market Terminal, also reachable from Macro & FX and Currency:
   - Instruments: search across simulated `.D` instruments and official ECB reference rates.

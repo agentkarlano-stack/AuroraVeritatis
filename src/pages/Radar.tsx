@@ -248,6 +248,7 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
       </dl>
       <AddToBrain
         className="mt-3"
+        event={e}
         entity={{
           kind: e.provenance === 'simulated' ? 'scenario' : 'event',
           label: e.title,

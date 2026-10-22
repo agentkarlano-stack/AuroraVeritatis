@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import type { BrainBackground, BrainColorMode } from '../lib/brainDisplay';
 import type { Drawing } from '../lib/chart';
 import type { IntroMode } from '../lib/intro';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
@@ -42,6 +43,9 @@ interface PrefsState {
   /** When the brand intro plays (lib/intro.ts). */
   introMode: IntroMode;
   setIntroMode: (m: IntroMode) => void;
+  /** Brain canvas display (this device only). */
+  brainCanvas: { background: BrainBackground; colorMode: BrainColorMode };
+  setBrainCanvas: (patch: Partial<PrefsState['brainCanvas']>) => void;
   /** Chart editor settings (normalised on read: older or synced copies may have an earlier shape). */
   chart: ChartSettings;
   drawings: Record<string, Drawing[]>;
@@ -86,6 +90,8 @@ export const usePrefs = create<PrefsState>()(
       introSeen: false,
       introMode: 'session',
       setIntroMode: (introMode) => set({ introMode }),
+      brainCanvas: { background: 'dots', colorMode: 'type' },
+      setBrainCanvas: (patch) => set((s) => ({ brainCanvas: { ...s.brainCanvas, ...patch } })),
       chart: DEFAULT_SETTINGS,
       drawings: {},
       setChart: (patch) => set((s) => ({ chart: { ...normalizeSettings(s.chart), ...patch } })),
@@ -153,7 +159,12 @@ export const usePrefs = create<PrefsState>()(
         DEFAULT_LAYOUT.forEach((w, i) => {
           if (!layout.includes(w)) layout.splice(Math.min(i, layout.length), 0, w);
         });
-        return { ...current, ...p, layout, chart: normalizeSettings(p.chart ?? current.chart) };
+        const bc = { ...current.brainCanvas, ...p.brainCanvas };
+        const brainCanvas = {
+          background: ['dots', 'grid', 'plain', 'night'].includes(bc.background) ? bc.background : 'dots',
+          colorMode: bc.colorMode === 'risk' ? 'risk' : 'type',
+        } as PrefsState['brainCanvas'];
+        return { ...current, ...p, layout, chart: normalizeSettings(p.chart ?? current.chart), brainCanvas };
       },
     },
   ),

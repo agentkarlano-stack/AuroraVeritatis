@@ -86,6 +86,53 @@ export async function requestPersistence(): Promise<boolean> {
   }
 }
 
+const PENDING = 'av-brain-pending';
+
+/**
+ * Synchronous last-resort copy of a graph with unsaved edits, written while the page unloads: browsers abort IndexedDB
+ * writes that start during unload, but localStorage writes complete. `recoverPending` moves it into IndexedDB.
+ */
+export function stashPending(g: BrainGraph): void {
+  try {
+    localStorage.setItem(PENDING, JSON.stringify(g));
+  } catch {
+    /* storage full or unavailable: the debounced save is the only copy */
+  }
+}
+
+/**
+ * Restores a stashed graph if it is newer than the stored copy of the same graph, then clears the stash. A graph that no
+ * longer exists (deleted meanwhile) is not resurrected.
+ */
+export async function recoverPending(): Promise<boolean> {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(PENDING);
+  } catch {
+    return false;
+  }
+  if (!raw) return false;
+  let restored = false;
+  try {
+    const g = JSON.parse(raw) as BrainGraph;
+    if (g && typeof g.id === 'string' && Array.isArray(g.nodes) && Array.isArray(g.edges) && typeof g.updatedAt === 'string') {
+      const stored = await getGraph(g.id);
+      if (stored && stored.updatedAt <= g.updatedAt) {
+        await saveGraph(g);
+        restored = true;
+      }
+    }
+  } catch {
+    /* corrupt stash: ignore */
+  }
+  try {
+    localStorage.removeItem(PENDING);
+  } catch {
+    /* ignore */
+  }
+  return restored;
+}
+
 /** Test hook: forget the cached connection (e.g. after the fake database is reset). */
 export function resetConnectionForTests(): void {
   opening = null;
