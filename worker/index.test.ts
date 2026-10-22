@@ -337,6 +337,39 @@ describe('stale fallback', () => {
     expect(body.stale?.since).toMatch(/^\d{4}-/);
   });
 
+  it('serves the last good copy at once when the source is slow, and refreshes it in the background', async () => {
+    const store = new Map<string, Response>();
+    const cache = {
+      match: async (r: Request) => store.get(r.url)?.clone(),
+      put: async (r: Request, res: Response) => void store.set(r.url, res),
+    };
+    vi.stubGlobal('caches', { default: cache });
+    const pending: Promise<unknown>[] = [];
+    const ctx2 = { waitUntil: (p: Promise<unknown>) => pending.push(p), passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
+    const req = (path: string) => handleApi(new Request(`https://aurorav.app${path}`, { headers: { 'CF-Connecting-IP': String(Math.random()) } }), env, ctx2);
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ type: 'FeatureCollection', features: [] })));
+    await req('/api/events/earthquakes');
+    await Promise.all(pending.splice(0));
+    store.delete('https://aurorav.app/api/events/earthquakes');
+    // The upstream now hangs until released.
+    let release: (r: Response) => void = () => {};
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((r) => (release = r))));
+    vi.useFakeTimers();
+    const resP = req('/api/events/earthquakes');
+    await vi.advanceTimersByTimeAsync(3100);
+    const res = await resP;
+    vi.useRealTimers();
+    const body = (await res.json()) as { events: unknown[]; stale?: { reason: string } };
+    expect(res.status).toBe(200);
+    expect(body.stale?.reason).toMatch(/responding slowly/);
+    // The background refresh completes and stores a fresh copy for the next request.
+    expect(pending).toHaveLength(1);
+    release(Response.json({ type: 'FeatureCollection', features: [] }));
+    await Promise.all(pending);
+    const next = (await (await req('/api/events/earthquakes')).json()) as { stale?: unknown };
+    expect(next.stale).toBeUndefined();
+  });
+
   it('passes the error through when there is no saved copy', async () => {
     vi.stubGlobal('caches', { default: { match: async () => undefined, put: async () => {} } });
     vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
