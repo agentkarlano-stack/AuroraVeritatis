@@ -163,6 +163,11 @@ export function Layout() {
                 </Link>
               </li>
               <li>
+                <Link className="text-mist hover:text-platinum" to="/currency">
+                  Currency and purchasing power
+                </Link>
+              </li>
+              <li>
                 <Link className="text-mist hover:text-platinum" to="/positioning">
                   Futures positioning (CFTC)
                 </Link>

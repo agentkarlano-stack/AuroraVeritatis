@@ -6,7 +6,7 @@ import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
-import { ISO3_RE, compareYear, countryProfile, indicatorSeries } from './worldbank';
+import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries } from './worldbank';
 
 export interface Env {
   ASSETS: Fetcher;
@@ -108,6 +108,20 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
         return data ? json(data, { maxAge: DAY }) : error(404, 'Country not found in World Bank dataset');
       } catch (e) {
         return error(502, 'Country data source unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  // Currency & purchasing power: annual CPI, inflation, exchange rate and PPP factor (World Bank, updated yearly).
+  const currency = path.match(/^\/api\/currency\/([A-Za-z]{3})$/);
+  if (currency) {
+    const iso3 = currency[1]!.toUpperCase();
+    return cached(request, ctx, async () => {
+      try {
+        const data = await currencyProfile(iso3);
+        return data ? json(data, { maxAge: DAY }) : error(404, 'Economy not found in World Bank dataset');
+      } catch (e) {
+        return error(502, 'Currency data source unavailable', (e as Error).message);
       }
     });
   }

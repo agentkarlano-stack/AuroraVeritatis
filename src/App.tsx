@@ -19,6 +19,7 @@ const Strategy = lazy(() => import('./pages/Strategy'));
 const Tension = lazy(() => import('./pages/Tension'));
 const Positioning = lazy(() => import('./pages/Positioning'));
 const Macro = lazy(() => import('./pages/Macro'));
+const Currency = lazy(() => import('./pages/Currency'));
 const Brain = lazy(() => import('./pages/Brain'));
 const Share = lazy(() => import('./pages/Share'));
 const ShareCard = lazy(() => import('./pages/ShareCard'));
@@ -51,6 +52,7 @@ export function App() {
             <Route path="tension" element={<Lazy><Tension /></Lazy>} />
             <Route path="positioning" element={<Lazy><Positioning /></Lazy>} />
             <Route path="macro" element={<Lazy><Macro /></Lazy>} />
+            <Route path="currency" element={<Lazy><Currency /></Lazy>} />
             <Route path="brain" element={<Lazy><Brain /></Lazy>} />
             <Route path="share" element={<Lazy><Share /></Lazy>} />
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
