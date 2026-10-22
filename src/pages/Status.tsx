@@ -28,6 +28,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Strategy Lab', to: '/strategy', state: 'working', note: 'Compare event scenarios with a no-event baseline. Outputs are model results on simulated prices.' },
   { name: 'World Tension Index', to: '/tension', state: 'prototype', note: 'Published formula, adjustable weights and a sensitivity check. Conflict inputs are simulated, so it is not a validated measure yet.' },
   { name: 'Personal Intelligence Brain', to: '/brain', state: 'working', note: 'Your own research graph of events, countries, markets and ideas. Stored in your browser, with JSON and Markdown export.' },
+  { name: 'Currency and purchasing power', to: '/currency', state: 'working', note: 'Purchasing power index, value against the dollar, PPP gap, inflation calculator and currency converters. World Bank annual data and ECB daily reference rates.' },
   { name: 'Accounts and sync', to: '/signin', state: 'prototype', note: 'Switched on in early access: email sign-up with confirmation, password reset, cross-device sync of preferences and notes, data export and account deletion. Everything still works without an account.' },
   { name: 'Plan limits', to: '/account', state: 'working', note: 'Free-plan limits for watchlists and alerts apply. All features are open during early access.' },
   { name: 'AI research assistants', state: 'planned', note: 'Not available yet.' },

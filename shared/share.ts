@@ -50,7 +50,7 @@ export function shareImageFor(path: string, origin: string): ShareImage & { url:
     ? 'og-radar'
     : path.startsWith('/countries')
       ? 'og-countries'
-      : /^\/(markets|macro|positioning|impact|lab|strategy)/.test(path)
+      : /^\/(markets|macro|currency|positioning|impact|lab|strategy)/.test(path)
         ? 'og-markets'
         : path.startsWith('/brain')
           ? 'og-brain'

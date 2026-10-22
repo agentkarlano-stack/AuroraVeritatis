@@ -35,6 +35,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/share': { title: 'Share Aurora Veritatis', description: 'Link previews, Story and post images for Aurora Veritatis. Download them or copy a link to share.' },
   '/share/card': { title: 'Share card', description: 'Render target for social images.', noindex: true },
   '/macro': { title: 'Macro & FX', description: 'ECB policy rates, euro-area inflation, 10-year yields and euro reference exchange rates with history, cross rates and CSV export.' },
+  '/currency': { title: 'Currency and purchasing power', description: 'Purchasing power over time, currency values against the dollar and PPP, an inflation calculator and a currency converter with historical ECB rates. Official World Bank and ECB data.' },
   '/positioning': { title: 'Futures positioning (CFTC)', description: 'Weekly CFTC Commitments of Traders data for major futures: net speculative and commercial positions, three-year positioning index and extremes.' },
   '/tension': { title: 'World Tension Index', description: 'One transparent number for geopolitical, humanitarian and financial stress, with its formula, weights and a robustness check.' },
   '/pricing': { title: 'Plans', description: 'Proposed Aurora Veritatis plans. Everything is free during early access.' },

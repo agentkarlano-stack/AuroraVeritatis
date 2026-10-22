@@ -8,6 +8,7 @@ import { cotUrl, normalizeCot } from './cftc';
 import { ecbUrls, normalizeEcb, parseCsv } from './ecb';
 import { MACRO_MAP, MACRO_SERIES, type MacroResponse } from '../shared/macro';
 import type { CotResponse } from '../shared/cot';
+import type { CurrencyProfile } from '../shared/currency';
 
 const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
 const env = { ASSETS: {} as Fetcher } as Env;
@@ -278,5 +279,35 @@ describe('ECB Data Portal', () => {
     expect((await get('/api/macro/NOPE')).status).toBe(400);
     vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 500 })));
     expect((await get('/api/macro')).status).toBe(502);
+  });
+});
+
+describe('currency endpoint', () => {
+  it('returns annual CPI, inflation, FX and PPP series for an economy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const u = new URL(url);
+        if (u.pathname === '/v2/country/AUT') return Response.json([{ page: 1 }, [{ id: 'AUT', name: 'Austria', capitalCity: 'Vienna', region: { id: 'ECS', value: 'Europe' }, incomeLevel: { id: 'HIC', value: 'High' } }]]);
+        const ind = u.pathname.split('/').at(-1)!;
+        const v = { 'FP.CPI.TOTL': 100, 'FP.CPI.TOTL.ZG': 2, 'PA.NUS.FCRF': 0.9, 'PA.NUS.PPP': 0.75 }[ind];
+        return Response.json([{ page: 1 }, [{ date: '2021', value: v }, { date: '2020', value: v }, { date: '2019', value: null }]]);
+      }),
+    );
+    const res = await get('/api/currency/aut');
+    expect(res.status).toBe(200);
+    const p = await body<CurrencyProfile>(res);
+    expect(p).toMatchObject({ iso3: 'AUT', name: 'Austria' });
+    expect(p.series.cpi).toEqual([{ year: 2020, value: 100 }, { year: 2021, value: 100 }]);
+    expect(p.series.ppp[0]).toEqual({ year: 2020, value: 0.75 });
+    expect(p.source.license).toBe('CC BY 4.0');
+  });
+
+  it('rejects aggregates, unknown codes and bad input', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json([{ page: 1 }, [{ id: 'WLD', name: 'World', region: { id: 'NA', value: 'Aggregates' } }]])));
+    expect((await get('/api/currency/WLD')).status).toBe(404);
+    expect((await get('/api/currency/AU')).status).toBe(404);
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));
+    expect((await get('/api/currency/FRA')).status).toBe(502);
   });
 });

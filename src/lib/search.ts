@@ -18,6 +18,7 @@ export const PAGES: SearchItem[] = [
   ['/markets', 'Market Terminal', 'Charts and indicators'],
   ['/brain', 'Personal Intelligence Brain', 'Your own graph of events, countries, markets and hypotheses'],
   ['/macro', 'Macro & FX', 'ECB rates, euro-area inflation, yields and reference exchange rates'],
+  ['/currency', 'Currency and purchasing power', 'Inflation calculator, purchasing power, PPP, currency converter and historical exchange rates'],
   ['/positioning', 'Futures positioning', 'CFTC Commitments of Traders: speculators vs. hedgers'],
   ['/impact', 'Market Impact Radar', 'How events can reach markets'],
   ['/lab', 'Quant Research', 'Monte Carlo simulation and backtests'],

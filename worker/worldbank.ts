@@ -1,4 +1,5 @@
 import { INDICATORS, INDICATOR_IDS, WORLD_BANK_SOURCE } from '../shared/indicators';
+import { CURRENCY_INDICATORS, type CurrencyProfile, type CurrencySeriesKey } from '../shared/currency';
 import type { ComparePoint, CompareYear, CountryProfile, IndicatorSeries, IndicatorValue } from '../shared/types';
 import { fetchJson } from './http';
 
@@ -128,4 +129,28 @@ export async function compareYear(year: number, x: string, y: string, size: stri
     points.push({ iso3, name: m.name, region: m.region, x: xv, y: yv, size: ss.get(iso3) ?? null });
   }
   return { year, x, y, size, points, source: WORLD_BANK_SOURCE };
+}
+
+/**
+ * Annual CPI, inflation, official exchange rate and PPP factor for one economy (Currency & Purchasing Power).
+ * Null for unknown codes and aggregates.
+ */
+export async function currencyProfile(iso3: string, now = Date.now()): Promise<CurrencyProfile | null> {
+  const meta = rows(await fetchJson<WbResponse<WbCountry>>(`${BASE}/country/${iso3}?format=json`))[0];
+  if (!meta || meta.region?.id === 'NA') return null;
+  const keys = Object.keys(CURRENCY_INDICATORS) as CurrencySeriesKey[];
+  const last = new Date(now).getUTCFullYear();
+  const data = await Promise.all(
+    keys.map((k) => fetchJson<WbResponse<WbObservation>>(`${BASE}/country/${iso3}/indicator/${CURRENCY_INDICATORS[k].id}?format=json&date=1960:${last}&per_page=100`)),
+  );
+  const series = Object.fromEntries(
+    keys.map((k, i) => [
+      k,
+      rows(data[i]!)
+        .filter((o): o is WbObservation & { value: number } => typeof o.value === 'number')
+        .map((o) => ({ year: Number(o.date), value: o.value }))
+        .sort((a, b) => a.year - b.year),
+    ]),
+  ) as CurrencyProfile['series'];
+  return { iso3, name: meta.name, series, source: WORLD_BANK_SOURCE, fetchedAt: new Date(now).toISOString() };
 }

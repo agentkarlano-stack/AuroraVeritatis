@@ -1,6 +1,6 @@
 import { Download } from 'lucide-react';
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import {
   ECB_SOURCE,
   ECB_TARGET,
@@ -124,7 +124,11 @@ export default function Macro() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader eyebrow="Market Terminal · Official data" title="Macro & FX">
         Euro-area monetary conditions and ECB euro reference exchange rates: policy rates, inflation against the ECB target,
-        long-term yields and currency moves, all from the European Central Bank's statistical data.
+        long-term yields and currency moves, all from the European Central Bank's statistical data.{' '}
+        <Link className="text-gold hover:underline" to="/currency">
+          Purchasing power, PPP and converters
+        </Link>
+        .
       </PageHeader>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-slate-dim">
         <ProvenanceBadge kind="confirmed" />
