@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Bar } from '../demoMarket';
 import { heikinAshi } from './chartTypes';
-import { intervalAvailability, periodKey, rangeWindow, resample } from './intervals';
+import { intervalAvailability, periodKey, rangeWindow, resample, searchIntervals } from './intervals';
 
 const bar = (time: string, open: number, high: number, low: number, close: number, volume = 10): Bar => ({ time, open, high, low, close, volume });
 
@@ -53,5 +53,27 @@ describe('Heikin Ashi', () => {
     expect(ha[0]).toMatchObject({ open: 11, close: 11, high: 14, low: 8 });
     // Second: close = (12 + 16 + 11 + 15) / 4 = 13.5; open = (11 + 11) / 2 = 11.
     expect(ha[1]).toMatchObject({ open: 11, close: 13.5, high: 16, low: 11 });
+  });
+});
+
+describe('interval search', () => {
+  const ids = (q: string) => searchIntervals(q).map((i) => i.id);
+  it('understands chart shorthand and words', () => {
+    expect(ids('')).toHaveLength(17);
+    expect(ids('4h')).toEqual(['4h']);
+    expect(ids('4 hours')).toEqual(['4h']);
+    expect(ids('hourly')).toEqual(['1h', '2h', '4h', '6h', '12h']);
+    expect(ids('15 min')).toEqual(['15m']);
+    expect(ids('1m')).toEqual(['1m']);
+    expect(ids('1M')).toEqual(['1Mo']);
+    expect(ids('daily')).toEqual(['1D']);
+    expect(ids('1D')).toEqual(['1D']);
+    expect(ids('weekly')).toEqual(['1W']);
+    expect(ids('quarterly')).toEqual(['3Mo']);
+    expect(ids('months')).toEqual(['1Mo', '3Mo']);
+    expect(ids('year')).toEqual(['1Y']);
+    expect(ids('3')).toEqual(['3m', '3Mo']);
+    expect(ids('days and')).toEqual(['1D', '1W', '1Mo', '3Mo', '1Y']);
+    expect(ids('fortnight')).toEqual([]);
   });
 });
