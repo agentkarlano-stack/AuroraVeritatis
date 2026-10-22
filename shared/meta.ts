@@ -27,7 +27,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/countries': { title: 'Country Dossiers', description: 'Economic, demographic, infrastructure and defence indicators for every country, sourced from World Bank Open Data.' },
   '/countries/compare': { title: 'Compare countries over time', description: 'Animated bubble chart of World Bank indicators for every economy since 1990.' },
   '/countries/vs': { title: 'Side-by-side country comparison', description: 'Compare up to four countries across World Bank indicators, each value with its reference year.' },
-  '/markets': { title: 'Market Terminal', description: 'Charts, technical indicators, drawing tools and performance comparison. Prices on this page are simulated for demonstration.' },
+  '/markets': { title: 'Market Terminal', description: 'Chart editor with separate candle interval and history range, 12 chart types, 57 tested indicators, drawings, templates, saved charts and image export. Official ECB reference rates and clearly labelled simulated instruments.' },
   '/impact': { title: 'Market Impact Radar', description: 'How geopolitical events can reach markets: mechanisms, correlations and hypotheses, each labelled by strength of evidence.' },
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },

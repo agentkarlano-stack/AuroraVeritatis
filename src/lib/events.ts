@@ -23,19 +23,27 @@ export const CATEGORY_LABEL: Record<GeoEvent['category'], string> = {
   energy: 'Energy supply',
 };
 
+/** Set by the API when the upstream source failed and the last saved copy is served instead. */
+export interface StaleInfo {
+  since: string | null;
+  reason: string;
+}
+
 /** Demo scenarios plus the live USGS earthquake and GDACS disaster-alert layers (when reachable). */
 export function useEvents() {
-  const quakes = useApi<{ events: GeoEvent[] }>('/api/events/earthquakes');
-  const alerts = useApi<{ events: GeoEvent[] }>('/api/events/disasters');
+  const quakes = useApi<{ events: GeoEvent[]; stale?: StaleInfo }>('/api/events/earthquakes');
+  const alerts = useApi<{ events: GeoEvent[]; stale?: StaleInfo }>('/api/events/disasters');
   return {
     demo: DEMO_EVENTS,
     quakes: quakes.status === 'ready' ? quakes.data.events : [],
     quakeStatus: quakes.status,
     quakeError: quakes.status === 'error' ? quakes.error : null,
     reloadQuakes: quakes.reload,
+    quakeStale: quakes.status === 'ready' ? (quakes.data.stale ?? null) : null,
     disasters: alerts.status === 'ready' ? alerts.data.events : [],
     disasterStatus: alerts.status,
     reloadDisasters: alerts.reload,
+    disasterStale: alerts.status === 'ready' ? (alerts.data.stale ?? null) : null,
   };
 }
 

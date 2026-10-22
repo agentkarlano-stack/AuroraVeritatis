@@ -47,7 +47,7 @@ export function refHref(ref: BrainRef): { href: string; external: boolean; label
     case 'country':
       return { href: `/countries/${ref.iso3}`, external: false, label: 'Open country dossier' };
     case 'instrument':
-      return { href: `/markets?symbol=${encodeURIComponent(ref.symbol)}`, external: false, label: 'Open chart (simulated prices)' };
+      return { href: `/markets?symbol=${encodeURIComponent(ref.symbol)}`, external: false, label: ref.symbol.startsWith('ECB:') ? 'Open chart (ECB reference rates)' : 'Open chart (simulated prices)' };
     case 'cot':
       return { href: `/positioning?m=${ref.code}`, external: false, label: 'Open futures positioning' };
     case 'macro':

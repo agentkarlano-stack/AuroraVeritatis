@@ -1,29 +1,23 @@
-import { Minus, Spline, Star, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Star, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { PriceChart, type ChartAnnotation } from '../components/PriceChart';
+import { ChartEditor } from '../components/chart/ChartEditor';
+import type { ChartAnnotation } from '../components/chart/ChartCanvas';
+import { useDataset } from '../components/chart/useDataset';
 import { Change, DemoNotice, LimitNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
 import { DEMO_EVENTS } from '../data/demoEvents';
 import { INSTRUMENTS, INSTRUMENT_MAP, type AssetClass } from '../data/instruments';
 import { demoBars, lastQuote } from '../lib/demoMarket';
 import { limitOf, useTier } from '../lib/entitlements';
-import type { ChartOptions, ChartPoint, Drawing, DrawMode } from '../lib/chart';
+import { rangeWindow } from '../lib/chart/intervals';
+import { INSTRUMENT_OPTIONS, isEcbSymbol, isKnownSymbol } from '../lib/chart/sources';
+import { normalizeSettings } from '../lib/chart/workspace';
 import { CATEGORY_COLOR } from '../lib/events';
 import { fmtNumber, fmtPct } from '../lib/format';
 import { correlation } from '../lib/impact';
 import { annualisedVol, logReturns, maxDrawdown, periodReturn, rebase } from '../lib/technical';
 import { PerformanceChart, type PerformanceSeries } from '../components/PerformanceChart';
-import { uid, usePrefs } from '../store/prefs';
-
-const NO_DRAWINGS: Drawing[] = [];
-
-const RANGES = [
-  { label: '1M', bars: 21 },
-  { label: '3M', bars: 63 },
-  { label: '6M', bars: 126 },
-  { label: '1Y', bars: 252 },
-  { label: '2Y', bars: 520 },
-];
+import { usePrefs } from '../store/prefs';
 
 const CLASS_LABEL: Record<AssetClass, string> = {
   'equity-index': 'Indices',
@@ -33,16 +27,6 @@ const CLASS_LABEL: Record<AssetClass, string> = {
   rates: 'Rates',
   crypto: 'Crypto',
 };
-
-const TOGGLES: { key: keyof Omit<ChartOptions, 'style'>; label: string }[] = [
-  { key: 'volume', label: 'Volume' },
-  { key: 'sma20', label: 'SMA 20' },
-  { key: 'sma50', label: 'SMA 50' },
-  { key: 'ema20', label: 'EMA 20' },
-  { key: 'bollinger', label: 'Bollinger' },
-  { key: 'rsi', label: 'RSI 14' },
-  { key: 'events', label: 'Events' },
-];
 
 const COMPARE_COLORS = ['#c9a35a', '#7d9cc0', '#5e9f7e', '#9d8bb8'];
 const MAX_COMPARE = 3;
@@ -66,9 +50,11 @@ function performanceFor(symbols: string[], range: number) {
 }
 
 const annotationCache = new Map<string, ChartAnnotation[]>();
+const NO_ANNOTATIONS: ChartAnnotation[] = [];
 
 /** Chart markers for demo events tagged to `symbol`, snapped to the last session on or before the event. */
 function annotationsFor(symbol: string): ChartAnnotation[] {
+  if (isEcbSymbol(symbol)) return NO_ANNOTATIONS;
   const hit = annotationCache.get(symbol);
   if (hit) return hit;
   const dates = demoBars(symbol).map((b) => b.time);
@@ -84,61 +70,35 @@ function annotationsFor(symbol: string): ChartAnnotation[] {
 export default function Markets() {
   const [params, setParams] = useSearchParams();
   const requested = params.get('symbol') ?? '';
-  const symbol = INSTRUMENT_MAP.has(requested) ? requested : INSTRUMENTS[0]!.symbol;
-  const inst = INSTRUMENT_MAP.get(symbol)!;
+  const symbol = isKnownSymbol(requested) ? requested : INSTRUMENTS[0]!.symbol;
+  const simulated = INSTRUMENT_MAP.has(symbol);
+  const { dataset, loading, error } = useDataset(symbol);
   const { watchlist, toggleWatch } = usePrefs();
   const maxWatch = limitOf(useTier(), 'assetsPerWatchlist');
   const [limitHit, setLimitHit] = useState(false);
-  const [filter, setFilter] = useState<'watchlist' | 'all'>('all');
-  // Chart settings and drawings persist across visits (saved research layout).
-  const { chart: options, setChart, drawings: allDrawings, addDrawing, removeDrawing, clearDrawings } = usePrefs();
-  const range = options.range;
-  const drawings = allDrawings[symbol] ?? NO_DRAWINGS;
-  const [mode, setMode] = useState<DrawMode>('none');
+  const [filter, setFilter] = useState<'watchlist' | 'all' | 'ecb'>('all');
+  const rawSettings = usePrefs((s) => s.chart);
+  const settings = useMemo(() => normalizeSettings(rawSettings), [rawSettings]);
   const [compare, setCompare] = useState<string[]>([]);
-  const compareSymbols = compare.filter((c) => c !== symbol);
-  const perf = compareSymbols.length ? performanceFor([symbol, ...compareSymbols], range) : null;
-  const [pending, setPending] = useState<ChartPoint | null>(null);
+  const compareSymbols = simulated ? compare.filter((c) => c !== symbol && INSTRUMENT_MAP.has(c)) : [];
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMode('none');
-        setPending(null);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
-  const startMode = (m: DrawMode) => {
-    setPending(null);
-    setMode((cur) => (cur === m ? 'none' : m));
-  };
-
-  const onPick = (p: ChartPoint) => {
-    if (mode === 'hline') {
-      addDrawing(symbol, { id: uid(), kind: 'hline', price: p.price });
-      setMode('none');
-    } else if (mode === 'trend') {
-      if (!pending) return setPending(p);
-      if (pending.time !== p.time) addDrawing(symbol, { id: uid(), kind: 'trend', a: pending, b: p });
-      setPending(null);
-      setMode('none');
-    }
-  };
-
-  // demoBars and annotationsFor are cached per symbol, so identities are stable across renders.
-  const bars = demoBars(symbol);
+  const bars = dataset?.bars ?? [];
   const closes = bars.map((b) => b.close);
+  const win = rangeWindow(bars, settings.range);
+  const range = win ? Math.max(2, win.to - win.from + 1) : Math.min(126, bars.length);
   const windowCloses = closes.slice(-range);
+  const perf = compareSymbols.length ? performanceFor([symbol, ...compareSymbols], range) : null;
   const annotations = annotationsFor(symbol);
-  const linkedEvents = DEMO_EVENTS.filter((e) => e.marketLinks?.includes(symbol));
+  const linkedEvents = simulated ? DEMO_EVENTS.filter((e) => e.marketLinks?.includes(symbol)) : [];
+  const decimals = dataset?.decimals ?? 2;
 
   const list = filter === 'watchlist' ? INSTRUMENTS.filter((i) => watchlist.includes(i.symbol)) : INSTRUMENTS;
-  const last = bars.at(-1)!;
-  const hi52 = Math.max(...closes.slice(-252));
-  const lo52 = Math.min(...closes.slice(-252));
+  const ecbList = INSTRUMENT_OPTIONS.filter((o) => isEcbSymbol(o.symbol));
+  const last = bars.at(-1);
+  const prev = bars.at(-2);
+  const hi52 = closes.length ? Math.max(...closes.slice(-252)) : null;
+  const lo52 = closes.length ? Math.min(...closes.slice(-252)) : null;
+  const rangeName = 'preset' in settings.range ? settings.range.preset : 'custom range';
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -159,16 +119,25 @@ export default function Markets() {
           </>
         }
       >
-        Charts, technical indicators and return statistics. Simulated events are marked on the chart.
+        A chart editor with separate candle interval and history range, chart types, a searchable indicator library, drawings,
+        templates, saved charts and image export. Open it full screen for detailed work.
       </PageHeader>
-      <DemoNotice>
-        All prices on this page are <strong>simulated</strong>. A seeded model generates them, and their symbols end in “.D”. They
-        are not real, delayed or historical prices. For official data, see Macro & FX and Futures positioning.
-      </DemoNotice>
+      {simulated ? (
+        <DemoNotice>
+          This instrument is <strong>simulated</strong>. A seeded model generates its prices, and its symbol ends in “.D”. They are
+          not real, delayed or historical prices. Official ECB euro reference rates are in the instrument list.
+        </DemoNotice>
+      ) : (
+        <p className="flex items-center gap-2 text-xs text-slate-dim">
+          <ProvenanceBadge kind="confirmed" /> Official ECB euro reference rates: one value per working day, published around 16:00 CET.
+          For information only, not trading rates.
+        </p>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
         <Panel
           title="Instruments"
+          className="order-2 lg:order-none"
           bodyClass="p-0"
           actions={
             <div className="flex gap-1">
@@ -178,6 +147,9 @@ export default function Markets() {
               <button className="chip" aria-pressed={filter === 'watchlist'} onClick={() => setFilter('watchlist')}>
                 Watchlist
               </button>
+              <button className="chip" aria-pressed={filter === 'ecb'} onClick={() => setFilter('ecb')} title="Official ECB euro reference rates">
+                ECB
+              </button>
             </div>
           }
         >
@@ -186,7 +158,20 @@ export default function Markets() {
               <LimitNotice what="instruments per watchlist" limit={maxWatch} />
             </div>
           )}
-          {list.length === 0 && <p className="p-4 text-sm text-slate-dim">Your watchlist is empty. Star instruments to add them.</p>}
+          {filter === 'ecb' && (
+            <ul className="max-h-[560px] divide-y divide-line overflow-y-auto">
+              {ecbList.map((o) => (
+                <li key={o.symbol} className={o.symbol === symbol ? 'bg-ink-800/70' : 'hover:bg-ink-800/40'}>
+                  <button className="block w-full px-3 py-2 text-left" onClick={() => setParams({ symbol: o.symbol })}>
+                    <span className={`block text-sm font-medium ${o.symbol === symbol ? 'text-gold-soft' : 'text-platinum'}`}>{o.symbol.replace('ECB:', '')}</span>
+                    <span className="block truncate text-[11px] text-slate-dim">{o.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {filter === 'watchlist' && list.length === 0 && <p className="p-4 text-sm text-slate-dim">Your watchlist is empty. Star instruments to add them.</p>}
+          {filter !== 'ecb' && (
           <ul className="max-h-[560px] divide-y divide-line overflow-y-auto">
             {list.map((i) => {
               const q = lastQuote(i.symbol);
@@ -213,94 +198,34 @@ export default function Markets() {
               );
             })}
           </ul>
+          )}
         </Panel>
 
         <div className="min-w-0 space-y-4">
-          <section className="panel">
-            <header className="flex flex-wrap items-end justify-between gap-3 border-b border-line px-4 py-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold">{inst.symbol}</h2>
-                  <ProvenanceBadge kind="simulated" />
-                </div>
-                <p className="text-xs text-slate-dim">{inst.name}</p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">{symbol.replace('ECB:', '')}</h2>
+                {dataset && <ProvenanceBadge kind={dataset.provenance} />}
               </div>
+              <p className="text-xs text-slate-dim">{dataset?.name ?? ''}</p>
+            </div>
+            {last && (
               <div className="text-right">
-                <div className="num text-2xl font-semibold">{fmtNumber(last.close, inst.decimals)}</div>
-                <Change value={lastQuote(symbol)?.changePct ?? null} className="text-sm" />
-                <span className="ml-2 text-xs text-slate-dim">as of {last.time} (simulated close)</span>
-              </div>
-            </header>
-            <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
-              <div className="flex gap-1" role="group" aria-label="Range">
-                {RANGES.map((r) => (
-                  <button key={r.label} className="chip" aria-pressed={range === r.bars} onClick={() => setChart({ range: r.bars })}>
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-              <span className="mx-1 h-5 w-px bg-line" />
-              <div className="flex gap-1" role="group" aria-label="Chart style">
-                <button className="chip" aria-pressed={options.style === 'candles'} onClick={() => setChart({ style: 'candles' })}>
-                  Candles
-                </button>
-                <button className="chip" aria-pressed={options.style === 'line'} onClick={() => setChart({ style: 'line' })}>
-                  Line
-                </button>
-              </div>
-              <span className="mx-1 h-5 w-px bg-line" />
-              <div className="flex flex-wrap gap-1" role="group" aria-label="Indicators">
-                {TOGGLES.map((t) => (
-                  <button key={t.key} className="chip" aria-pressed={options[t.key]} onClick={() => setChart({ [t.key]: !options[t.key] })}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2 text-xs">
-              <span className="text-slate-dim">Draw</span>
-              <button className="chip" aria-pressed={mode === 'hline'} onClick={() => startMode('hline')} title="Horizontal level">
-                <Minus className="h-3.5 w-3.5" aria-hidden /> Level
-              </button>
-              <button className="chip" aria-pressed={mode === 'trend'} onClick={() => startMode('trend')} title="Trend line through two points">
-                <Spline className="h-3.5 w-3.5" aria-hidden /> Trend line
-              </button>
-              {mode !== 'none' && (
-                <span role="status" className="text-gold-soft">
-                  {mode === 'hline' ? 'Click the chart to place a level.' : pending ? `First point ${pending.time} at ${pending.price}. Click the second point.` : 'Click the first point.'}{' '}
-                  <span className="text-slate-dim">(Esc to cancel)</span>
+                <div className="num text-2xl font-semibold">{fmtNumber(last.close, decimals)}</div>
+                <Change value={prev ? last.close / prev.close - 1 : null} className="text-sm" />
+                <span className="ml-2 text-xs text-slate-dim">
+                  as of {last.time} ({simulated ? 'simulated close' : 'ECB reference rate'})
                 </span>
-              )}
-              {drawings.map((d) => (
-                <span key={d.id} className="chip">
-                  {d.kind === 'hline' ? `Level ${d.price}` : `Trend ${d.a.time.slice(5)}→${d.b.time.slice(5)}`}
-                  <button aria-label="Remove drawing" className="hover:text-down" onClick={() => removeDrawing(symbol, d.id)}>
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-              {drawings.length > 0 && (
-                <button className="btn-quiet ml-auto text-xs" onClick={() => clearDrawings(symbol)}>
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden /> Clear
-                </button>
-              )}
-            </div>
-            <div className={options.rsi ? 'h-[500px]' : 'h-[420px]'}>
-              <PriceChart
-                bars={bars}
-                options={options}
-                visibleBars={range}
-                annotations={annotations}
-                decimals={inst.decimals}
-                drawings={drawings}
-                onPick={mode === 'none' ? undefined : onPick}
-              />
-            </div>
-          </section>
+              </div>
+            )}
+          </div>
+          <ChartEditor dataset={dataset} symbol={symbol} onSymbolChange={(s) => setParams({ symbol: s })} annotations={annotations} loading={loading} error={error} />
 
+          {simulated && (
           <Panel
             title="Relative performance"
-            eyebrow={`Rebased to 100 · ${RANGES.find((r) => r.bars === range)?.label ?? ''}`}
+            eyebrow={`Rebased to 100 · ${rangeName}`}
             actions={
               compareSymbols.length < MAX_COMPARE ? (
                 <select
@@ -347,6 +272,7 @@ export default function Markets() {
               </>
             )}
           </Panel>
+          )}
 
           <div className="grid gap-4 md:grid-cols-2">
             <Panel title="Statistics" eyebrow="Computed from displayed series">
@@ -365,27 +291,27 @@ export default function Markets() {
                   </div>
                 ))}
                 <div className="flex justify-between">
-                  <dt className="text-mist">Ann. volatility ({RANGES.find((r) => r.bars === range)?.label})</dt>
+                  <dt className="text-mist">Ann. volatility ({rangeName})</dt>
                   <dd className="num">{fmtPct(annualisedVol(windowCloses), 1)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-mist">Max drawdown ({RANGES.find((r) => r.bars === range)?.label})</dt>
+                  <dt className="text-mist">Max drawdown ({rangeName})</dt>
                   <dd className="num text-down">{fmtPct(maxDrawdown(windowCloses), 1)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-mist">52w high</dt>
-                  <dd className="num">{fmtNumber(hi52, inst.decimals)}</dd>
+                  <dd className="num">{fmtNumber(hi52, decimals)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-mist">52w low</dt>
-                  <dd className="num">{fmtNumber(lo52, inst.decimals)}</dd>
+                  <dd className="num">{fmtNumber(lo52, decimals)}</dd>
                 </div>
               </dl>
               <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
                 <span className="text-xs text-slate-dim">Last 60 sessions</span>
                 <Sparkline values={closes.slice(-60)} width={160} height={32} />
               </div>
-              <Link to={`/lab?s0=${last.close}&sigma=${annualisedVol(closes.slice(-252)).toFixed(3)}&label=${encodeURIComponent(symbol)}`} className="btn-ghost mt-4 w-full">
+              <Link to={`/lab?s0=${last?.close ?? 100}&sigma=${annualisedVol(closes.slice(-252)).toFixed(3)}&label=${encodeURIComponent(symbol)}`} className="btn-ghost mt-4 w-full">
                 Simulate outcomes in the Research Lab
               </Link>
             </Panel>

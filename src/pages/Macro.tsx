@@ -1,4 +1,4 @@
-import { Download } from 'lucide-react';
+import { Download, Maximize2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import {
@@ -246,6 +246,11 @@ export default function Macro() {
                     <button className="chip" onClick={exportCsv} disabled={detailObs.length === 0} aria-label="Download CSV">
                       <Download className="h-3.5 w-3.5" aria-hidden /> CSV
                     </button>
+                    {selected.group === 'fx' && (
+                      <Link className="chip" to={`/markets?symbol=ECB:${selected.id}`} title="Indicators, drawings, templates, export and full screen">
+                        <Maximize2 className="h-3.5 w-3.5" aria-hidden /> Chart editor
+                      </Link>
+                    )}
                   </div>
                 }
               >
