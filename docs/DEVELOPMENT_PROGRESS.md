@@ -1,18 +1,17 @@
 # Development Progress
 
-_Last updated: 2026-10-21, run 16 — Supabase migration security review and hardening (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-22, runs 17–19 — accounts live and verified end to end; currency and purchasing power (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
 |---|---|
-| Phase | 1 complete; Phase 2/3 items in progress |
-| Branch / PR | **PR #3 merged to `main`** 2026-10-21 19:56 UTC (merge `dd86938`). Follow-up work restarts `claude/stoic-planck-ojnqng` from `main` |
-| GitHub Actions CI | ✅ lint · typecheck · 130 tests (incl. copy-style guard, share assets) · build |
-| Cloudflare Workers Builds | ✅ **production build on `main` succeeded** (build `dc74be9e`, Worker Version `7b52857d`). ❌ non-production (PR branch) builds still fail; production is unaffected |
-| PR previews | GitHub Actions `preview` uploads a Worker version per PR (alias `https://pr-<N>-auroraveritatis.agentkarlano.workers.dev`) and runs `scripts/smoke.sh` against it: real Workers runtime + live World Bank / USGS / GDACS. PR #4 at `fc94df6`: **14/14** |
-| Production check | `smoke.yml` runs `scripts/smoke.sh` on aurorav.app after each merge to `main` (and on demand). After PR #4 (2026-10-21 20:29:57 UTC, Worker Version `c35ef040`): **14/14** |
-| Scheduled tasks | Two exist, both disabled: "AV development (every 2h)" and the owner-created daily "Aurora Veritatis — Automated Development". Keep one. The 2-hourly one is **paused**: its runs had no repositories attached (read-only clone, push 403), so every run since 00:34 stopped without work. Owner must add both repos to the task in the Claude app, then re-enable |
-| Next recommended action | Master directive order: B social sharing (OG/Story assets, /share), C full mobile audit with Playwright screenshot suite (320–1920 px), D bug/broken-button/security/status audit, E legal/contact/analytics soft-launch readiness. Blocked on owner: Supabase activation, data/imagery licences, billing |
+| Phase | 1 complete; Phase 2/3/5 items in progress |
+| Branch / PR | Work branches start from `main` per task; PRs #11–#15 (2026-10-21/22) |
+| GitHub Actions | `ci.yml`: lint · typecheck · 146 tests · build · `migrations` (Postgres 16, two-account RLS). `preview.yml`: Worker version per PR + smoke + `live-auth` when accounts code changes. `smoke.yml`: aurorav.app after merges. `live-auth.yml`: on demand against production |
+| Production check | Smoke **29/29** after PR #14 (2026-10-22). Auth status: configured, schema applied, guest access denied, email confirmation required |
+| Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
+| Owner-dependent | Deletion-hardening SQL + Security Advisor re-run; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
+| Next recommended action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
 The Vite + `@cloudflare/vite-plugin` foundation is the project foundation (PR #3). PRs #1 (esbuild) and #2 (same code,
@@ -20,6 +19,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Runs 17–19 (2026-10-22) — Accounts live; Currency and purchasing power
+- Owner applied the migration and configured Supabase Auth, SMTP (Resend) and the Worker vars.
+- `e2e/live/auth.ts` + `live-auth.yml`: real browser (Chrome), real email (disposable inboxes: mail.tm, mail.gw, Guerrilla Mail fallbacks) and the real Supabase project. Covers sign-up (desktop + 390 px), confirmation email and redirect, sign-in/out, invalid credentials, used links, password reset, profile creation, cloud preferences, note save/edit/delete, cross-device sync, export, two-account RLS through PostgREST, tier escalation, guest access, a bundle scan for secret keys, and deletion. Both accounts are deleted at the end. No secrets.
+- Bugs found by it and fixed:
+  - PR #12: shared-browser data leak between accounts, edited notes not syncing, export without cloud data, unclear link errors.
+  - PR #13: sync race on page load, missing "Password updated." message, CSP blocking Cloudflare Web Analytics.
+  - PR #15: changes made between the preferences and notes stages of the first sync were never uploaded.
+- `20261022000000_account_deletion_hardening.sql`: deletion moves to the unexposed `aurora_private` schema, requires a sign-in within 10 minutes, and the public wrapper becomes SECURITY INVOKER (Security Advisor lint 0029). CI fails if any exposed SECURITY DEFINER function is executable by `authenticated`. **Owner must run it.**
+- PR #14 Currency and purchasing power: `/api/currency/:iso3` (World Bank CPI, inflation, official rate, PPP) and `shared/currency.ts` (tested formulas). The `/currency` page has four charts, an inflation calculator, an ECB converter, a historical ECB converter, method notes and CSV.
+
 ### Run 16 (2026-10-21) — Supabase migration review (master directive F, before owner execution)
 - Security review of `supabase/migrations/20261020000000_initial_profiles.sql` (not yet applied). **Fixed a privilege
   escalation:** `revoke update (tier)` does not override Supabase's default table-level UPDATE grant, so any signed-in
