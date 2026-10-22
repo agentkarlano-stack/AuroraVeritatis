@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { shouldPlayIntro } from '../lib/intro';
+import { VISIT_GAP_MS, isFreshVisit, resolveIntroMode, shouldPlayIntro } from '../lib/intro';
 import { usePrefs } from '../store/prefs';
 import { Monogram } from './Logo';
 
@@ -14,6 +14,32 @@ export const INTRO_REPLAY_EVENT = 'av-intro-replay';
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
+const LAST_SEEN_KEY = 'av-last-seen';
+/** When the intro last started in this page (prevents a second play when a sign-in completes during the same load). */
+let playedAt = 0;
+
+/** Decided once per page load, before this load records itself as the latest activity. */
+function freshVisit(): boolean {
+  if (typeof window === 'undefined') return false;
+  let lastSeen: number | null = null;
+  try {
+    const v = Number(localStorage.getItem(LAST_SEEN_KEY));
+    lastSeen = Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    /* storage unavailable: treat as a new visit */
+  }
+  const nav = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined;
+  return isFreshVisit({ navigationType: nav?.type, referrer: document.referrer, origin: location.origin, lastSeen, now: Date.now() });
+}
+const FRESH_VISIT = freshVisit();
+const touch = () => {
+  try {
+    localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+};
+
 const read = (k: string) => {
   try {
     return sessionStorage.getItem(k);
@@ -33,14 +59,15 @@ const write = (k: string, v: string | null) => {
 /**
  * Brand intro: AURORA VERITATIS appears letter by letter; the other letters fall away while the A and the V glide
  * together and settle into the AV monogram. About 2.6 s, silent, skippable (button, Esc, click) and never shown with
- * reduced motion. When it plays is the user's choice (Account → Preferences): once per session (default), every
- * visit, only after signing in, or never. It is decided on page load and after a fresh sign-in, never on route changes.
+ * reduced motion. When it plays is the user's choice (Account → Preferences): by default on every new visit and
+ * after signing in; or every page load, once per session, only after signing in, or never. It is decided on page load and after a fresh sign-in, never on route changes.
  */
 export function IntroSplash() {
-  const mode = usePrefs((s) => s.introMode);
+  const mode = usePrefs((s) => resolveIntroMode(s.introChoice, s.introMode));
   const [visible, setVisible] = useState(() =>
     shouldPlayIntro({
       mode,
+      freshVisit: FRESH_VISIT,
       reducedMotion: reducedMotion(),
       path: typeof location === 'undefined' ? '/' : location.pathname,
       shownThisSession: read(INTRO_SHOWN_KEY) === '1',
@@ -52,20 +79,46 @@ export function IntroSplash() {
   // A fresh sign-in or a manual replay (Account → Preferences) can start it later in the session.
   useEffect(() => {
     const onLogin = () => {
-      const play = shouldPlayIntro({ mode: usePrefs.getState().introMode, reducedMotion: reducedMotion(), path: location.pathname, shownThisSession: true, loginPending: true, replay: false });
-      if (play) setVisible(true);
+      const s = usePrefs.getState();
+      const play = shouldPlayIntro({ mode: resolveIntroMode(s.introChoice, s.introMode), reducedMotion: reducedMotion(), path: location.pathname, shownThisSession: true, loginPending: true, replay: false });
+      // A sign-in completing during the same load (e.g. arriving from an email link) must not replay it.
+      if (play && Date.now() - playedAt > 15_000) setVisible(true);
+      else write(INTRO_LOGIN_KEY, null);
     };
+    // Record activity. Coming back to a tab that was left in the background for longer than a visit gap is a new
+    // visit: with the default mode the intro plays then.
+    touch();
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') {
+        touch();
+        return;
+      }
+      let last = 0;
+      try {
+        last = Number(localStorage.getItem(LAST_SEEN_KEY)) || 0;
+      } catch {
+        /* ignore */
+      }
+      touch();
+      const s = usePrefs.getState();
+      if (last && Date.now() - last > VISIT_GAP_MS && resolveIntroMode(s.introChoice, s.introMode) === 'visit' && !reducedMotion() && !location.pathname.startsWith('/share/card')) setVisible(true);
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', touch);
     const onReplay = () => !reducedMotion() && setVisible(true);
     window.addEventListener('av-intro-login', onLogin);
     window.addEventListener(INTRO_REPLAY_EVENT, onReplay);
     return () => {
       window.removeEventListener('av-intro-login', onLogin);
       window.removeEventListener(INTRO_REPLAY_EVENT, onReplay);
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', touch);
     };
   }, []);
 
   useEffect(() => {
     if (!visible) return;
+    playedAt = Date.now();
     write(INTRO_SHOWN_KEY, '1');
     write(INTRO_LOGIN_KEY, null);
     const timer = setTimeout(() => setVisible(false), DURATION_MS);

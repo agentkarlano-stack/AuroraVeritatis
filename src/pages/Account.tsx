@@ -12,7 +12,7 @@ import { Avatar } from '../components/Avatar';
 import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEditor';
 import { SecuritySettings } from '../components/account/SecuritySettings';
 import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
-import { INTRO_MODES, type IntroMode } from '../lib/intro';
+import { INTRO_MODES, resolveIntroMode, type IntroMode } from '../lib/intro';
 
 export default function Account() {
   const { status, session, signOut, config, recovery, urlError, client } = useAuth();
@@ -198,7 +198,7 @@ export default function Account() {
           <div className="flex flex-wrap items-end gap-3 text-sm">
             <label className="text-xs text-mist">
               Brand intro
-              <select className="input mt-1 w-auto" value={prefs.introMode} onChange={(e) => prefs.setIntroMode(e.target.value as IntroMode)}>
+              <select className="input mt-1 w-auto" value={resolveIntroMode(prefs.introChoice, prefs.introMode)} onChange={(e) => prefs.setIntroMode(e.target.value as IntroMode)}>
                 {INTRO_MODES.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label}

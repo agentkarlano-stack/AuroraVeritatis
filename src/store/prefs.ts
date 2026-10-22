@@ -43,8 +43,10 @@ interface PrefsState {
   notes: Note[];
   alerts: AlertRule[];
   introSeen: boolean;
-  /** When the brand intro plays (lib/intro.ts). */
-  introMode: IntroMode;
+  /** The user's explicit intro setting; null means the default (lib/intro.ts). Read through `resolveIntroMode`. */
+  introChoice: IntroMode | null;
+  /** Legacy (before explicit choices were tracked); kept only so an old explicit "off" still applies. */
+  introMode?: IntroMode;
   setIntroMode: (m: IntroMode) => void;
   /** World Briefing settings; the last-briefing time is kept only with consent (`remember`). Read via normalizeBriefingPrefs. */
   briefing: BriefingPrefs;
@@ -106,8 +108,8 @@ export const usePrefs = create<PrefsState>()(
       notes: [],
       alerts: [],
       introSeen: false,
-      introMode: 'session',
-      setIntroMode: (introMode) => set({ introMode }),
+      introChoice: null,
+      setIntroMode: (introChoice) => set({ introChoice }),
       briefing: DEFAULT_BRIEFING_PREFS,
       setBriefing: (patch) => set((s) => ({ briefing: normalizeBriefingPrefs({ ...normalizeBriefingPrefs(s.briefing), ...patch }) })),
       brainCanvas: { background: 'dots', colorMode: 'type' },
