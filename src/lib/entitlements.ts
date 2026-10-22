@@ -1,4 +1,5 @@
 import { TIERS, type Tier, type TierId } from '../data/tiers';
+import { useEntitlements } from '../store/entitlements';
 
 export type LimitKey = keyof Tier['limits'];
 export type Feature = 'scenarioDesk' | 'strategyLab' | 'csvExport' | 'voiceBriefing' | 'advancedImpactRadar' | 'countryComparisons';
@@ -44,11 +45,11 @@ export function hasFeature(id: TierId, feature: Feature, earlyAccess = EARLY_ACC
 }
 
 /**
- * Current plan for the UI. Everyone is on Free until billing exists; the server-side source of
- * truth will be `profiles.tier` (updated only by the billing webhook, enforced by RLS).
+ * Effective plan for the interface: the server's answer for signed-in users (manual grants by an administrator;
+ * payments are disabled), Free for guests. Quotas on server-stored data are enforced by the database as well.
  */
 export function useTier(): TierId {
-  return 'free';
+  return useEntitlements((s) => s.tier);
 }
 
 /**

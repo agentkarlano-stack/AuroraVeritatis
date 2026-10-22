@@ -92,7 +92,7 @@ export function mergeNotes(local: SyncNote[], remote: SyncNote[]): { merged: Syn
   const byId = new Map(remote.map((n) => [n.id, n]));
   const toUpload = local.filter((n) => !byId.has(n.id) && UUID_RE.test(n.id));
   for (const n of local) if (!byId.has(n.id)) byId.set(n.id, n);
-  const merged = [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 100);
+  const merged = [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 1000);
   return { merged, toUpload };
 }
 
@@ -114,7 +114,7 @@ export function diffNotes(prev: SyncNote[], next: SyncNote[]): { added: SyncNote
 export function supabaseNotesBackend(client: SupabaseClient): NotesBackend {
   return {
     async list(userId) {
-      const { data, error } = await client.from('research_notes').select('id, title, body, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(100);
+      const { data, error } = await client.from('research_notes').select('id, title, body, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1000);
       if (error) throw new Error(error.message);
       return (data ?? []).map((r: { id: string; title: string; body: string; created_at: string }) => ({ id: r.id, title: r.title, body: r.body, createdAt: r.created_at }));
     },

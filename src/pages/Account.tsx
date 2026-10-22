@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading, PageHeader, Panel, Unavailable } from '../components/ui';
@@ -6,11 +6,20 @@ import { TIERS } from '../data/tiers';
 import { limitOf, useTier } from '../lib/entitlements';
 import { usePrefs } from '../store/prefs';
 import { useSyncStatus } from '../store/syncStatus';
+import { useEntitlements } from '../store/entitlements';
+import { useChartLibrary } from '../store/chartLibrary';
+import { Avatar } from '../components/Avatar';
+import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEditor';
+import { SecuritySettings } from '../components/account/SecuritySettings';
 
 export default function Account() {
   const { status, session, signOut, config, recovery, urlError, client } = useAuth();
   const [exportState, setExportState] = useState<'idle' | 'working' | 'failed'>('idle');
   const [passwordDone, setPasswordDone] = useState(false);
+  const ent = useEntitlements();
+  const charts = useChartLibrary();
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const onProfile = useCallback((p: ProfileRow) => setProfile(p), []);
   const prefs = usePrefs();
   const tierId = useTier();
   const plan = TIERS.find((t) => t.id === tierId)!;
@@ -69,14 +78,27 @@ export default function Account() {
         <Panel title="Profile">
           {status === 'signed-in' ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm">
-                <div className="text-platinum">{session?.user.email}</div>
-                <div className="text-xs text-slate-dim">Plan: Free preview</div>
-                <SyncLine />
+              <div className="flex items-center gap-3 text-sm">
+                <Avatar name={profile?.display_name} email={session?.user.email} style={profile?.avatar_style} size={48} />
+                <div>
+                  <div className="text-platinum">{profile?.display_name || session?.user.email}</div>
+                  <div className="text-xs text-slate-dim">
+                    {session?.user.email} · email verified · {plan.name} plan
+                    {ent.isAdmin && <span className="ml-1 rounded border border-gold/50 px-1 text-[10px] uppercase tracking-wider text-gold">Administrator</span>}
+                  </div>
+                  <SyncLine />
+                </div>
               </div>
-              <button className="btn-ghost" onClick={() => void signOut()}>
-                Sign out
-              </button>
+              <div className="flex gap-2">
+                {ent.isAdmin && (
+                  <Link to="/admin" className="btn-ghost">
+                    Administration
+                  </Link>
+                )}
+                <button className="btn-ghost" onClick={() => void signOut()}>
+                  Sign out
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-mist">
@@ -89,6 +111,9 @@ export default function Account() {
             </div>
           )}
         </Panel>
+
+        {status === 'signed-in' && <ProfileEditor onLoaded={onProfile} />}
+        {status === 'signed-in' && <SecuritySettings />}
 
         <Panel title="Data stored in this browser" eyebrow={status === 'signed-in' ? 'Synced to your account. Signing out removes this copy from the browser.' : undefined}>
           <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
@@ -125,7 +150,15 @@ export default function Account() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span>
               Current plan: <span className="font-semibold text-gold-soft">{plan.name}</span>{' '}
-              <span className="text-xs text-slate-dim">(early access: all features open, Free limits apply)</span>
+              {ent.grant ? (
+                <span className="block text-xs text-slate-dim">
+                  Complimentary access granted by an administrator{ent.grant.expires_at ? ` until ${new Date(ent.grant.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}. This is not a paid
+                  subscription; it returns to Free when it ends.
+                </span>
+              ) : (
+                <span className="block text-xs text-slate-dim">Paid subscriptions are not available yet. Limits on data stored in your account are enforced by the server.</span>
+              )}
+              {ent.status === 'unavailable' && status === 'signed-in' && <span className="block text-xs text-warn">Plan details become available after a pending database update.</span>}
             </span>
             <Link to="/pricing" className="text-xs text-gold hover:underline">
               Compare plans
@@ -136,6 +169,9 @@ export default function Account() {
               [
                 ['Instruments in watchlist', prefs.watchlist.length, limitOf(tierId, 'assetsPerWatchlist')],
                 ['Alert rules', prefs.alerts.length, limitOf(tierId, 'alertRules')],
+                ['Research notes', prefs.notes.length, limitOf(tierId, 'researchNotes')],
+                ['Saved charts', charts.layouts.length, limitOf(tierId, 'savedCharts')],
+                ['Chart templates', charts.templates.length, limitOf(tierId, 'chartTemplates')],
               ] as const
             ).map(([k, used, max]) => (
               <li key={k}>
@@ -152,7 +188,7 @@ export default function Account() {
             ))}
           </ul>
           <div className="mt-4">
-            <Unavailable phase="planned">Billing history, invoices, plan changes and cancellation will appear here once paid plans launch.</Unavailable>
+            <Unavailable phase="planned">Payments are switched off. Billing history, invoices and self-service plan changes will appear here once paid plans launch.</Unavailable>
           </div>
         </Panel>
 

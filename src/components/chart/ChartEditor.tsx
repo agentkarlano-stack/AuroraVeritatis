@@ -9,7 +9,8 @@ import { INDICATOR_MAP, indicatorBlocker, indicatorLabel } from '../../lib/chart
 import { INTERVALS, INTERVAL_MAP, RANGES, intervalAvailability, resample, type ChartRange, type IntervalId } from '../../lib/chart/intervals';
 import { INSTRUMENT_OPTIONS, type Dataset } from '../../lib/chart/sources';
 import { BUILT_IN_TEMPLATES, normalizeSettings, parseLayout, type ChartSettings, type IndicatorInstance, type SavedLayout } from '../../lib/chart/workspace';
-import { ProvenanceBadge } from '../ui';
+import { LimitNotice, ProvenanceBadge } from '../ui';
+import { limitOf, useTier } from '../../lib/entitlements';
 import { AddToBrain } from '../AddToBrain';
 import { ChartCanvas, type ChartAnnotation, type ChartApi } from './ChartCanvas';
 import { ChartMenu, MenuOption } from './ChartMenu';
@@ -458,6 +459,8 @@ function InstrumentPicker({ current, onPick }: { current: string; onPick: (s: st
 function Templates({ settings, onApply }: { settings: ChartSettings; onApply: (s: ChartSettings) => void }) {
   const { templates, saveTemplate, renameTemplate, duplicateTemplate, deleteTemplate } = useChartLibrary();
   const [name, setName] = useState('');
+  const max = limitOf(useTier(), 'chartTemplates');
+  const full = templates.length >= max;
   return (
     <div className="space-y-3 text-sm">
       <div>
@@ -482,7 +485,7 @@ function Templates({ settings, onApply }: { settings: ChartSettings; onApply: (s
             }}>
               Rename
             </button>
-            <button className="btn-quiet px-1 text-[11px]" onClick={() => duplicateTemplate(t.id)}>
+            <button className="btn-quiet px-1 text-[11px]" disabled={full} onClick={() => duplicateTemplate(t.id)}>
               Copy
             </button>
             <button className="btn-quiet px-1 text-[11px]" onClick={() => downloadText(JSON.stringify({ kind: 'aurora-chart-template', name: t.name, settings: t.settings }, null, 2), `aurora-template-${t.name.replace(/[^A-Za-z0-9-]/g, '_')}.json`)}>
@@ -498,16 +501,17 @@ function Templates({ settings, onApply }: { settings: ChartSettings; onApply: (s
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim()) return;
+          if (!name.trim() || full) return;
           saveTemplate(name.trim(), settings);
           setName('');
         }}
       >
         <input className="input" placeholder="Template name" value={name} onChange={(e) => setName(e.target.value)} aria-label="Template name" maxLength={60} />
-        <button className="btn-ghost shrink-0 text-xs" disabled={!name.trim()}>
+        <button className="btn-ghost shrink-0 text-xs" disabled={!name.trim() || full}>
           Save current
         </button>
       </form>
+      {full && <LimitNotice what="chart templates" limit={max} />}
       <p className="text-[11px] text-slate-dim">A template stores the interval, range, chart type, indicators and appearance, not the instrument or drawings.</p>
     </div>
   );
@@ -560,22 +564,25 @@ function Appearance({ settings, onChange }: { settings: ChartSettings; onChange:
 function SavedCharts({ onSave, onOpen, onImport }: { onSave: (name: string) => void; onOpen: (l: SavedLayout) => void; onImport: () => void }) {
   const { layouts, renameLayout, duplicateLayout, deleteLayout } = useChartLibrary();
   const [name, setName] = useState('');
+  const max = limitOf(useTier(), 'savedCharts');
+  const full = layouts.length >= max;
   return (
     <div className="space-y-3 text-sm">
       <form
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!name.trim()) return;
+          if (!name.trim() || full) return;
           onSave(name.trim());
           setName('');
         }}
       >
         <input className="input" placeholder="Name this analysis" value={name} onChange={(e) => setName(e.target.value)} aria-label="Chart name" maxLength={80} />
-        <button className="btn-primary shrink-0 text-xs" disabled={!name.trim()}>
+        <button className="btn-primary shrink-0 text-xs" disabled={!name.trim() || full}>
           Save
         </button>
       </form>
+      {full && <LimitNotice what="saved charts" limit={max} />}
       <div>
         {!layouts.length && <p className="px-2 text-xs text-slate-dim">No saved charts yet. A saved chart keeps the instrument, settings, indicators and drawings, ready to edit later.</p>}
         {layouts.map((l) => (
@@ -591,7 +598,7 @@ function SavedCharts({ onSave, onOpen, onImport }: { onSave: (name: string) => v
             }}>
               Rename
             </button>
-            <button className="btn-quiet px-1 text-[11px]" onClick={() => duplicateLayout(l.savedAt)}>
+            <button className="btn-quiet px-1 text-[11px]" disabled={full} onClick={() => duplicateLayout(l.savedAt)}>
               Copy
             </button>
             <button className="btn-quiet px-1 text-[11px]" onClick={() => downloadText(JSON.stringify(l, null, 2), `aurora-chart-${l.name.replace(/[^A-Za-z0-9-]/g, '_')}.json`)}>

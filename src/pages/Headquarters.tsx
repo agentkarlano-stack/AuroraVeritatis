@@ -484,6 +484,8 @@ function AlertsWidget() {
 
 function NotesWidget() {
   const { notes, addNote, updateNote, removeNote } = usePrefs();
+  const noteLimit = limitOf(useTier(), 'researchNotes');
+  const full = notes.length >= noteLimit;
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
@@ -495,7 +497,8 @@ function NotesWidget() {
           e.preventDefault();
           if (!title.trim()) return;
           if (editing) updateNote(editing, title.trim(), body.trim());
-          else addNote(title.trim(), body.trim());
+          else if (!full) addNote(title.trim(), body.trim());
+          else return;
           setEditing(null);
           setTitle('');
           setBody('');
@@ -504,7 +507,7 @@ function NotesWidget() {
         <input className="input" placeholder="Note title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} aria-label="Note title" />
         <textarea className="input min-h-16" placeholder="Observations, hypotheses, sources…" value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} aria-label="Note body" />
         <div className="flex gap-2">
-          <button className="btn-ghost flex-1" disabled={!title.trim()}>
+          <button className="btn-ghost flex-1" disabled={!title.trim() || (!editing && full)}>
             {editing ? 'Save changes' : 'Save note'}
           </button>
           {editing && (
@@ -522,6 +525,11 @@ function NotesWidget() {
           )}
         </div>
       </form>
+      {full && !editing && (
+        <div className="mt-2">
+          <LimitNotice what="research notes" limit={noteLimit} />
+        </div>
+      )}
       <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
         {notes.map((n) => (
           <li key={n.id} className={`rounded-md border p-2 ${editing === n.id ? 'border-gold/60' : 'border-line'}`}>

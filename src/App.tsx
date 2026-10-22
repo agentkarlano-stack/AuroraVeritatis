@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { PrefsSync } from './auth/PrefsSync';
+import { EntitlementsSync } from './auth/EntitlementsSync';
 import { Layout } from './components/Layout';
 import { Loading } from './components/ui';
 import Home from './pages/Home';
@@ -26,6 +27,7 @@ const ShareCard = lazy(() => import('./pages/ShareCard'));
 const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
+const Admin = lazy(() => import('./pages/Admin'));
 const Status = lazy(() => import('./pages/Status'));
 const Legal = lazy(() => import('./pages/Legal'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -34,6 +36,7 @@ export function App() {
   return (
     <AuthProvider>
       <PrefsSync />
+      <EntitlementsSync />
       <BrowserRouter>
         <Routes>
           <Route path="share/card" element={<Lazy><ShareCard /></Lazy>} />
@@ -58,6 +61,7 @@ export function App() {
             <Route path="pricing" element={<Lazy><Pricing /></Lazy>} />
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />
+            <Route path="admin" element={<Lazy><Admin /></Lazy>} />
             <Route path="status" element={<Lazy><Status /></Lazy>} />
             <Route path="legal/:doc" element={<Lazy><Legal /></Lazy>} />
             <Route path="*" element={<Lazy><NotFound /></Lazy>} />

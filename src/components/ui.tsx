@@ -2,6 +2,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PROVENANCE } from '../../shared/copy';
 import type { Provenance } from '../../shared/types';
+import { tier, useTier } from '../lib/entitlements';
 
 const BADGE_CLASS: Record<Provenance, string> = {
   confirmed: 'border-up/50 text-up',
@@ -119,13 +120,19 @@ export function Change({ value, className = '' }: { value: number | null; classN
 }
 
 export function LimitNotice({ what, limit }: { what: string; limit: number }) {
+  const t = tier(useTier());
   return (
     <p role="status" className="mt-2 text-xs text-warn">
-      Free plan limit reached: {limit} {what}. Paid plans will have higher limits.{' '}
-      <a href="/pricing" className="underline hover:text-gold-soft">
-        See plans
-      </a>
-      .
+      {t.name} plan limit reached: {limit} {what}.{' '}
+      {t.id !== 'intelligence' && (
+        <>
+          Higher plans have higher limits.{' '}
+          <a href="/pricing" className="underline hover:text-gold-soft">
+            See plans
+          </a>
+          .
+        </>
+      )}
     </p>
   );
 }

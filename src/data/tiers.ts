@@ -15,6 +15,11 @@ export interface Tier {
     /** Personal Intelligence Brain (proposed quotas, owner brief 2026-10-21). */
     brainGraphs: number;
     brainNodesPerGraph: number;
+    /** Research notes synced to the account (enforced by the database). */
+    researchNotes: number;
+    /** Saved chart analyses and user chart templates (stored in this browser). */
+    savedCharts: number;
+    chartTemplates: number;
   };
   /** `planned: true` marks features that do not exist yet; the plans page labels them. */
   features: { label: string; planned?: boolean }[];
@@ -24,22 +29,22 @@ export interface Tier {
 export const TIERS: Tier[] = [
   {
     id: 'free', name: 'Free', priceEur: 0, tagline: 'Explore the platform',
-    limits: { watchlists: 1, assetsPerWatchlist: 10, aiRequestsPerDay: 3, aiReportsPerMonth: 0, alertRules: 2, brainGraphs: 1, brainNodesPerGraph: 10 },
+    limits: { watchlists: 1, assetsPerWatchlist: 10, aiRequestsPerDay: 3, aiReportsPerMonth: 0, alertRules: 2, brainGraphs: 1, brainNodesPerGraph: 10, researchNotes: 25, savedCharts: 3, chartTemplates: 2 },
     features: [{ label: 'Global Radar with live hazard layers' }, { label: 'Country dossiers and comparisons' }, { label: 'Charts, macro and futures positioning' }, { label: 'Market Impact Radar' }, { label: 'Personal Intelligence Brain demo graph' }, { label: 'News and events feed', planned: true }],
   },
   {
     id: 'premium', name: 'Premium', priceEur: 4.99, tagline: 'For engaged readers',
-    limits: { watchlists: 3, assetsPerWatchlist: 25, aiRequestsPerDay: 15, aiReportsPerMonth: 2, alertRules: 10, brainGraphs: 3, brainNodesPerGraph: 100 },
+    limits: { watchlists: 3, assetsPerWatchlist: 25, aiRequestsPerDay: 15, aiReportsPerMonth: 2, alertRules: 10, brainGraphs: 3, brainNodesPerGraph: 100, researchNotes: 100, savedCharts: 20, chartTemplates: 10 },
     features: [{ label: 'Everything in Free' }, { label: 'Personal Intelligence Brain: 3 graphs' }, { label: 'CSV exports' }, { label: 'Extended radar layers', planned: true }, { label: 'Text and voice daily briefing', planned: true }, { label: 'Basic scenario desk', planned: true }],
   },
   {
     id: 'prime', name: 'Prime', priceEur: 12.99, tagline: 'For active researchers',
-    limits: { watchlists: 10, assetsPerWatchlist: 50, aiRequestsPerDay: 40, aiReportsPerMonth: 10, alertRules: 30, brainGraphs: 15, brainNodesPerGraph: 500 },
+    limits: { watchlists: 10, assetsPerWatchlist: 50, aiRequestsPerDay: 40, aiReportsPerMonth: 10, alertRules: 30, brainGraphs: 15, brainNodesPerGraph: 500, researchNotes: 300, savedCharts: 100, chartTemplates: 50 },
     features: [{ label: 'Everything in Premium' }, { label: 'Strategy Lab and backtesting' }, { label: 'Personal Intelligence Brain: 15 graphs' }, { label: 'Full chart toolkit', planned: true }, { label: 'Personalised briefing', planned: true }, { label: 'Early access to new modules', planned: true }],
   },
   {
     id: 'intelligence', name: 'Intelligence', priceEur: 24.99, tagline: 'For professionals',
-    limits: { watchlists: 25, assetsPerWatchlist: 100, aiRequestsPerDay: 100, aiReportsPerMonth: 30, alertRules: 100, brainGraphs: 50, brainNodesPerGraph: 2000 },
+    limits: { watchlists: 25, assetsPerWatchlist: 100, aiRequestsPerDay: 100, aiReportsPerMonth: 30, alertRules: 100, brainGraphs: 50, brainNodesPerGraph: 2000, researchNotes: 1000, savedCharts: 500, chartTemplates: 200 },
     features: [{ label: 'Everything in Prime' }, { label: 'Personal Intelligence Brain: 50 graphs' }, { label: 'All licensed radar layers', planned: true }, { label: 'Research reports', planned: true }, { label: 'Priority early access', planned: true }],
   },
 ];

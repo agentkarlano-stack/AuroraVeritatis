@@ -111,7 +111,7 @@ export const usePrefs = create<PrefsState>()(
           favorites: s.favorites.includes(iso3) ? s.favorites.filter((x) => x !== iso3) : [...s.favorites, iso3].slice(0, 25),
         })),
       addNote: (title, body) =>
-        set((s) => ({ notes: [{ id: uid(), title: title.slice(0, 120), body: body.slice(0, 4000), createdAt: new Date().toISOString() }, ...s.notes].slice(0, 100) })),
+        set((s) => ({ notes: [{ id: uid(), title: title.slice(0, 120), body: body.slice(0, 4000), createdAt: new Date().toISOString() }, ...s.notes].slice(0, 1000) })),
       updateNote: (id, title, body) =>
         set((s) => ({ notes: s.notes.map((n) => (n.id === id ? { ...n, title: title.slice(0, 120), body: body.slice(0, 4000) } : n)) })),
       removeNote: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
