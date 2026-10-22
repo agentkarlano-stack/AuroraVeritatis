@@ -226,7 +226,7 @@ export function ChartEditor({ dataset, symbol, onSymbolChange, annotations, load
             )}
           </ChartMenu>
         </div>
-        <ChartMenu label={CHART_TYPE_MAP.get(settings.type)!.label} icon={<LineChart className="h-3.5 w-3.5" aria-hidden />} title="Chart type" width="sm:w-72">
+        <ChartMenu label={typeFallback ? 'Line' : CHART_TYPE_MAP.get(settings.type)!.label} icon={<LineChart className="h-3.5 w-3.5" aria-hidden />} title="Chart type" width="sm:w-72">
           {(close) => (
             <div>
               {(['Standard', 'Advanced'] as const).map((g) => (
@@ -377,7 +377,7 @@ export function ChartEditor({ dataset, symbol, onSymbolChange, annotations, load
         ) : (
           <>
             <ChartCanvas bars={bars} settings={effective} hasOhlc={data.hasOhlc} hasVolume={data.hasVolume} decimals={dataset.decimals} drawings={drawings} annotations={annotations} onPick={mode === 'none' ? undefined : onPick} apiRef={api} />
-            <div className="absolute bottom-8 left-2 z-10 flex gap-1">
+            <div className="absolute left-2 top-2 z-10 flex gap-1">
               <button className="btn-quiet bg-ink-900/80 px-1.5" onClick={() => api.current?.zoom(0.7)} aria-label="Zoom in">
                 <ZoomIn className="h-4 w-4" />
               </button>

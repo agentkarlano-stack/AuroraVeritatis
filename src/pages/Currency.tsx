@@ -202,7 +202,12 @@ export default function Currency() {
             ))}
           </div>
           <p className="mt-3 text-xs text-slate-dim">
-            Daily euro reference rates and euro-area inflation: <Link className="text-gold hover:underline" to="/macro">Macro &amp; FX</Link>.
+            Daily euro reference rates and euro-area inflation: <Link className="text-gold hover:underline" to="/macro">Macro &amp; FX</Link>. Chart any ECB
+            rate with indicators and drawings in the{' '}
+            <Link className="text-gold hover:underline" to="/markets?symbol=ECB:EURUSD">
+              chart editor
+            </Link>
+            .
           </p>
         </Panel>
       </div>

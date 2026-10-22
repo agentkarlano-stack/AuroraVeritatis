@@ -137,6 +137,7 @@ export default function Markets() {
       <div className="mt-4 grid gap-4 lg:grid-cols-[280px_1fr]">
         <Panel
           title="Instruments"
+          className="order-2 lg:order-none"
           bodyClass="p-0"
           actions={
             <div className="flex gap-1">

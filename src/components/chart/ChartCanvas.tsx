@@ -169,6 +169,7 @@ export function ChartCanvas({ bars, settings, hasOhlc, hasVolume, decimals, draw
     const ctx = { periodsPerYear: periodsPerYear(settings.interval) };
 
     let pane = 1;
+    const paneKinds: string[] = [];
     for (const inst of settings.indicators) {
       const def = INDICATOR_MAP.get(inst.id);
       if (!def || inst.hidden || indicatorBlocker(def, data)) continue;
@@ -196,8 +197,11 @@ export function ChartCanvas({ bars, settings, hasOhlc, hasVolume, decimals, draw
         first ??= series;
       }
       if (first) for (const lv of r.levels ?? []) first.createPriceLine({ price: lv, color: '#77756f', lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: '' });
-      if (own) chart.panes()[paneIndex]?.setHeight(110);
+      if (own) paneKinds[paneIndex] = def.id;
     }
+
+    // Relative pane sizes once all panes exist: price chart 1, volume 0.2, each oscillator 0.3.
+    chart.panes().forEach((p, i) => p.setStretchFactor(i === 0 ? 1 : paneKinds[i] === 'volume' ? 0.2 : 0.3));
 
     if (settings.events && annotations.length) {
       const times = new Set(bars.map((b) => b.time));
@@ -239,8 +243,18 @@ export function ChartCanvas({ bars, settings, hasOhlc, hasVolume, decimals, draw
     const saved = viewRef.current;
     if (saved && saved.bars === bars && saved.range === rangeKey) chart.timeScale().setVisibleLogicalRange(saved.logical);
     else fit();
+    // Keep the same bars in view when the container is resized (full screen, rotation). Range changes caused by the
+    // resize itself are ignored, so the view from before the resize is restored.
+    let width = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === width) return;
+      width = el.clientWidth;
+      const v = viewRef.current;
+      if (v && v.bars === bars) requestAnimationFrame(() => chart.timeScale().setVisibleLogicalRange(v.logical));
+    });
+    ro.observe(el);
     chart.timeScale().subscribeVisibleLogicalRangeChange((r) => {
-      if (r) viewRef.current = { bars, range: rangeKey, logical: { from: r.from, to: r.to } };
+      if (r && el.clientWidth === width) viewRef.current = { bars, range: rangeKey, logical: { from: r.from, to: r.to } };
     });
     if (apiRef) {
       apiRef.current = {
@@ -257,6 +271,7 @@ export function ChartCanvas({ bars, settings, hasOhlc, hasVolume, decimals, draw
     }
     return () => {
       el.removeEventListener('click', onClick);
+      ro.disconnect();
       if (apiRef) apiRef.current = null;
       chart.remove();
     };
