@@ -34,6 +34,12 @@ function record(id: string, name: string, kind: Kind, status: Result['status'], 
   console.log(`${mark} [${kind}] ${id} ${name}${detail ? `: ${detail}` : ''}`);
 }
 
+/** Thrown to record a check as skipped (with the reason) instead of failed. */
+class Skip extends Error {}
+
+/** True when the target is not production: Supabase only redirects email links to allow-listed origins. */
+const IS_PREVIEW = !/^(www\.)?aurorav\.app$/.test(HOST);
+
 /** Runs one check; an exception records a failure (message only) and the run continues. */
 async function check(id: string, name: string, kind: Kind, fn: () => Promise<string | void>): Promise<boolean> {
   try {
@@ -41,6 +47,10 @@ async function check(id: string, name: string, kind: Kind, fn: () => Promise<str
     record(id, name, kind, 'pass', detail ?? '');
     return true;
   } catch (e) {
+    if (e instanceof Skip) {
+      record(id, name, kind, 'skip', e.message);
+      return false;
+    }
     record(id, name, kind, 'fail', why(e).split('\n')[0]!.slice(0, 300));
     return false;
   }
@@ -345,8 +355,17 @@ async function main() {
       const m: Mail = mailA;
       await check('5', 'Confirmation link returns to the right domain and signs in', 'browser', async () => {
         const redirect = new URL(new URL(m.link).searchParams.get('redirect_to') ?? 'about:blank');
-        assert(redirect.host === HOST, `redirect_to host is ${redirect.host}, expected ${HOST}`);
         const page = await newPage(ctxA);
+        if (redirect.host !== HOST && IS_PREVIEW) {
+          // Preview origins are not in the Supabase redirect allow-list: the link confirms the address and then goes to
+          // the Site URL. Confirm, then sign in on the preview with the password.
+          await (await newPage(await browser.newContext(desktop))).goto(m.link);
+          await signInViaUi(page, inboxA.address, pwA);
+          await waitSignedIn(page, inboxA.address);
+          await page.close();
+          throw new Skip(`preview: link redirects to ${redirect.host} (Site URL); address confirmed, password sign-in on the preview works`);
+        }
+        assert(redirect.host === HOST, `redirect_to host is ${redirect.host}, expected ${HOST}`);
         await page.goto(m.link);
         await waitSignedIn(page, inboxA.address);
         await page.close();
@@ -360,7 +379,12 @@ async function main() {
       await check('4b', 'Second confirmation email delivered and confirmed', 'email', async () => {
         const mail = await waitForMail(inboxB);
         const page = await newPage(ctxB);
-        await page.goto(mail.link);
+        if (new URL(new URL(mail.link).searchParams.get('redirect_to') ?? 'about:blank').host !== HOST && IS_PREVIEW) {
+          await (await newPage(await browser.newContext(desktop))).goto(mail.link);
+          await signInViaUi(page, inboxB.address, pwB);
+        } else {
+          await page.goto(mail.link);
+        }
         await waitSignedIn(page, inboxB.address);
         assert(await noOverflow(page), '/account overflows at 390 px');
         await page.close();
@@ -455,6 +479,7 @@ async function main() {
     if (mailA) {
       const m: Mail = mailA;
       await check('14b', 'A used confirmation link is handled', 'browser', async () => {
+        if (IS_PREVIEW) throw new Skip('preview: email links redirect to the Site URL');
         const ctx = await browser.newContext(desktop);
         const page = await newPage(ctx);
         await page.goto(m.link);
@@ -477,7 +502,9 @@ async function main() {
       await page.getByRole('button', { name: 'Send reset link' }).click();
       await page.getByRole('status').filter({ hasText: /reset link/ }).waitFor({ timeout: 20_000 });
       const mail = await waitForMail(inboxA);
-      assert(new URL(new URL(mail.link).searchParams.get('redirect_to') ?? 'about:blank').host === HOST, 'reset link redirects elsewhere');
+      const target = new URL(new URL(mail.link).searchParams.get('redirect_to') ?? 'about:blank').host;
+      if (target !== HOST && IS_PREVIEW) throw new Skip(`preview: reset email delivered (from ${mail.from}), link redirects to ${target}`);
+      assert(target === HOST, `reset link redirects to ${target}`);
       await page.goto(mail.link);
       await page.getByText('Set a new password').waitFor({ timeout: 30_000 });
       const next = password();
@@ -617,11 +644,12 @@ main()
   .finally(() => {
     const failed = results.filter((r) => r.status === 'fail');
     const passed = results.filter((r) => r.status === 'pass').length;
+    const skipped = results.length - passed - failed.length;
     const lines = [`### Live auth test: ${BASE}`, '', `${passed} passed, ${failed.length} failed, ${results.length - passed - failed.length} skipped`, '', '| # | Check | Kind | Result | Detail |', '|---|---|---|---|---|', ...results.map((r) => `| ${r.id} | ${r.name} | ${r.kind} | ${r.status} | ${r.detail.replace(/\|/g, '/')} |`)];
     writeFileSync('live-auth-results.json', JSON.stringify({ base: BASE, at: new Date().toISOString(), results }, null, 2));
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
     const all = results.map((r) => `${r.status.toUpperCase()} [${r.kind}] ${r.id} ${r.name}${r.detail ? `: ${r.detail}` : ''}`).join('%0A');
-    console.log(`::notice title=Live auth results::${BASE}: ${passed} passed, ${failed.length} failed%0A${all}`);
+    console.log(`::notice title=Live auth results::${BASE}: ${passed} passed, ${failed.length} failed, ${skipped} skipped%0A${all}`);
     for (const f of failed) console.log(`::error title=Live auth ${f.id}::${f.name}: ${f.detail}`);
     process.exit(failed.length ? 1 : 0);
   });
