@@ -31,7 +31,7 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   edge caching, per-IP rate limiting, route metadata injection (`meta.ts`). Assets via the `ASSETS` binding (SPA fallback).
 - `shared/meta.ts` — per-route title/description/canonical/noindex used by both the Worker and `src/lib/useMeta.ts`.
 - `shared/` — types and indicator catalogue used by both worker and client.
-- `src/pages/` — one lazy-loaded page per route; `src/components/` — UI (`ui.tsx` primitives, `WorldMap`, `PriceChart`, `SvgCharts`).
+- `src/pages/` — one lazy-loaded page per route; `src/components/` — UI (`ui.tsx` primitives, `WorldMap`, `chart/` (chart editor), `SvgCharts`).
 - `src/lib/` — pure logic with unit tests (Monte Carlo, technical indicators, tension index, synthetic market data).
 - `src/store/prefs.ts` — Zustand store persisted to localStorage (layout, watchlist, alerts, notes, chart settings, drawings;
   to be synced to Supabase `user_preferences`).
@@ -68,7 +68,7 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 ## Gotchas
 - Never `pkill -f`/`pgrep -f` with a pattern that also appears in your own shell command (it kills the shell). Use `fuser -k <port>/tcp`.
 - Lightweight Charts swallows a second click that follows quickly (double-click detection). Chart drawing tools use a
-  native `click` listener + `coordinateToTime/Price` (`components/PriceChart.tsx`), not `subscribeClick`.
+  native `click` listener + `coordinateToTime/Price` (`components/chart/ChartCanvas.tsx`), not `subscribeClick`.
 - Worker/shared code must not import the `i18n-iso-countries` entry point (it `require()`s every locale and the Worker
   fails to start). Use `shared/countryNames.ts`. Always smoke-test Worker changes with `vite preview` + curl: CI and
   unit tests run in Node and cannot catch Workers-runtime failures.

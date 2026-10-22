@@ -1,25 +1,3 @@
-export interface ChartOptions {
-  style: 'candles' | 'line';
-  sma20: boolean;
-  sma50: boolean;
-  ema20: boolean;
-  bollinger: boolean;
-  volume: boolean;
-  rsi: boolean;
-  events: boolean;
-}
-
-export const DEFAULT_CHART_OPTIONS: ChartOptions = {
-  style: 'candles',
-  sma20: true,
-  sma50: false,
-  ema20: false,
-  bollinger: false,
-  volume: true,
-  rsi: false,
-  events: true,
-};
-
 export interface ChartPoint {
   /** YYYY-MM-DD */
   time: string;
@@ -28,7 +6,6 @@ export interface ChartPoint {
 
 export type Drawing = { id: string; kind: 'hline'; price: number } | { id: string; kind: 'trend'; a: ChartPoint; b: ChartPoint };
 
-export type DrawMode = 'none' | 'hline' | 'trend';
 
 /** Lightweight Charts reports times as the input string or as a BusinessDay object; normalise to YYYY-MM-DD. */
 export function timeToString(t: unknown): string | null {

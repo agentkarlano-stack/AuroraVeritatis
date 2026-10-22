@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { DEFAULT_CHART_OPTIONS, type ChartOptions, type Drawing } from '../lib/chart';
+import type { Drawing } from '../lib/chart';
+import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
 
 export type WidgetId = 'briefing' | 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts';
 
@@ -37,9 +38,11 @@ interface PrefsState {
   notes: Note[];
   alerts: AlertRule[];
   introSeen: boolean;
-  chart: ChartOptions & { range: number };
+  /** Chart editor settings (normalised on read: older or synced copies may have an earlier shape). */
+  chart: ChartSettings;
   drawings: Record<string, Drawing[]>;
-  setChart: (patch: Partial<ChartOptions & { range: number }>) => void;
+  setChart: (patch: Partial<ChartSettings>) => void;
+  setDrawings: (symbol: string, list: Drawing[]) => void;
   addDrawing: (symbol: string, d: Drawing) => void;
   removeDrawing: (symbol: string, id: string) => void;
   clearDrawings: (symbol: string) => void;
@@ -77,9 +80,10 @@ export const usePrefs = create<PrefsState>()(
       notes: [],
       alerts: [],
       introSeen: false,
-      chart: { ...DEFAULT_CHART_OPTIONS, range: 126 },
+      chart: DEFAULT_SETTINGS,
       drawings: {},
-      setChart: (patch) => set((s) => ({ chart: { ...s.chart, ...patch } })),
+      setChart: (patch) => set((s) => ({ chart: { ...normalizeSettings(s.chart), ...patch } })),
+      setDrawings: (symbol, list) => set((s) => ({ drawings: { ...s.drawings, [symbol]: list.slice(-100) } })),
       addDrawing: (symbol, d) => set((s) => ({ drawings: { ...s.drawings, [symbol]: [...(s.drawings[symbol] ?? []), d].slice(-50) } })),
       removeDrawing: (symbol, id) => set((s) => ({ drawings: { ...s.drawings, [symbol]: (s.drawings[symbol] ?? []).filter((d) => d.id !== id) } })),
       clearDrawings: (symbol) => set((s) => ({ drawings: { ...s.drawings, [symbol]: [] } })),
@@ -119,7 +123,7 @@ export const usePrefs = create<PrefsState>()(
           favorites: DEFAULT_FAVORITES,
           notes: [],
           alerts: [],
-          chart: { ...DEFAULT_CHART_OPTIONS, range: 126 },
+          chart: DEFAULT_SETTINGS,
           drawings: {},
         }),
       addAlert: (rule, max = 100) => {
@@ -143,7 +147,7 @@ export const usePrefs = create<PrefsState>()(
         DEFAULT_LAYOUT.forEach((w, i) => {
           if (!layout.includes(w)) layout.splice(Math.min(i, layout.length), 0, w);
         });
-        return { ...current, ...p, layout, chart: { ...current.chart, ...p.chart } };
+        return { ...current, ...p, layout, chart: normalizeSettings(p.chart ?? current.chart) };
       },
     },
   ),
