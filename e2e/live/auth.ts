@@ -209,7 +209,9 @@ async function registerViaUi(ctx: BrowserContext, email: string, pw: string): Pr
   await page.getByLabel('Password').fill(pw);
   await page.getByRole('button', { name: 'Create account' }).click();
   const status = page.getByRole('status').filter({ hasText: /Account created/ });
-  await status.waitFor({ timeout: 20_000 });
+  const alert = page.getByRole('alert');
+  await status.or(alert).first().waitFor({ timeout: 20_000 });
+  if (await alert.count()) throw new Error(`sign-up refused: "${((await alert.first().textContent()) ?? '').trim()}"`);
   const text = (await status.textContent()) ?? '';
   await page.close();
   return text;
@@ -344,6 +346,10 @@ async function main() {
     });
 
     const regA = await check('3', 'A new user can register (desktop UI)', 'browser', async () => registerViaUi(ctxA, inboxA.address, pwA));
+    if (!regA) {
+      record('—', 'Remaining account checks', 'browser', 'skip', 'sign-up did not complete (see check 3)');
+      return;
+    }
     let mailA: Mail | null = null;
     if (regA) {
       await check('4', 'Confirmation email is delivered', 'email', async () => {
@@ -612,6 +618,7 @@ async function main() {
 
     // 13. Deletion -------------------------------------------------------------------------------------------------
     await check('13', 'Account deletion removes the account and its records', 'browser', async () => {
+      if (!a) throw new Skip('first account not available');
       const A = a as SupabaseClient;
       const idA = (await A.auth.getUser()).data.user!.id;
       await pageA3.goto(`${BASE}/account`);
