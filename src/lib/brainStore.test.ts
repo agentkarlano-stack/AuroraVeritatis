@@ -38,3 +38,34 @@ describe('Add to Brain', () => {
     expect(only).toMatchObject({ name: 'My research', nodes: 2 });
   });
 });
+
+describe('Unload stash', () => {
+  it('restores a stashed graph only when it is newer than the stored copy and the graph still exists', async () => {
+    const store: Record<string, string> = {};
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => void (store[k] = v),
+      removeItem: (k: string) => void delete store[k],
+    };
+    const { recoverPending, stashPending } = await import('./brainStore');
+    const g = { ...emptyGraph('Stash', '2026-10-22T10:00:00.000Z') };
+    await saveGraph(g);
+    const edited = { ...addNode(g, { kind: 'note', label: 'late edit', x: 0, y: 0 }).graph, updatedAt: '2026-10-22T10:00:05.000Z' };
+    stashPending(edited);
+    expect(await recoverPending()).toBe(true);
+    expect((await getGraph(g.id))?.nodes.map((n) => n.label)).toEqual(['late edit']);
+    expect(store['av-brain-pending']).toBeUndefined();
+    // An older stash never overwrites newer stored data.
+    stashPending({ ...g, updatedAt: '2026-10-22T09:00:00.000Z' });
+    expect(await recoverPending()).toBe(false);
+    expect((await getGraph(g.id))?.nodes).toHaveLength(1);
+    // A deleted graph is not resurrected; corrupt stashes are ignored.
+    await deleteGraph(g.id);
+    stashPending(edited);
+    expect(await recoverPending()).toBe(false);
+    expect(await getGraph(g.id)).toBeUndefined();
+    store['av-brain-pending'] = '{not json';
+    expect(await recoverPending()).toBe(false);
+    expect(store['av-brain-pending']).toBeUndefined();
+  });
+});

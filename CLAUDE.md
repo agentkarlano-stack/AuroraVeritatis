@@ -42,7 +42,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Personal Intelligence Brain (`pages/Brain.tsx`, `components/BrainCanvas.tsx`): pure model + import/export in `lib/brain.ts`,
   IndexedDB persistence in `lib/brainStore.ts` (local-first, no server copy), layouts in `lib/brainLayout.ts` (d3-force,
   seeded), Aurora entity links + "Add to Brain" in `lib/brainEntities.ts` / `components/AddToBrain.tsx`. Quotas:
-  `brainLimits()` in `lib/entitlements.ts`.
+  `brainLimits()` in `lib/entitlements.ts`. Risk scale and documented auto-risk methods: `lib/brainRisk.ts` (automatic
+  risk only from a method listed in `RISK_METHODS`; the user's `risk` never overwrites `autoRisk`). Undo/redo:
+  `lib/history.ts`. Node intelligence panel: `components/brain/NodeIntel.tsx`. Unsaved edits are stashed to
+  localStorage on unload (`stashPending`/`recoverPending`) because IndexedDB writes started during unload are aborted.
 - `supabase/migrations/` — SQL, reviewed and applied manually by the owner (initial schema applied 2026-10-22; deletion
   hardening `20261022…` pending). `supabase/tests/rls.sql` + `scripts/test-migrations.sh` (CI job `migrations`) apply them
   twice on a Supabase stub and run the two-account RLS test.

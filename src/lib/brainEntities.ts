@@ -1,8 +1,9 @@
 import { COT_MARKETS } from '../../shared/cot';
+import { CURRENCY_OF } from '../../shared/currency';
 import { MACRO_SERIES } from '../../shared/macro';
 import { INSTRUMENTS } from '../data/instruments';
 import { addNode, emptyGraph, type BrainGraph, type BrainLimits, type BrainNode, type BrainRef, type NodeKind } from './brain';
-import { getActiveGraphId, getGraph, listGraphs, saveGraph, setActiveGraphId } from './brainStore';
+import { getActiveGraphId, getGraph, listGraphs, recoverPending, saveGraph, setActiveGraphId } from './brainStore';
 import { COUNTRIES } from './countries';
 
 /** An Aurora entity a Brain node can link to. */
@@ -67,6 +68,7 @@ export type AddResult = { status: 'added' | 'exists'; graphName: string; graphId
  */
 export async function addToActiveGraph(entity: Omit<BrainNode, 'id' | 'x' | 'y' | 'sources'> & { sources?: BrainNode['sources'] }, limits: BrainLimits): Promise<AddResult> {
   let g: BrainGraph | undefined;
+  await recoverPending();
   const activeId = await getActiveGraphId();
   if (activeId) g = await getGraph(activeId);
   if (!g) {
@@ -85,4 +87,30 @@ export async function addToActiveGraph(entity: Omit<BrainNode, 'id' | 'x' | 'y' 
   await saveGraph(graph);
   await setActiveGraphId(graph.id);
   return { status: 'added', graphName: graph.name, graphId: graph.id };
+}
+
+export interface ModuleLink {
+  id: 'dossier' | 'radar' | 'markets' | 'macro' | 'currency' | 'quant';
+  label: string;
+  /** Null when the module has nothing for this node; `reason` then says why. */
+  href: string | null;
+  reason?: string;
+}
+
+/** The Aurora modules a node's panel offers, pointed at the linked entity where the module supports it. */
+export function moduleLinks(ref: BrainRef | undefined): ModuleLink[] {
+  const iso3 = ref?.type === 'country' ? ref.iso3 : null;
+  const symbol = ref?.type === 'instrument' ? ref.symbol : null;
+  return [
+    iso3
+      ? { id: 'dossier', label: 'Country dossier', href: `/countries/${iso3}` }
+      : { id: 'dossier', label: 'Country dossier', href: null, reason: 'Link this node to a country to open its dossier.' },
+    { id: 'radar', label: 'Global Radar', href: '/radar' },
+    { id: 'markets', label: 'Market Terminal', href: symbol ? `/markets?symbol=${encodeURIComponent(symbol)}` : '/markets' },
+    { id: 'macro', label: 'Macro & FX', href: ref?.type === 'macro' ? `/macro?s=${ref.id}` : '/macro' },
+    iso3 && !CURRENCY_OF[iso3]
+      ? { id: 'currency', label: 'Currency', href: null, reason: 'This economy is not covered by the currency module yet.' }
+      : { id: 'currency', label: 'Currency', href: iso3 ? `/currency?c=${iso3}` : '/currency' },
+    { id: 'quant', label: 'Quant Lab', href: '/lab' },
+  ];
 }

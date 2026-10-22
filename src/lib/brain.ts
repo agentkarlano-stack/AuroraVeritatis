@@ -5,6 +5,8 @@
  * Nothing here asserts facts: every relationship is authored by the user and carries the user's own certainty label.
  */
 
+import { RELEVANCE, RISK_LEVELS, RISK_METHODS, parseRelevance, parseRisk, type NodeRisk, type Relevance } from './brainRisk';
+
 export const BRAIN_SCHEMA = 1;
 
 export const NODE_KINDS = {
@@ -73,6 +75,11 @@ export interface BrainNode {
   ref?: BrainRef;
   group?: string;
   sources: BrainSource[];
+  /** Automatic assessment from a documented method (`brainRisk.ts`). Never edited by the user. */
+  autoRisk?: NodeRisk;
+  /** The user's own assessment; shown instead of `autoRisk` without altering it. */
+  risk?: NodeRisk;
+  relevance?: Relevance;
 }
 
 export interface BrainEdge {
@@ -305,7 +312,26 @@ export function parseGraph(text: string, limits: BrainLimits, existingIds: Reado
     const notes = str(n.notes, MAX.notes);
     const group = str(n.group, MAX.groupName)?.trim();
     const r = ref(n.ref);
-    return [{ id: idMap.get(n.id)!, kind, label, x: num(n.x), y: num(n.y), sources: sources(n.sources), ...(notes ? { notes } : {}), ...(date(n.date) ? { date: n.date as string } : {}), ...(r ? { ref: r } : {}), ...(group ? { group } : {}) }];
+    const autoRisk = parseRisk(n.autoRisk, 'auto');
+    const risk = parseRisk(n.risk, 'user');
+    const relevance = parseRelevance(n.relevance);
+    return [
+      {
+        id: idMap.get(n.id)!,
+        kind,
+        label,
+        x: num(n.x),
+        y: num(n.y),
+        sources: sources(n.sources),
+        ...(notes ? { notes } : {}),
+        ...(date(n.date) ? { date: n.date as string } : {}),
+        ...(r ? { ref: r } : {}),
+        ...(group ? { group } : {}),
+        ...(autoRisk ? { autoRisk } : {}),
+        ...(risk ? { risk } : {}),
+        ...(relevance ? { relevance } : {}),
+      },
+    ];
   });
   const edges: BrainEdge[] = rawEdges.flatMap((v) => {
     const e = v as Record<string, unknown>;
@@ -344,6 +370,12 @@ export function exportMarkdown(g: BrainGraph): string {
   const out = [`# ${g.name}`, '', `Exported from Aurora Veritatis Brain on ${new Date().toISOString().slice(0, 10)}. Relationships and certainty labels are the author's own assessments.`, ''];
   for (const n of [...g.nodes].sort((a, b) => a.label.localeCompare(b.label))) {
     out.push(`## ${mdEscape(n.label)}`, `- Type: ${NODE_KINDS[n.kind].label}${n.date ? ` · Date: ${n.date}` : ''}${n.group ? ` · Group: ${n.group}` : ''}`);
+    if (n.relevance) out.push(`- Relevance (author): ${n.relevance}/5, ${RELEVANCE[n.relevance]}`);
+    if (n.autoRisk) {
+      const m = RISK_METHODS[n.autoRisk.method ?? ''];
+      out.push(`- Risk (automatic): ${RISK_LEVELS[n.autoRisk.level].label}${n.autoRisk.basis ? `, ${n.autoRisk.basis}` : ''}. Method: ${m?.name ?? n.autoRisk.method}; source: ${m?.source ?? 'unknown'}; as of ${n.autoRisk.asOf}`);
+    }
+    if (n.risk) out.push(`- Risk (author's assessment): ${RISK_LEVELS[n.risk.level].label}${n.risk.basis ? `, ${n.risk.basis}` : ''}; ${n.risk.asOf}`);
     if (n.notes) out.push('', n.notes.trim());
     const rels = g.edges.filter((e) => e.from === n.id || (!e.directed && e.to === n.id));
     for (const e of rels) {

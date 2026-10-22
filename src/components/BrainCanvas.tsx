@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { NODE_KINDS, edgeLabel, type BrainEdge, type BrainNode, type Certainty, type VisibleGraph } from '../lib/brain';
 import { NODE_HEIGHT as H, nodeWidth } from '../lib/brainLayout';
+import { BRAIN_BACKGROUNDS, type BrainBackground, type BrainColorMode } from '../lib/brainDisplay';
+import { RISK_LEVELS, effectiveRisk } from '../lib/brainRisk';
+
 
 export interface Viewport {
   x: number;
@@ -15,6 +18,11 @@ interface Props {
   view: Viewport;
   selection: Selection;
   highlight: ReadonlySet<string>;
+  /** Node fill colour: by node type, or by risk level (relevance is always shown as outline weight). */
+  colorMode?: BrainColorMode;
+  background?: BrainBackground;
+  /** YYYY-MM-DD, for deciding whether automatic risk assessments are outdated (omitted: never outdated). */
+  today?: string;
   onView: (v: Viewport) => void;
   onSelect: (s: Selection) => void;
   /** Live positions while dragging (not persisted). */
@@ -48,7 +56,8 @@ type Drag =
   | { kind: 'link'; from: string; x: number; y: number };
 
 export function BrainCanvas(props: Props) {
-  const { graph, view, selection, highlight } = props;
+  const { graph, view, selection, highlight, colorMode = 'type', today = '', background = 'dots' } = props;
+  const bg = BRAIN_BACKGROUNDS[background];
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<Drag | null>(null);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -230,7 +239,7 @@ export function BrainCanvas(props: Props) {
     >
       <defs>
         <pattern id="brain-grid" width="32" height="32" patternUnits="userSpaceOnUse" patternTransform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
-          <circle cx="1" cy="1" r="1" fill="#2a2a2f" />
+          {background === 'grid' ? <path d="M32 0H0V32" fill="none" stroke={bg.mark ?? 'none'} strokeWidth={1} /> : bg.mark && <circle cx="1" cy="1" r="1" fill={bg.mark} />}
         </pattern>
         {(['#7f7c75', '#c9a35a'] as const).map((c) => (
           <marker key={c} id={`brain-arrow-${c.slice(1)}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -238,7 +247,8 @@ export function BrainCanvas(props: Props) {
           </marker>
         ))}
       </defs>
-      <rect width="100%" height="100%" fill="url(#brain-grid)" />
+      <rect width="100%" height="100%" fill={bg.fill} />
+      {bg.mark && <rect width="100%" height="100%" fill="url(#brain-grid)" />}
       <g transform={`translate(${view.x} ${view.y}) scale(${view.zoom})`}>
         {graph.edges.map((e) => {
           const p = edgePath(e);
@@ -273,8 +283,10 @@ export function BrainCanvas(props: Props) {
           const w = nodeWidth(n.label, n.members);
           const sel = n.id === selNode;
           const hit = highlight.has(n.id);
-          const color = NODE_KINDS[n.kind].color;
           const isGroup = !!n.members;
+          const risk = isGroup ? null : effectiveRisk(n, today);
+          const color = colorMode === 'risk' && risk ? RISK_LEVELS[risk.level].color : NODE_KINDS[n.kind].color;
+          const outline = 1 + ((n.relevance ?? 1) - 1) * 0.6;
           return (
             <g key={n.id} data-node={n.id} transform={`translate(${n.x} ${n.y})`} className="cursor-grab active:cursor-grabbing">
               {hit && <rect x={-w / 2 - 6} y={-H / 2 - 6} width={w + 12} height={H + 12} rx={20} fill="none" stroke="#e3c98f" strokeWidth={2} opacity={0.75} />}
@@ -285,8 +297,8 @@ export function BrainCanvas(props: Props) {
                 height={H}
                 rx={isGroup ? 8 : H / 2}
                 fill={isGroup ? '#1b1b1f' : '#17171a'}
-                stroke={sel ? '#c9a35a' : isGroup ? '#5e5c57' : '#34343a'}
-                strokeWidth={sel ? 2 : 1}
+                stroke={sel ? '#c9a35a' : isGroup ? '#5e5c57' : colorMode === 'risk' && risk && risk.level !== 'unknown' ? color : n.relevance && n.relevance > 1 ? '#8f8c85' : '#34343a'}
+                strokeWidth={sel ? Math.max(2, outline) : outline}
                 strokeDasharray={isGroup ? '5 4' : undefined}
               />
               <circle cx={-w / 2 + 16} cy={0} r={5.5} fill={isGroup ? '#5e5c57' : color} />
@@ -302,7 +314,12 @@ export function BrainCanvas(props: Props) {
                   <title>Drag onto another node to connect</title>
                 </g>
               )}
-              <title>{`${n.label}: ${isGroup ? `collapsed group of ${n.members}. Click to expand.` : NODE_KINDS[n.kind].label}`}</title>
+              {risk?.outdated && (
+                <text x={w / 2 - 12} y={H / 2 - 4} fontSize={9} fill="#a9a69e" textAnchor="middle" className="pointer-events-none" aria-hidden>
+                  ?
+                </text>
+              )}
+              <title>{`${n.label}: ${isGroup ? `collapsed group of ${n.members}. Click to expand.` : `${NODE_KINDS[n.kind].label}${risk && risk.from !== 'none' ? `. Risk: ${RISK_LEVELS[risk.level].label}${risk.outdated ? ' (outdated)' : ''}` : ''}${n.relevance ? `. Relevance ${n.relevance}/5` : ''}`}`}</title>
             </g>
           );
         })}

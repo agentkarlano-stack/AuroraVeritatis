@@ -1,7 +1,9 @@
-import { Download, ExternalLink, LayoutGrid, Maximize2, Network, Plus, Search, Trash2, Upload, X } from 'lucide-react';
+import { Download, ExternalLink, LayoutGrid, Maximize2, Network, Plus, Redo2, Search, Trash2, Undo2, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { BrainCanvas, type Selection, type Viewport } from '../components/BrainCanvas';
+import { BRAIN_BACKGROUNDS, type BrainBackground } from '../lib/brainDisplay';
+import { NodeIntel } from '../components/brain/NodeIntel';
 import { PageHeader, Panel } from '../components/ui';
 import {
   BrainImportError,
@@ -37,9 +39,12 @@ import {
 } from '../lib/brain';
 import { refHref, searchEntities } from '../lib/brainEntities';
 import { columnsLayout, fitView, forceLayout, nodeBoxes, timelineLayout } from '../lib/brainLayout';
-import { deleteGraph, getActiveGraphId, getGraph, listGraphs, requestPersistence, saveGraph, setActiveGraphId, type GraphSummary } from '../lib/brainStore';
+import { deleteGraph, getActiveGraphId, getGraph, listGraphs, recoverPending, requestPersistence, saveGraph, setActiveGraphId, stashPending, type GraphSummary } from '../lib/brainStore';
+import { RISK_LEVELS, RISK_ORDER } from '../lib/brainRisk';
 import { brainLimits, useTier } from '../lib/entitlements';
 import { plural } from '../lib/format';
+import { emptyHistory, record, redo, undo, type History } from '../lib/history';
+import { usePrefs } from '../store/prefs';
 
 type Load = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready' };
 const KINDS = Object.keys(NODE_KINDS) as NodeKind[];
@@ -74,9 +79,16 @@ export default function Brain() {
   const [newKind, setNewKind] = useState<NodeKind>('event');
   const [newLabel, setNewLabel] = useState('');
   const [viewName, setViewName] = useState('');
+  const [hist, setHist] = useState<History<BrainGraph>>(emptyHistory);
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const display = usePrefs((s) => s.brainCanvas);
+  const setDisplay = usePrefs((s) => s.setBrainCanvas);
+  const dragging = useRef(false);
   const box = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const latest = useRef<BrainGraph | null>(null);
+  /** When the oldest unsaved edit was made (0: nothing pending). */
+  const pendingSince = useRef(0);
   const current = useRef<BrainGraph | null>(null);
   /** Set when a graph is opened before the canvas has a size (e.g. it is created from the empty state). */
   const pendingFit = useRef(false);
@@ -92,8 +104,23 @@ export default function Brain() {
     setView(fitView(nodeBoxes(visibleGraph(g, hiddenKinds, groups).nodes), el.clientWidth, el.clientHeight));
   };
 
+  /** Applies a user edit and records the previous state for undo (edits sharing `key` in a burst are one step). */
+  const edit = (next: BrainGraph, key: string | null = null) => {
+    if (graph) setHist((h) => record(h, graph, key, Date.now()));
+    setGraph(next);
+  };
+  const step = (dir: 'undo' | 'redo') => {
+    if (!graph) return;
+    const r = (dir === 'undo' ? undo : redo)(hist, graph);
+    if (!r) return;
+    setHist(r.history);
+    setGraph({ ...r.value, updatedAt: new Date().toISOString() });
+    setSelection((s) => (s && (s.type === 'node' ? r.value.nodes : r.value.edges).some((x) => x.id === s.id) ? s : null));
+  };
+
   const open = (g: BrainGraph) => {
     setGraph(g);
+    setHist(emptyHistory());
     setSelection(null);
     setHidden(new Set());
     setCollapsed(new Set());
@@ -106,6 +133,7 @@ export default function Brain() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      await recoverPending();
       const list = await listGraphs();
       const active = await getActiveGraphId();
       const g = (active && list.some((s) => s.id === active) ? await getGraph(active) : undefined) ?? (list[0] ? await getGraph(list[0].id) : undefined);
@@ -140,28 +168,69 @@ export default function Brain() {
     return () => ro.disconnect();
   }, [hasGraph]);
 
-  // Debounced autosave; also flushes on unmount so the last edit is never lost.
+  // Debounced autosave (400 ms after the last edit, but at least once a second during a continuous burst of edits).
+  // Pending edits are also flushed when the tab is hidden and on unmount; on unload they are stashed synchronously
+  // (`stashPending`) because the browser may abort an IndexedDB write started then.
   useEffect(() => {
     if (!graph) return;
     latest.current = graph;
-    const t = setTimeout(() => {
-      saveGraph(graph)
-        .then(() => {
-          setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-          return listGraphs();
-        })
-        .then(setGraphs)
-        .catch((e: Error) => setMessage({ tone: 'error', text: `Could not save: ${e.message}` }));
-      latest.current = null;
-    }, 400);
+    const now = Date.now();
+    if (!pendingSince.current) pendingSince.current = now;
+    const t = setTimeout(
+      () => {
+        pendingSince.current = 0;
+        latest.current = null;
+        saveGraph(graph)
+          .then(() => {
+            setSavedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+            return listGraphs();
+          })
+          .then(setGraphs)
+          .catch((e: Error) => setMessage({ tone: 'error', text: `Could not save: ${e.message}` }));
+      },
+      Math.max(0, Math.min(400, 1000 - (now - pendingSince.current))),
+    );
     return () => clearTimeout(t);
   }, [graph]);
-  useEffect(
-    () => () => {
-      if (latest.current) void saveGraph(latest.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    const flush = () => {
+      if (!latest.current) return;
+      void saveGraph(latest.current);
+      latest.current = null;
+      pendingSince.current = 0;
+    };
+    const onVisibility = () => document.visibilityState === 'hidden' && flush();
+    const onPageHide = () => {
+      if (latest.current) stashPending(latest.current);
+      flush();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flush();
+    };
+  }, []);
+
+  // Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z or Ctrl+Y redoes. Text fields keep their own native undo.
+  const shortcut = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    shortcut.current = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!(e.ctrlKey || e.metaKey) || t?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' || k === 'y') {
+        e.preventDefault();
+        step(k === 'y' || e.shiftKey ? 'redo' : 'undo');
+      }
+    };
+  });
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => shortcut.current(e);
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
 
   const guard = (fn: () => void) => {
     try {
@@ -200,13 +269,13 @@ export default function Brain() {
       const c = center();
       const jitter = (graph.nodes.length % 5) * 18;
       const r = addNode(graph, { x: c.x + jitter, y: c.y + jitter, ...node }, limits);
-      setGraph(r.graph);
+      edit(r.graph);
       setSelection({ type: 'node', id: r.node.id });
     });
 
   const deleteSelection = () => {
     if (!graph || !selection) return;
-    setGraph(selection.type === 'node' ? removeNodes(graph, new Set([selection.id])) : removeEdges(graph, new Set([selection.id])));
+    edit(selection.type === 'node' ? removeNodes(graph, new Set([selection.id])) : removeEdges(graph, new Set([selection.id])));
     setSelection(null);
   };
 
@@ -214,9 +283,19 @@ export default function Brain() {
     if (!graph) return;
     const pos = kind === 'force' ? forceLayout(graph) : kind === 'columns' ? columnsLayout(graph) : timelineLayout(graph);
     const g = { ...moveNodes(graph, pos), updatedAt: new Date().toISOString() };
-    setGraph(g);
+    edit(g);
     fit(g);
   };
+
+  /** A research note next to the node, connected to it, ready to write in. */
+  const addResearch = (n: BrainNode) =>
+    guard(() => {
+      if (!graph) return;
+      const r = addNode(graph, { kind: 'note', label: `Research: ${n.label}`.slice(0, 120), x: n.x + 60, y: n.y + 90, ...(n.group ? { group: n.group } : {}) }, limits);
+      const c = connect(r.graph, r.node.id, n.id, 'related', limits);
+      edit(c.graph);
+      setSelection({ type: 'node', id: r.node.id });
+    });
 
   const onImport = async (file: File) => {
     try {
@@ -371,6 +450,25 @@ export default function Brain() {
                     </button>
                   </form>
                   <EntityAdd onPick={(e) => add({ kind: e.kind, label: e.label, ref: e.ref })} />
+                  <div className="flex gap-1">
+                    <button className="btn-ghost h-9 px-2.5" onClick={() => step('undo')} disabled={hist.past.length === 0} aria-label="Undo" title="Undo (Ctrl+Z)">
+                      <Undo2 className="h-4 w-4" aria-hidden />
+                    </button>
+                    <button className="btn-ghost h-9 px-2.5" onClick={() => step('redo')} disabled={hist.future.length === 0} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
+                      <Redo2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                  <select className="input h-9 w-auto" value={display.colorMode} onChange={(e) => setDisplay({ colorMode: e.target.value === 'risk' ? 'risk' : 'type' })} aria-label="Colour nodes by">
+                    <option value="type">Colour: node type</option>
+                    <option value="risk">Colour: risk</option>
+                  </select>
+                  <select className="input h-9 w-auto" value={display.background} onChange={(e) => setDisplay({ background: e.target.value as BrainBackground })} aria-label="Canvas background">
+                    {(Object.keys(BRAIN_BACKGROUNDS) as BrainBackground[]).map((b) => (
+                      <option key={b} value={b}>
+                        Background: {BRAIN_BACKGROUNDS[b].label}
+                      </option>
+                    ))}
+                  </select>
                   <div className="relative ml-auto">
                     <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-dim" aria-hidden />
                     <input
@@ -384,21 +482,33 @@ export default function Brain() {
                   </div>
                 </div>
 
-                <div ref={box} className="relative h-[62vh] min-h-[420px] overflow-hidden rounded-lg border border-line bg-[#111113]">
+                <div ref={box} className="relative h-[62vh] min-h-[420px] overflow-hidden rounded-lg border border-line" style={{ background: BRAIN_BACKGROUNDS[display.background].fill }}>
                   <BrainCanvas
                     graph={vis}
                     view={view}
                     selection={selection}
                     highlight={highlight}
+                    colorMode={display.colorMode}
+                    background={display.background}
+                    today={today}
                     onView={setView}
                     onSelect={setSelection}
-                    onMove={(pos) => setGraph((g) => (g ? moveNodes(g, pos) : g))}
-                    onMoveEnd={() => setGraph((g) => (g ? { ...g, updatedAt: new Date().toISOString() } : g))}
+                    onMove={(pos) => {
+                      if (!dragging.current) {
+                        dragging.current = true;
+                        setHist((h) => record(h, graph, null, Date.now()));
+                      }
+                      setGraph((g) => (g ? moveNodes(g, pos) : g));
+                    }}
+                    onMoveEnd={() => {
+                      dragging.current = false;
+                      setGraph((g) => (g ? { ...g, updatedAt: new Date().toISOString() } : g));
+                    }}
                     onConnect={(from, to) =>
                       guard(() => {
                         const r = connect(graph, from, to, 'related', limits);
                         if (r.edge) {
-                          setGraph(r.graph);
+                          edit(r.graph);
                           setSelection({ type: 'edge', id: r.edge.id });
                         } else if (r.reason) setMessage({ tone: 'info', text: r.reason });
                       })
@@ -422,6 +532,20 @@ export default function Brain() {
                       Timeline
                     </button>
                   </div>
+                  {display.colorMode === 'risk' && (
+                    <div className="absolute left-2 top-2 rounded-md border border-line bg-ink-900/90 px-2.5 py-2 text-[11px] text-mist" aria-label="Risk colour legend">
+                      <div className="mb-1 font-medium text-platinum">Risk</div>
+                      <ul className="space-y-0.5">
+                        {RISK_ORDER.map((l) => (
+                          <li key={l} className="flex items-center gap-1.5" title={RISK_LEVELS[l].description}>
+                            <span className="h-2 w-2 rounded-full" style={{ background: RISK_LEVELS[l].color }} aria-hidden />
+                            {RISK_LEVELS[l].label}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-1 text-slate-dim">Outline weight = your relevance</div>
+                    </div>
+                  )}
                   {graph.nodes.length === 0 && (
                     <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-slate-dim">
                       Add a node above, pick an Aurora entity, or double-click the canvas to add a note.
@@ -434,24 +558,38 @@ export default function Brain() {
                 <p className="text-[11px] text-slate-dim">
                   Drag to pan · scroll or pinch to zoom · drag nodes to arrange · select a node and drag its gold handle onto another node (or Shift-drag) to
                   connect · double-click empty space for a note · Delete removes the selection · F fits. Line style shows your certainty: solid = established/likely,
-                  dashed = possible, dotted = speculative.
+                  dashed = possible, dotted = speculative. Ctrl+Z undoes, Ctrl+Shift+Z redoes.
                 </p>
               </div>
 
               {/* Inspector */}
               <div className="space-y-4">
                 {selNode && (
+                  <NodeIntel
+                    key={`intel-${selNode.id}`}
+                    node={selNode}
+                    today={today}
+                    onChange={(patch) => edit(updateNode(graph, selNode.id, patch), `node:${selNode.id}:${Object.keys(patch).join()}`)}
+                    onAddResearch={() => addResearch(selNode)}
+                    onViewSources={() => {
+                      const el = document.getElementById('brain-node-sources');
+                      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      el?.querySelector('input')?.focus({ preventScroll: true });
+                    }}
+                  />
+                )}
+                {selNode && (
                   <NodeEditor
                     key={selNode.id}
                     node={selNode}
                     graph={graph}
                     groups={groups}
-                    onChange={(patch) => setGraph(updateNode(graph, selNode.id, patch))}
+                    onChange={(patch) => edit(updateNode(graph, selNode.id, patch), `node:${selNode.id}:${Object.keys(patch).join()}`)}
                     onConnect={(to, type) =>
                       guard(() => {
                         const r = connect(graph, selNode.id, to, type, limits);
                         if (r.edge) {
-                          setGraph(r.graph);
+                          edit(r.graph);
                           setSelection({ type: 'edge', id: r.edge.id });
                         } else if (r.reason) setMessage({ tone: 'info', text: r.reason });
                       })
@@ -465,8 +603,8 @@ export default function Brain() {
                     key={selEdge.id}
                     edge={selEdge}
                     graph={graph}
-                    onChange={(patch) => setGraph(updateEdge(graph, selEdge.id, patch))}
-                    onReverse={() => setGraph(reverseEdge(graph, selEdge.id))}
+                    onChange={(patch) => edit(updateEdge(graph, selEdge.id, patch), `edge:${selEdge.id}:${Object.keys(patch).join()}`)}
+                    onReverse={() => edit(reverseEdge(graph, selEdge.id))}
                     onSelectNode={(id) => setSelection({ type: 'node', id })}
                     onDelete={deleteSelection}
                   />
@@ -476,7 +614,7 @@ export default function Brain() {
                     <div className="space-y-4 text-sm">
                       <label className="block">
                         <span className="label">Name</span>
-                        <input className="input" value={graph.name} maxLength={120} onChange={(e) => setGraph({ ...graph, name: e.target.value, updatedAt: new Date().toISOString() })} />
+                        <input className="input" value={graph.name} maxLength={120} onChange={(e) => edit({ ...graph, name: e.target.value, updatedAt: new Date().toISOString() }, 'graph:name')} />
                       </label>
                       <div>
                         <span className="label">Node types (click to hide)</span>
@@ -526,7 +664,7 @@ export default function Brain() {
                               >
                                 {v.name}
                               </button>
-                              <button className="text-slate-dim hover:text-down" aria-label={`Delete view ${v.name}`} onClick={() => setGraph({ ...graph, views: graph.views.filter((x) => x.id !== v.id), updatedAt: new Date().toISOString() })}>
+                              <button className="text-slate-dim hover:text-down" aria-label={`Delete view ${v.name}`} onClick={() => edit({ ...graph, views: graph.views.filter((x) => x.id !== v.id), updatedAt: new Date().toISOString() })}>
                                 <X className="h-3.5 w-3.5" />
                               </button>
                             </li>
@@ -538,7 +676,7 @@ export default function Brain() {
                             e.preventDefault();
                             const name = viewName.trim();
                             if (!name || graph.views.length >= 20) return;
-                            setGraph({ ...graph, views: [...graph.views, { id: newId('v'), name: name.slice(0, 60), ...view, hiddenKinds: [...hidden], collapsedGroups: [...collapsed] }], updatedAt: new Date().toISOString() });
+                            edit({ ...graph, views: [...graph.views, { id: newId('v'), name: name.slice(0, 60), ...view, hiddenKinds: [...hidden], collapsedGroups: [...collapsed] }], updatedAt: new Date().toISOString() });
                             setViewName('');
                           }}
                         >
@@ -801,7 +939,9 @@ function NodeEditor({
             </div>
           )}
         </div>
-        <SourcesEditor sources={node.sources} onChange={(s) => onChange({ sources: s })} />
+        <div id="brain-node-sources" className="scroll-mt-24">
+          <SourcesEditor sources={node.sources} onChange={(s) => onChange({ sources: s })} />
+        </div>
         <div className="border-t border-line pt-3">
           <span className="label">Connections ({rels.length})</span>
           <ul className="space-y-1 text-xs">
