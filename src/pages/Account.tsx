@@ -11,6 +11,8 @@ import { useChartLibrary } from '../store/chartLibrary';
 import { Avatar } from '../components/Avatar';
 import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEditor';
 import { SecuritySettings } from '../components/account/SecuritySettings';
+import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
+import { INTRO_MODES, type IntroMode } from '../lib/intro';
 
 export default function Account() {
   const { status, session, signOut, config, recovery, urlError, client } = useAuth();
@@ -193,9 +195,22 @@ export default function Account() {
         </Panel>
 
         <Panel title="Preferences">
-          <button className="btn-ghost" onClick={prefs.replayIntro}>
-            Replay intro on next visit to the homepage
-          </button>
+          <div className="flex flex-wrap items-end gap-3 text-sm">
+            <label className="text-xs text-mist">
+              Brand intro
+              <select className="input mt-1 w-auto" value={prefs.introMode} onChange={(e) => prefs.setIntroMode(e.target.value as IntroMode)}>
+                {INTRO_MODES.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="btn-ghost text-xs" onClick={() => window.dispatchEvent(new Event(INTRO_REPLAY_EVENT))}>
+              Play the intro now
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-dim">The intro never plays when your device asks for reduced motion. It is silent and can always be skipped.</p>
         </Panel>
 
         {status === 'signed-in' && <DeleteAccount />}

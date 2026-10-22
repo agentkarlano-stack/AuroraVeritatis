@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { PROVENANCE } from '../../shared/copy';
 import type { Provenance } from '../../shared/types';
 import { tier, useTier } from '../lib/entitlements';
+import { Monogram } from './Logo';
 
 const BADGE_CLASS: Record<Provenance, string> = {
   confirmed: 'border-up/50 text-up',
@@ -70,6 +71,22 @@ export function Loading({ label = 'Loading' }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 py-6 text-sm text-mist" role="status">
       <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {label}…
+    </div>
+  );
+}
+
+/**
+ * Route-level loading state: the AV monogram with a slow pulse and an indeterminate bar (no fake percentages). It only
+ * appears after a short delay, so fast navigation shows nothing at all.
+ */
+export function AppLoading({ label = 'Loading' }: { label?: string }) {
+  return (
+    <div className="av-load-delay flex min-h-[50vh] flex-col items-center justify-center gap-4" role="status" aria-live="polite">
+      <Monogram className="av-load-mono h-10 w-auto" title="" />
+      <div className="h-px w-28 overflow-hidden bg-line" aria-hidden>
+        <div className="av-load-bar h-px w-1/3 bg-gold/80" />
+      </div>
+      <span className="text-xs text-slate-dim">{label}…</span>
     </div>
   );
 }

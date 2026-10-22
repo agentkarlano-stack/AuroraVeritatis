@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Drawing } from '../lib/chart';
+import type { IntroMode } from '../lib/intro';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
 
 export type WidgetId = 'briefing' | 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts';
@@ -38,6 +39,9 @@ interface PrefsState {
   notes: Note[];
   alerts: AlertRule[];
   introSeen: boolean;
+  /** When the brand intro plays (lib/intro.ts). */
+  introMode: IntroMode;
+  setIntroMode: (m: IntroMode) => void;
   /** Chart editor settings (normalised on read: older or synced copies may have an earlier shape). */
   chart: ChartSettings;
   drawings: Record<string, Drawing[]>;
@@ -80,6 +84,8 @@ export const usePrefs = create<PrefsState>()(
       notes: [],
       alerts: [],
       introSeen: false,
+      introMode: 'session',
+      setIntroMode: (introMode) => set({ introMode }),
       chart: DEFAULT_SETTINGS,
       drawings: {},
       setChart: (patch) => set((s) => ({ chart: { ...normalizeSettings(s.chart), ...patch } })),

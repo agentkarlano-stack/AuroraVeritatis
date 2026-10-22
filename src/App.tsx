@@ -3,8 +3,9 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { PrefsSync } from './auth/PrefsSync';
 import { EntitlementsSync } from './auth/EntitlementsSync';
+import { IntroSplash } from './components/IntroSplash';
 import { Layout } from './components/Layout';
-import { Loading } from './components/ui';
+import { AppLoading } from './components/ui';
 import Home from './pages/Home';
 
 const Headquarters = lazy(() => import('./pages/Headquarters'));
@@ -37,6 +38,7 @@ export function App() {
     <AuthProvider>
       <PrefsSync />
       <EntitlementsSync />
+      <IntroSplash />
       <BrowserRouter>
         <Routes>
           <Route path="share/card" element={<Lazy><ShareCard /></Lazy>} />
@@ -73,5 +75,5 @@ export function App() {
 }
 
 function Lazy({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<div className="mx-auto max-w-7xl px-4"><Loading /></div>}>{children}</Suspense>;
+  return <Suspense fallback={<AppLoading />}>{children}</Suspense>;
 }

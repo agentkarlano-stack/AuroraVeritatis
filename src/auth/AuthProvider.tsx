@@ -71,8 +71,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data } = await sb.auth.getSession();
         setSession(data.session);
         setStatus(data.session ? 'signed-in' : 'signed-out');
+        let hadSession = !!data.session;
         const sub = sb.auth.onAuthStateChange((event, s) => {
           if (event === 'PASSWORD_RECOVERY') setRecovery(true);
+          // A fresh sign-in (not a page load with a stored session or a token refresh) may play the brand intro.
+          if (event === 'SIGNED_IN' && !hadSession) {
+            try {
+              sessionStorage.setItem('av-intro-login', '1');
+            } catch {
+              /* storage unavailable */
+            }
+            window.dispatchEvent(new Event('av-intro-login'));
+          }
+          hadSession = !!s;
           setSession(s);
           setStatus(s ? 'signed-in' : 'signed-out');
         });
