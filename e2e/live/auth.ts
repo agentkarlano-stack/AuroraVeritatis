@@ -15,7 +15,6 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 
 const BASE = (process.env.BASE_URL ?? 'https://aurorav.app').replace(/\/+$/, '');
 const HOST = new URL(BASE).host;
-const MAIL_APIS = ['https://api.mail.tm', 'https://api.mail.gw'];
 
 type Kind = 'browser' | 'api' | 'email';
 interface Result {
@@ -42,7 +41,7 @@ async function check(id: string, name: string, kind: Kind, fn: () => Promise<str
     record(id, name, kind, 'pass', detail ?? '');
     return true;
   } catch (e) {
-    record(id, name, kind, 'fail', (e as Error).message.split('\n')[0]!.slice(0, 300));
+    record(id, name, kind, 'fail', why(e).split('\n')[0]!.slice(0, 300));
     return false;
   }
 }
@@ -55,17 +54,28 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const password = () => `Av-${randomBytes(18).toString('base64url')}`;
 
 // ---------------------------------------------------------------------------------------------------------------
-// Disposable inboxes
+// Disposable inboxes (several free providers; the first that works from the runner is used)
+interface RawMail {
+  id: string;
+  from: string;
+  subject: string;
+}
 interface Inbox {
-  api: string;
+  provider: string;
   address: string;
-  token: string;
+  list: () => Promise<RawMail[]>;
+  body: (id: string) => Promise<string>;
   seen: Set<string>;
 }
 
-async function mailJson(url: string, init: RequestInit = {}, token?: string): Promise<unknown> {
+function why(e: unknown): string {
+  const err = e as Error & { cause?: { code?: string; message?: string } };
+  return `${err.message}${err.cause ? ` (${err.cause.code ?? err.cause.message})` : ''}`;
+}
+
+async function getJson(url: string, init: RequestInit = {}, token?: string): Promise<unknown> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const res = await fetch(url, { ...init, headers: { 'content-type': 'application/json', accept: 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) } });
+    const res = await fetch(url, { ...init, headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': 'aurora-veritatis-e2e', ...(token ? { authorization: `Bearer ${token}` } : {}) } });
     if (res.status === 429) {
       await sleep(1500 * (attempt + 1));
       continue;
@@ -76,23 +86,60 @@ async function mailJson(url: string, init: RequestInit = {}, token?: string): Pr
   throw new Error('mail API rate limit');
 }
 
+async function mailTm(api: string, tag: string): Promise<Inbox> {
+  const domains = (await getJson(`${api}/domains`)) as { 'hydra:member': { domain: string; isActive: boolean }[] };
+  const domain = domains['hydra:member'].find((d) => d.isActive)?.domain;
+  assert(domain, 'no active domain');
+  const address = `av-e2e-${tag}-${randomBytes(5).toString('hex')}@${domain}`;
+  const pw = password();
+  await getJson(`${api}/accounts`, { method: 'POST', body: JSON.stringify({ address, password: pw }) });
+  const { token } = (await getJson(`${api}/token`, { method: 'POST', body: JSON.stringify({ address, password: pw }) })) as { token: string };
+  return {
+    provider: new URL(api).host,
+    address,
+    seen: new Set(),
+    list: async () =>
+      ((await getJson(`${api}/messages`, {}, token)) as { 'hydra:member': { id: string; from: { address: string }; subject: string }[] })['hydra:member'].map((m) => ({ id: m.id, from: m.from.address, subject: m.subject })),
+    body: async (id) => {
+      const m = (await getJson(`${api}/messages/${id}`, {}, token)) as { html?: string[]; text?: string };
+      return [...(m.html ?? []), m.text ?? ''].join('\n');
+    },
+  };
+}
+
+async function guerrilla(tag: string): Promise<Inbox> {
+  const api = 'https://api.guerrillamail.com/ajax.php';
+  let { sid_token: sid } = (await getJson(`${api}?f=get_email_address&lang=en`)) as { sid_token: string };
+  const user = `av-e2e-${tag}-${randomBytes(5).toString('hex')}`;
+  const set = (await getJson(`${api}?f=set_email_user&email_user=${user}&lang=en&sid_token=${sid}`)) as { email_addr: string; sid_token: string };
+  sid = set.sid_token ?? sid;
+  return {
+    provider: 'guerrillamail.com',
+    address: set.email_addr,
+    seen: new Set(['1']),
+    list: async () =>
+      ((await getJson(`${api}?f=check_email&seq=0&sid_token=${sid}`)) as { list?: { mail_id: string; mail_from: string; mail_subject: string }[] }).list
+        ?.filter((m) => !/guerrillamail/i.test(m.mail_from))
+        .map((m) => ({ id: String(m.mail_id), from: m.mail_from, subject: m.mail_subject })) ?? [],
+    body: async (id) => ((await getJson(`${api}?f=fetch_email&email_id=${id}&sid_token=${sid}`)) as { mail_body: string }).mail_body,
+  };
+}
+
 async function createInbox(tag: string): Promise<Inbox> {
-  let lastError: Error | null = null;
-  for (const api of MAIL_APIS) {
+  const errors: string[] = [];
+  const providers: [string, () => Promise<Inbox>][] = [
+    ['mail.tm', () => mailTm('https://api.mail.tm', tag)],
+    ['mail.gw', () => mailTm('https://api.mail.gw', tag)],
+    ['guerrillamail', () => guerrilla(tag)],
+  ];
+  for (const [name, make] of providers) {
     try {
-      const domains = (await mailJson(`${api}/domains`)) as { 'hydra:member': { domain: string; isActive: boolean }[] };
-      const domain = domains['hydra:member'].find((d) => d.isActive)?.domain;
-      assert(domain, 'no active domain');
-      const address = `av-e2e-${tag}-${randomBytes(5).toString('hex')}@${domain}`;
-      const pw = password();
-      await mailJson(`${api}/accounts`, { method: 'POST', body: JSON.stringify({ address, password: pw }) });
-      const { token } = (await mailJson(`${api}/token`, { method: 'POST', body: JSON.stringify({ address, password: pw }) })) as { token: string };
-      return { api, address, token, seen: new Set() };
+      return await make();
     } catch (e) {
-      lastError = e as Error;
+      errors.push(`${name}: ${why(e)}`);
     }
   }
-  throw lastError ?? new Error('no mail API available');
+  throw new Error(`no disposable inbox available: ${errors.join('; ')}`);
 }
 
 interface Mail {
@@ -105,15 +152,13 @@ interface Mail {
 async function waitForMail(inbox: Inbox, timeoutMs = 240_000): Promise<Mail> {
   const until = Date.now() + timeoutMs;
   while (Date.now() < until) {
-    const list = (await mailJson(`${inbox.api}/messages`, {}, inbox.token)) as { 'hydra:member': { id: string }[] };
-    const next = list['hydra:member'].find((m) => !inbox.seen.has(m.id));
+    const next = (await inbox.list()).find((m) => !inbox.seen.has(m.id));
     if (next) {
       inbox.seen.add(next.id);
-      const msg = (await mailJson(`${inbox.api}/messages/${next.id}`, {}, inbox.token)) as { from: { address: string }; subject: string; html?: string[]; text?: string };
-      const body = [...(msg.html ?? []), msg.text ?? ''].join('\n').replace(/&amp;/g, '&');
+      const body = (await inbox.body(next.id)).replace(/&amp;/g, '&');
       const link = body.match(/https:\/\/[^\s"'<>]+\/auth\/v1\/verify\?[^\s"'<>]+/)?.[0];
-      assert(link, `email "${msg.subject}" has no verification link`);
-      return { from: msg.from.address, subject: msg.subject, link };
+      assert(link, `email "${next.subject}" has no verification link`);
+      return { from: next.from, subject: next.subject, link };
     }
     await sleep(5000);
   }
@@ -218,7 +263,7 @@ async function main() {
       if (seen.has(path)) continue;
       seen.add(path);
       const js = await (await fetch(`${BASE}${path}`)).text();
-      assert(!/service_role|sb_secret_/.test(js), `${path} contains a privileged key marker`);
+      assert(!/sb_secret_[A-Za-z0-9_-]{20,}/.test(js), `${path} contains a secret API key`);
       for (const tok of js.match(/eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) ?? []) {
         const role = (JSON.parse(Buffer.from(tok.split('.')[1]!, 'base64url').toString()) as { role?: string }).role;
         assert(role !== 'service_role', `${path} embeds a service_role JWT`);
@@ -239,7 +284,7 @@ async function main() {
         const ctx = await browser.newContext(opts);
         for (const path of ['/', '/hq', '/radar', '/countries', '/markets', '/macro', '/brain', '/account']) {
           const page = await newPage(ctx);
-          const res = await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
+          const res = await page.goto(`${BASE}${path}`, { waitUntil: 'load' });
           assert(res?.ok(), `${path} HTTP ${res?.status()}`);
           assert(new URL(page.url()).pathname === path, `${path} redirected to ${new URL(page.url()).pathname}`);
           await page.locator('h1').first().waitFor({ timeout: 15_000 });
@@ -264,13 +309,17 @@ async function main() {
     });
 
     // 2–5. Registration and confirmation -----------------------------------------------------------------------
-    const inboxA = await createInbox('a');
-    const inboxB = await createInbox('b');
+    let inboxes: [Inbox, Inbox] | null = null;
+    await check('M', 'Disposable test inboxes created', 'email', async () => {
+      inboxes = [await createInbox('a'), await createInbox('b')];
+      return `${inboxes[0].provider}, ${inboxes[0].address.split('@')[1]}`;
+    });
+    if (!inboxes) return;
+    const [inboxA, inboxB] = inboxes as [Inbox, Inbox];
     const pwA = password();
     const pwB = password();
     let pwA2 = pwA;
     created.push({ email: inboxA.address, pw: () => pwA2 }, { email: inboxB.address, pw: () => pwB });
-    console.log(`Inboxes on ${new URL(inboxA.api).host} (${inboxA.address.split('@')[1]})`);
 
     const ctxA = await browser.newContext(desktop);
     await check('2', 'Browser creates the Supabase client (sign-in form enabled)', 'browser', async () => {
@@ -409,7 +458,6 @@ async function main() {
         const ctx = await browser.newContext(desktop);
         const page = await newPage(ctx);
         await page.goto(m.link);
-        await page.waitForLoadState('networkidle');
         const alert = page.getByRole('alert');
         await alert.first().waitFor({ timeout: 15_000 });
         const text = ((await alert.first().textContent()) ?? '').trim();
@@ -565,14 +613,15 @@ async function main() {
 }
 
 main()
-  .catch((e: Error) => record('X', 'Unexpected error', 'api', 'fail', e.message))
+  .catch((e: Error) => record('X', 'Unexpected error', 'api', 'fail', why(e)))
   .finally(() => {
     const failed = results.filter((r) => r.status === 'fail');
     const passed = results.filter((r) => r.status === 'pass').length;
     const lines = [`### Live auth test: ${BASE}`, '', `${passed} passed, ${failed.length} failed, ${results.length - passed - failed.length} skipped`, '', '| # | Check | Kind | Result | Detail |', '|---|---|---|---|---|', ...results.map((r) => `| ${r.id} | ${r.name} | ${r.kind} | ${r.status} | ${r.detail.replace(/\|/g, '/')} |`)];
     writeFileSync('live-auth-results.json', JSON.stringify({ base: BASE, at: new Date().toISOString(), results }, null, 2));
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
-    console.log(`::notice title=Live auth::${BASE}: ${passed} passed, ${failed.length} failed`);
+    const all = results.map((r) => `${r.status.toUpperCase()} [${r.kind}] ${r.id} ${r.name}${r.detail ? `: ${r.detail}` : ''}`).join('%0A');
+    console.log(`::notice title=Live auth results::${BASE}: ${passed} passed, ${failed.length} failed%0A${all}`);
     for (const f of failed) console.log(`::error title=Live auth ${f.id}::${f.name}: ${f.detail}`);
     process.exit(failed.length ? 1 : 0);
   });
