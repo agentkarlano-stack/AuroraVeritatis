@@ -90,28 +90,63 @@
   }
 }
 
-/* Intro splash (IntroSplash.tsx). Disabled entirely for prefers-reduced-motion users. */
-@keyframes av-word {
-  0% { opacity: 0; letter-spacing: 0.6em; }
-  25% { opacity: 1; letter-spacing: 0.12em; }
-  55% { opacity: 1; letter-spacing: 0.06em; }
-  75% { opacity: 0; letter-spacing: 0.02em; transform: scale(0.85); }
+/* Brand intro (IntroSplash.tsx), 2.6 s. Never shown with prefers-reduced-motion. Timeline:
+   0–0.6 s letters appear · 0.2–0.9 s gold hairline · 1.0–1.6 s other letters fall away while A and V glide onto the
+   monogram · 1.55–1.9 s crossfade to the monogram · 1.8 s tagline · 2.3–2.6 s fade out. */
+@keyframes av2-letter-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes av2-rest-out {
+  0%, 38% { opacity: 1; transform: none; filter: none; }
+  58% { opacity: 0; transform: translateY(4px) scale(0.92); filter: blur(4px); }
   100% { opacity: 0; }
 }
-@keyframes av-mono {
-  0%, 45% { opacity: 0; transform: translateY(18px) scale(0.6); }
-  70% { opacity: 1; transform: translateY(0) scale(1.06); }
-  82%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes av2-initial-move {
+  0%, 38% { transform: none; opacity: 1; color: #f1f0ec; }
+  60% { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); opacity: 1; color: #c9a35a; }
+  66%, 100% { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); opacity: 0; color: #c9a35a; }
 }
-@keyframes av-tag {
-  0%, 65% { opacity: 0; }
-  85%, 100% { opacity: 1; }
+@keyframes av2-mono-in {
+  0%, 58% { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+  70%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
-@keyframes av-out {
+@keyframes av2-line {
+  0%, 6% { opacity: 0; transform: scaleX(0); }
+  30% { opacity: 1; transform: scaleX(1); }
+  45% { opacity: 0.8; transform: scaleX(1); }
+  58%, 100% { opacity: 0; transform: scaleX(0.6); }
+}
+@keyframes av2-tag {
+  0%, 68% { opacity: 0; transform: translate(-50%, 4px); }
+  80%, 100% { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes av2-out {
   0%, 88% { opacity: 1; }
   100% { opacity: 0; }
 }
-.av-intro { animation: av-out 2.6s ease forwards; }
-.av-intro-word { animation: av-word 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-.av-intro-mono { animation: av-mono 2.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-.av-intro-tag { animation: av-tag 2.6s ease forwards; }
+.av2-intro { animation: av2-out 2.6s ease forwards; }
+.av2-letter { opacity: 0; animation: av2-letter-in 0.45s ease-out forwards; }
+.av2-rest { animation: av2-rest-out 2.6s ease forwards; }
+.av2-initial { animation: av2-initial-move 2.6s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+.av2-mono { opacity: 0; animation: av2-mono-in 2.6s ease forwards; }
+.av2-line { animation: av2-line 2.6s ease forwards; }
+.av2-tag { opacity: 0; animation: av2-tag 2.6s ease forwards; }
+
+/* Loading state (AppLoading in ui.tsx): a slow, restrained pulse of the monogram. */
+@keyframes av-load-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@keyframes av-load-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.av-load-mono { animation: av-load-pulse 1.6s ease-in-out infinite; }
+/* Fast routes never flash the loader: it fades in only after 180 ms. */
+@keyframes av-load-delay { 0%, 99% { visibility: hidden; } 100% { visibility: visible; } }
+.av-load-delay { animation: av-load-delay 180ms step-end forwards; visibility: hidden; }
+.av-load-bar { animation: av-load-bar 1.3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .av-load-mono, .av-load-bar { animation: none; }
+}
