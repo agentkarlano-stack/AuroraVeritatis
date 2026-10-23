@@ -11,7 +11,7 @@ _Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, int
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Economic and financial map layers (32 verified World Bank series; most-recent-value endpoint), then the commodity and energy monitor in Market Terminal (owner directive "Institutional market intelligence") |
+| Next recommended action | Market Impact Intelligence (event → countries → exposed commodities/markets → before/after comparison → Quant scenario → Brain), then multi-window workspaces and further Quant models (owner directive "Institutional market intelligence", priorities 3–5) |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,14 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Runs 33–34 (2026-10-23) — Economic maps and the Commodity & Energy Monitor
+- **PR #37 (merged):** 29 Map Explorer layers (finance and markets, economic geography, trade and logistics, energy and commodities), showing the most recent value per country with its own year via `/api/map/:indicator`. Preview smoke passed the new check.
+- **Commodity & Energy Monitor:**
+  - 28 World Bank Pink Sheet benchmarks: energy, precious and base metals, iron ore, grains, softs, fertilisers.
+  - Columns: 1/3/12-month change, 12-month volatility, 10-year position. Plus a watchlist (synced), comparison rebased to 100, return correlations, exposure-map links, CFTC positioning links, CSV and the chart editor.
+  - Monthly refresh workflow that opens a PR.
+  - Sources rejected: FRED (blocks runners) and IMF (all rights reserved). Daily, spot and futures prices are marked unavailable until a licence exists.
+
 ### Runs 31–32 (2026-10-23) — Admin verification, quotation calculator, cinematic introduction
 - **PRs #33–#35 (admin verification):**
   - Production live test **31/31**: ordinary users are refused every admin function, entitlements come from the server and profile editing works.

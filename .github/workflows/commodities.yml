@@ -1,0 +1,48 @@
+name: Commodity prices refresh
+
+# Monthly refresh of public/data/commodities.json from the World Bank Pink Sheet (CC BY 4.0), published in the first
+# week of each month. The converted file is proposed as a pull request for review; nothing is pushed to main.
+on:
+  schedule:
+    - cron: '17 6 8 * *' # 06:17 UTC on the 8th of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find the current monthly workbook
+        id: src
+        run: |
+          url=$(curl -sL --max-time 60 https://www.worldbank.org/en/research/commodity-markets | grep -o 'https://thedocs.worldbank.org/[^"]*CMO-Historical-Data-Monthly\.xlsx' | head -1)
+          [ -n "$url" ] || { echo "::error title=Commodity refresh::Monthly workbook link not found on the World Bank page"; exit 1; }
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          curl -sL --max-time 120 -o /tmp/pinksheet.xlsx "$url"
+      - name: Convert
+        run: python3 scripts/commodities/convert.py /tmp/pinksheet.xlsx "${{ steps.src.outputs.url }}" public/data/commodities.json
+      - name: Propose the update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Only the data changes matter; the conversion date alone is not a reason for a PR.
+          git show HEAD:public/data/commodities.json > /tmp/old.json
+          if python3 -c "import json,sys; a,b=(json.load(open(f)) for f in sys.argv[1:]); [d.pop('converted',None) for d in (a,b)]; sys.exit(0 if a==b else 1)" /tmp/old.json public/data/commodities.json; then
+            echo "::notice title=Commodity refresh::No new data"; exit 0
+          fi
+          end=$(python3 -c "import json;print(json.load(open('public/data/commodities.json'))['end'])")
+          branch="data/commodities-$end"
+          git config user.name "commodity-refresh"
+          git config user.email "commodity-refresh@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add public/data/commodities.json
+          git commit -m "Commodity prices: World Bank Pink Sheet to $end"
+          git push -f origin "$branch"
+          gh pr create --base main --head "$branch" --title "Commodity prices: World Bank Pink Sheet to $end" \
+            --body "Automatic monthly refresh from ${{ steps.src.outputs.url }} (CC BY 4.0). Review the CI and preview smoke results, then merge." \
+            || echo "::notice title=Commodity refresh::Branch $branch is ready; open a pull request for it (Actions may not be allowed to create pull requests)."

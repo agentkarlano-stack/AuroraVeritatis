@@ -1,4 +1,5 @@
 import { MACRO_SERIES, type MacroResponse } from '../../../shared/macro';
+import { COMMODITY_DATA_PATH, COMMODITY_OPTIONS, monthAt, type CommodityData } from '../commodities';
 import type { Provenance } from '../../../shared/types';
 import { INSTRUMENTS, INSTRUMENT_MAP } from '../../data/instruments';
 import { demoBars, type Bar } from '../demoMarket';
@@ -26,22 +27,25 @@ export interface Dataset {
 export interface InstrumentOption {
   symbol: string;
   name: string;
-  group: 'ECB reference rates (official)' | 'Simulated demo instruments';
+  group: 'ECB reference rates (official)' | 'Commodities, World Bank monthly averages (official)' | 'Simulated demo instruments';
   provenance: Provenance;
 }
 
 const ECB_PREFIX = 'ECB:';
+const CMD_PREFIX = 'CMD:';
 const ECB_FX = MACRO_SERIES.filter((s) => s.group === 'fx');
 
 export const INSTRUMENT_OPTIONS: InstrumentOption[] = [
   ...ECB_FX.map((s) => ({ symbol: `${ECB_PREFIX}${s.id}`, name: `EUR/${s.id.slice(3)}: euro in ${s.label}`, group: 'ECB reference rates (official)' as const, provenance: 'confirmed' as const })),
+  ...COMMODITY_OPTIONS.map((c) => ({ symbol: `${CMD_PREFIX}${c.id}`, name: `${c.name} (monthly average)`, group: 'Commodities, World Bank monthly averages (official)' as const, provenance: 'confirmed' as const })),
   ...INSTRUMENTS.map((i) => ({ symbol: i.symbol, name: i.name, group: 'Simulated demo instruments' as const, provenance: 'simulated' as const })),
 ];
 
-export const isKnownSymbol = (s: string) => INSTRUMENT_MAP.has(s) || ECB_FX.some((x) => `${ECB_PREFIX}${x.id}` === s);
 export const isEcbSymbol = (s: string) => s.startsWith(ECB_PREFIX);
-/** API path for symbols loaded from the Worker, or null for symbols available in the browser. */
-export const remotePath = (s: string) => (isEcbSymbol(s) ? `/api/macro/${s.slice(ECB_PREFIX.length)}?years=25` : null);
+export const isCommoditySymbol = (s: string) => s.startsWith(CMD_PREFIX) && COMMODITY_OPTIONS.some((c) => `${CMD_PREFIX}${c.id}` === s);
+export const isKnownSymbol = (s: string) => INSTRUMENT_MAP.has(s) || ECB_FX.some((x) => `${ECB_PREFIX}${x.id}` === s) || isCommoditySymbol(s);
+/** Path for symbols loaded from the server (Worker API or a static data file), or null for symbols generated in the browser. */
+export const remotePath = (s: string) => (isEcbSymbol(s) ? `/api/macro/${s.slice(ECB_PREFIX.length)}?years=25` : isCommoditySymbol(s) ? COMMODITY_DATA_PATH : null);
 
 export function demoDataset(symbol: string): Dataset | null {
   const inst = INSTRUMENT_MAP.get(symbol);
@@ -89,5 +93,33 @@ export function ecbDataset(symbol: string, res: MacroResponse): Dataset | null {
     hasVolume: false,
     decimals: Math.abs(obs.at(-1)!.value) >= 100 ? 2 : 4,
     bars: obs.map((o) => ({ time: o.date, open: o.value, high: o.value, low: o.value, close: o.value, volume: 0 })),
+  };
+}
+
+/**
+ * World Bank monthly average commodity prices: one published value per month (no open, high, low or volume), so bars
+ * carry the average as O = H = L = C and the dataset is close-only. Dated the first day of each month.
+ */
+export function commodityDataset(symbol: string, data: CommodityData): Dataset | null {
+  const id = symbol.slice(CMD_PREFIX.length);
+  const s = data.series.find((x) => x.id === id);
+  if (!s) return null;
+  const bars = s.values.flatMap((v, i) => (v == null ? [] : [{ time: `${monthAt(data.start, i)}-01`, open: v, high: v, low: v, close: v, volume: 0 }]));
+  if (!bars.length) return null;
+  return {
+    symbol,
+    name: `${s.name} (${s.unit}, monthly average)`,
+    provider: `${data.source.name}, updated ${data.publisherUpdated}`,
+    licence: data.source.attribution,
+    provenance: 'confirmed',
+    status: 'Monthly average (official benchmark), not a live or spot price',
+    assetType: `Commodity: ${s.group.toLowerCase()}`,
+    currency: s.unit,
+    timezone: 'Calendar month',
+    baseInterval: '1Mo',
+    hasOhlc: false,
+    hasVolume: false,
+    decimals: Math.abs(bars.at(-1)!.close) >= 100 ? 1 : 2,
+    bars,
   };
 }
