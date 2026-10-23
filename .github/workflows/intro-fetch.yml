@@ -31,8 +31,8 @@ jobs:
               # "<out> <url> <start s> <duration s>": trim a window, keep 1920 px, near-lossless, no audio.
               mkdir -p "intro-work/$(dirname "$out")"
               curl -sL --max-time 300 -o /tmp/src.mp4 "$url"
-              if ffmpeg -hide_banner -loglevel error -y -ss "$start" -t "$dur" -i /tmp/src.mp4 -an -vf "scale='min(1920,iw)':-2" -c:v libx264 -preset slow -crf 15 -pix_fmt yuv420p "intro-work/$out"; then
-                echo "200 $(stat -c %s "intro-work/$out") $out $url $start $dur $(ffprobe -v error -select_streams v -show_entries stream=width,height,r_frame_rate -of csv=p=0 /tmp/src.mp4)" >> intro-work/fetch-log.txt; ok=$((ok+1))
+              if ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$start" -t "$dur" -i /tmp/src.mp4 -an -vf "scale='min(1920,iw)':-2" -c:v libx264 -preset slow -crf 15 -pix_fmt yuv420p "intro-work/$out"; then
+                echo "200 $(stat -c %s "intro-work/$out") $out $url $start $dur $(ffprobe -v error -select_streams v -show_entries stream=width,height,r_frame_rate -of csv=p=0 /tmp/src.mp4 < /dev/null)" >> intro-work/fetch-log.txt; ok=$((ok+1))
               else
                 echo "ERR 0 $out $url" >> intro-work/fetch-log.txt; bad=$((bad+1))
               fi
