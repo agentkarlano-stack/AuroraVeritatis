@@ -47,6 +47,7 @@ check "ECB macro overview"    /api/macro                               200 '"mis
 check "ECB series history"    '/api/macro/ECB-DFR?years=10'            200 '"value":[0-9-]'
 check "currency metadata"     /currency                                200 '<title>[^<]*[Pp]urchasing power'
 check "briefing metadata"     /briefing                                200 '<title>World Briefing'
+check "newsletter metadata"   /newsletter                              200 '<title>Newsletter'
 check "currency (World Bank)" /api/currency/AUT                        200 '"cpi":\[\{"year"'
 check "bad indicator rejected" '/api/compare/2022?x=BAD.ID'            400 'Unsupported'
 check "unknown API route"     /api/does-not-exist                      404 'Not found'
@@ -83,6 +84,16 @@ print("email sign-up " + signup + ", email confirmation " + confirm)' 2>/dev/nul
 auth="Auth: $(auth_status)"
 echo "$auth"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Auth status::$auth"
+
+# Integrations: configuration flags (never values) and the cached, limited connection test (no prices, no contacts).
+integ=$(curl -sS -m 20 "$base/api/integrations" 2>/dev/null | tr -d '\n' || true)
+check_out=$(curl -sS -m 90 "$base/api/integrations/check" 2>/dev/null | tr -d '\n' | head -c 6000 || true)
+echo "Integrations: ${integ:-unavailable}"
+echo "Integration check: ${check_out:-unavailable}"
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  echo "::notice title=Integrations::${integ:-unavailable}"
+  echo "::notice title=Integration check::${check_out:-unavailable}"
+fi
 
 printf '%s\n' "${results[@]}"
 passed=$(printf '%s\n' "${results[@]}" | grep -c '^PASS' || true)
