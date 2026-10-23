@@ -162,7 +162,7 @@ export function ProfileEditor({ onLoaded }: { onLoaded?: (p: ProfileRow) => void
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
               {PUBLIC_FIELDS.map((f) => (
                 <label key={f.key} className="flex items-center gap-1.5 text-xs text-mist">
-                  <input type="checkbox" checked={row.visibility[f.key] === true} onChange={(e) => set({ visibility: { ...row.visibility, [f.key]: e.target.checked } })} /> {f.label}
+                  <input type="checkbox" aria-label={`Show ${f.label.toLowerCase()} publicly`} checked={row.visibility[f.key] === true} onChange={(e) => set({ visibility: { ...row.visibility, [f.key]: e.target.checked } })} /> {f.label}
                 </label>
               ))}
             </div>
