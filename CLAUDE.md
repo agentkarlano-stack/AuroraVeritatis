@@ -53,6 +53,12 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   real-email end-to-end test; it runs on PR previews labelled `live-auth` (3 real emails per run; Supabase hourly and Resend 100/day limits) and on demand against production. Local data
   belongs to one account at a time (`auth/localAccount.ts`); changes during the first sync are uploaded afterwards.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
+- Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
+  `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
+  3D (globe) projection, so layers and view are preserved. Layer catalogue with provider/licence/freshness metadata in
+  `lib/geo/layers.ts` (NASA GIBS rasters, World Bank choropleths via `/api/compare`, USGS/GDACS events, planned layers
+  with their needs); shareable URL state in `lib/geo/state.ts`. `scripts/check-gibs.mjs` (preview workflow) verifies
+  every GIBS layer from a GitHub runner, since cloud sessions cannot reach NASA. No WebGL2 → `WorldMap` SVG fallback.
 - World Briefing (`pages/Briefing.tsx`): pure logic in `lib/worldBriefing.ts` (status labels, reliability, fixed
   background per event type, period window, cross-source de-duplication, consent-based `briefing` prefs synced via
   `SYNCED_KEYS`); `components/BriefingGlobe.tsx`; `WorldMap` exposes a `focus()` handle via `ref` for guided views.

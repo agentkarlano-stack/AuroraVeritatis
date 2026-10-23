@@ -51,8 +51,22 @@ export default function Radar() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Global Radar" title="World events map">
-        Filter events by type, severity, region and date. Click a marker for details, or a country to open its dossier.
+      <PageHeader
+        eyebrow="Global Radar"
+        title="World events map"
+        actions={
+          <>
+            <Link className="btn-ghost" to="/geo?m=3d&s=satellite&l=earthquakes,disasters">
+              3D globe and satellite layers
+            </Link>
+            <Link className="btn-ghost" to="/briefing">
+              Guided briefing
+            </Link>
+          </>
+        }
+      >
+        Filter events by type, severity, region and date. Click a marker for details, or a country to open its dossier. Open the Map Explorer for the 3D
+        globe, satellite observations and country statistics.
       </PageHeader>
 
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">

@@ -10,6 +10,7 @@ import { Wordmark } from './Logo';
 const NAV = [
   { to: '/hq', label: 'Headquarters' },
   { to: '/radar', label: 'Global Radar' },
+  { to: '/geo', label: 'Map Explorer' },
   { to: '/countries', label: 'Countries' },
   { to: '/markets', label: 'Markets' },
   { to: '/lab', label: 'Quant Research' },
@@ -54,7 +55,7 @@ export function Layout() {
   }, []);
 
   const navCls = ({ isActive }: { isActive: boolean }) =>
-    `whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors ${isActive ? 'text-gold-soft' : 'text-mist hover:text-platinum'}`;
+    `whitespace-nowrap rounded-md px-2 py-2 text-sm 2xl:px-3 transition-colors ${isActive ? 'text-gold-soft' : 'text-mist hover:text-platinum'}`;
 
   return (
     <div className="flex min-h-dvh flex-col pb-16 lg:pb-0">
@@ -63,11 +64,11 @@ export function Layout() {
         Skip to content
       </a>
       <header className="sticky top-0 z-40 border-b border-line bg-ink-950/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
-          <Link to="/" aria-label="Aurora Veritatis home">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-4">
+          <Link to="/" aria-label="Aurora Veritatis home" className="shrink-0">
             <Wordmark />
           </Link>
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
+          <nav className="hidden items-center gap-1 xl:flex" aria-label="Main">
             {NAV.map((n) => (
               <NavLink key={n.to} to={n.to} className={navCls}>
                 {n.label}
@@ -86,13 +87,13 @@ export function Layout() {
               <UserRound className="h-4 w-4" aria-hidden />
               {status === 'signed-in' ? (session?.user.email?.split('@')[0] ?? 'Account') : 'Sign in'}
             </Link>
-            <button className="btn-quiet lg:hidden" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(!open)}>
+            <button className="btn-quiet xl:hidden" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(!open)}>
               {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
           </div>
         </div>
         {open && (
-          <nav className="border-t border-line bg-ink-950 px-4 py-3 lg:hidden" aria-label="Mobile">
+          <nav className="border-t border-line bg-ink-950 px-4 py-3 xl:hidden" aria-label="Mobile">
             {[...NAV, { to: '/pricing', label: 'Plans' }, { to: status === 'signed-in' ? '/account' : '/signin', label: status === 'signed-in' ? 'Account' : 'Sign in' }].map((n) => (
               <NavLink key={n.to} to={n.to} className={(s) => `block ${navCls(s)}`}>
                 {n.label}

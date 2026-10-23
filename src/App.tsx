@@ -23,6 +23,7 @@ const Positioning = lazy(() => import('./pages/Positioning'));
 const Macro = lazy(() => import('./pages/Macro'));
 const Currency = lazy(() => import('./pages/Currency'));
 const Briefing = lazy(() => import('./pages/Briefing'));
+const GeoExplorer = lazy(() => import('./pages/GeoExplorer'));
 const Newsletter = lazy(() => import('./pages/Newsletter'));
 const Brain = lazy(() => import('./pages/Brain'));
 const Share = lazy(() => import('./pages/Share'));
@@ -49,6 +50,7 @@ export function App() {
             <Route path="hq" element={<Lazy><Headquarters /></Lazy>} />
             <Route path="radar" element={<Lazy><Radar /></Lazy>} />
             <Route path="briefing" element={<Lazy><Briefing /></Lazy>} />
+            <Route path="geo" element={<Lazy><GeoExplorer /></Lazy>} />
             <Route path="newsletter" element={<Lazy><Newsletter /></Lazy>} />
             <Route path="countries" element={<Lazy><Countries /></Lazy>} />
             <Route path="countries/compare" element={<Lazy><Compare /></Lazy>} />
