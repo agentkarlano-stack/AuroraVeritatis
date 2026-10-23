@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { friendlyAuthError } from '../auth/authErrors';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading, PageHeader, Panel, Unavailable } from '../components/ui';
@@ -238,7 +239,7 @@ function NewPassword({ onDone }: { onDone: () => void }) {
             // Recovery ends here, which removes this panel; the page shows the confirmation instead.
             onDone();
           } catch (err) {
-            setMsg({ ok: false, text: (err as Error).message });
+            setMsg({ ok: false, text: friendlyAuthError(err) });
           }
         }}
       >

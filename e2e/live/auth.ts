@@ -461,6 +461,29 @@ async function main() {
       return 'saved and edited';
     });
 
+    await check('P1', 'Profile is edited from the Account page and persists', 'browser', async () => {
+      await pageA.goto(`${BASE}/account`);
+      const name = `E2E Profile ${randomBytes(2).toString('hex')}`;
+      await pageA.getByLabel('Display name').fill(name);
+      await pageA.getByRole('button', { name: 'Save profile' }).click();
+      await pageA.getByRole('status').filter({ hasText: 'Saved.' }).waitFor({ timeout: 15_000 });
+      const { data } = await a!.from('profiles').select('display_name');
+      assert(data?.[0]?.display_name === name, `stored display name: ${JSON.stringify(data)}`);
+      await pageA.reload();
+      await pageA.getByLabel('Display name').waitFor({ timeout: 15_000 });
+      await sleep(1500);
+      assert((await pageA.getByLabel('Display name').inputValue()) === name, 'display name not shown after reload');
+      return 'saved, stored in the database, shown after reload';
+    });
+
+    await check('AD1', 'An ordinary user sees no administration at /admin', 'browser', async () => {
+      await pageA.goto(`${BASE}/admin`);
+      await pageA.getByText('Your account does not have the administrator role').waitFor({ timeout: 20_000 });
+      assert(!(await pageA.getByRole('heading', { name: 'Accounts and plans' }).count()), 'admin dashboard rendered');
+      assert(!(await pageA.getByText('Recent administrator actions').count()), 'audit log rendered');
+      return 'refusal shown; no dashboard, user list or audit log';
+    });
+
     const ctxA2 = await browser.newContext(mobile);
     await check('11', 'Data syncs to a second device and deletes from there', 'browser', async () => {
       const page = await newPage(ctxA2);
@@ -600,6 +623,52 @@ async function main() {
         const rpc = await anon.rpc('delete_my_account');
         assert(rpc.error, 'guest could call delete_my_account');
         return `tables and delete_my_account refused (${rpc.error.code})`;
+      });
+      await check('S6', 'Ordinary users cannot call administrator functions', 'api', async () => {
+        const calls: [string, Record<string, unknown>][] = [
+          ['admin_stats', {}],
+          ['admin_list_users', { search: '', lim: 10, off: 0 }],
+          ['admin_grants', { target: null, lim: 10 }],
+          ['admin_audit_log', { lim: 10 }],
+          ['admin_grant_plan', { target: idA, new_tier: 'intelligence', expires: null, why: 'self-escalation attempt' }],
+          ['admin_grant_plan', { target: idB, new_tier: 'free', expires: null, why: 'attack on another user' }],
+          ['admin_revoke_grant', { grant_id: '00000000-0000-0000-0000-000000000000', why: 'attempt' }],
+        ];
+        const codes: string[] = [];
+        for (const [fn, args] of calls) {
+          const r = await A.rpc(fn, args);
+          assert(r.error, `${fn} succeeded for an ordinary user`);
+          assert(r.error.code === '42501', `${fn} failed with ${r.error.code} instead of 42501 (permission)`);
+          codes.push(r.error.code);
+        }
+        const e = await A.rpc('my_entitlements');
+        assert((e.data as { tier?: string } | null)?.tier === 'free', `tier after attempts: ${JSON.stringify(e.data)}`);
+        return `${codes.length} calls refused with 42501; tier still free`;
+      });
+      await check('S6b', 'Administrator tables are not reachable through the API', 'api', async () => {
+        const anon = await apiClient(sbUrl, anonKey);
+        const out: string[] = [];
+        for (const [who, c] of [['A', A], ['guest', anon]] as const) {
+          for (const t of ['admins', 'plan_grants', 'admin_audit']) {
+            const r = await c.schema('aurora_private').from(t).select('*').limit(1);
+            const rows = (r.data as unknown[] | null) ?? [];
+            assert(r.error && rows.length === 0, `${who} read aurora_private.${t}`);
+            out.push(r.error.code ?? '?');
+          }
+        }
+        return `6 reads refused (${[...new Set(out)].join(', ')})`;
+      });
+      await check('S7', 'Plan entitlements come from the server (Free, not admin, payments off)', 'api', async () => {
+        const r = await A.rpc('my_entitlements');
+        assert(!r.error, r.error?.message ?? '');
+        const e = r.data as { tier: string; is_admin: boolean; payments: string; grant: unknown; limits: { researchNotes: number } };
+        assert(e.tier === 'free' && e.is_admin === false && e.payments === 'disabled' && e.grant === null, JSON.stringify(e));
+        assert(e.limits.researchNotes === 25, `notes limit ${e.limits.researchNotes}`);
+        const anon = await apiClient(sbUrl, anonKey);
+        const g = await anon.rpc('my_entitlements');
+        const gs = await anon.rpc('admin_stats');
+        assert(g.error && gs.error, 'guests could call entitlement or admin functions');
+        return `tier free, is_admin false, payments disabled, 25 notes; guests refused (${g.error.code}, ${gs.error.code})`;
       });
     } else {
       record('S1', 'Two-account RLS tests', 'api', 'skip', 'second account not available');
