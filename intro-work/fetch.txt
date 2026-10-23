@@ -1,18 +1,33 @@
-# clips/42343.mp4 https://assets.mixkit.co/videos/42343/42343-1080.mp4 15 4.5
-clips/4457.mp4 https://assets.mixkit.co/videos/4457/4457-1080.mp4 9.5 4.5
-clips/4331.mp4 https://assets.mixkit.co/videos/4331/4331-1080.mp4 4.5 4.5
-clips/4334.mp4 https://assets.mixkit.co/videos/4334/4334-1080.mp4 5.5 4.5
-clips/4383.mp4 https://assets.mixkit.co/videos/4383/4383-1080.mp4 3.5 4.5
-clips/4455.mp4 https://assets.mixkit.co/videos/4455/4455-1080.mp4 7.5 4.5
-clips/4308.mp4 https://assets.mixkit.co/videos/4308/4308-1080.mp4 8.8 3.2
-clips/42342.mp4 https://assets.mixkit.co/videos/42342/42342-1080.mp4 8.5 4.5
-clips/49878.mp4 https://assets.mixkit.co/videos/49878/49878-1080.mp4 0 4.5
-clips/49878b.mp4 https://assets.mixkit.co/videos/49878/49878-1080.mp4 8 4.5
-clips/40654.mp4 https://assets.mixkit.co/videos/40654/40654-1080.mp4 3.5 4.5
-clips/49876.mp4 https://assets.mixkit.co/videos/49876/49876-1080.mp4 5.5 4.5
-clips/34562.mp4 https://assets.mixkit.co/videos/34562/34562-1080.mp4 1.5 4.5
-nasa/BlackMarble_2016_01deg.jpg https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg
-nasa/BlackMarble_2016_3km.jpg https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144898/BlackMarble_2016_3km.jpg
-nasa/page.html https://earthobservatory.nasa.gov/features/NightLights/page3.php
-nasa/eo-image.html https://earthobservatory.nasa.gov/images/144898/earth-at-night-2016
-# rerun 1792756756
+wb/NY.GDP.PCAP.PP.CD.json https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.PP.CD?format=json&mrnev=1&per_page=400
+wb/NV.IND.TOTL.ZS.json https://api.worldbank.org/v2/country/all/indicator/NV.IND.TOTL.ZS?format=json&mrnev=1&per_page=400
+wb/NV.IND.MANF.ZS.json https://api.worldbank.org/v2/country/all/indicator/NV.IND.MANF.ZS?format=json&mrnev=1&per_page=400
+wb/SL.IND.EMPL.ZS.json https://api.worldbank.org/v2/country/all/indicator/SL.IND.EMPL.ZS?format=json&mrnev=1&per_page=400
+wb/FB.CBK.BRCH.P5.json https://api.worldbank.org/v2/country/all/indicator/FB.CBK.BRCH.P5?format=json&mrnev=1&per_page=400
+wb/FB.ATM.TOTL.P5.json https://api.worldbank.org/v2/country/all/indicator/FB.ATM.TOTL.P5?format=json&mrnev=1&per_page=400
+wb/FS.AST.PRVT.GD.ZS.json https://api.worldbank.org/v2/country/all/indicator/FS.AST.PRVT.GD.ZS?format=json&mrnev=1&per_page=400
+wb/CM.MKT.LCAP.GD.ZS.json https://api.worldbank.org/v2/country/all/indicator/CM.MKT.LCAP.GD.ZS?format=json&mrnev=1&per_page=400
+wb/CM.MKT.LDOM.NO.json https://api.worldbank.org/v2/country/all/indicator/CM.MKT.LDOM.NO?format=json&mrnev=1&per_page=400
+wb/TX.VAL.FUEL.ZS.UN.json https://api.worldbank.org/v2/country/all/indicator/TX.VAL.FUEL.ZS.UN?format=json&mrnev=1&per_page=400
+wb/TX.VAL.MMTL.ZS.UN.json https://api.worldbank.org/v2/country/all/indicator/TX.VAL.MMTL.ZS.UN?format=json&mrnev=1&per_page=400
+wb/TX.VAL.FOOD.ZS.UN.json https://api.worldbank.org/v2/country/all/indicator/TX.VAL.FOOD.ZS.UN?format=json&mrnev=1&per_page=400
+wb/EG.IMP.CONS.ZS.json https://api.worldbank.org/v2/country/all/indicator/EG.IMP.CONS.ZS?format=json&mrnev=1&per_page=400
+wb/NY.GDP.TOTL.RT.ZS.json https://api.worldbank.org/v2/country/all/indicator/NY.GDP.TOTL.RT.ZS?format=json&mrnev=1&per_page=400
+wb/NY.GDP.PETR.RT.ZS.json https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PETR.RT.ZS?format=json&mrnev=1&per_page=400
+wb/NY.GDP.NGAS.RT.ZS.json https://api.worldbank.org/v2/country/all/indicator/NY.GDP.NGAS.RT.ZS?format=json&mrnev=1&per_page=400
+wb/NY.GDP.MINR.RT.ZS.json https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MINR.RT.ZS?format=json&mrnev=1&per_page=400
+wb/NY.GDP.COAL.RT.ZS.json https://api.worldbank.org/v2/country/all/indicator/NY.GDP.COAL.RT.ZS?format=json&mrnev=1&per_page=400
+wb/EG.ELC.COAL.ZS.json https://api.worldbank.org/v2/country/all/indicator/EG.ELC.COAL.ZS?format=json&mrnev=1&per_page=400
+wb/EG.ELC.NGAS.ZS.json https://api.worldbank.org/v2/country/all/indicator/EG.ELC.NGAS.ZS?format=json&mrnev=1&per_page=400
+wb/EG.ELC.NUCL.ZS.json https://api.worldbank.org/v2/country/all/indicator/EG.ELC.NUCL.ZS?format=json&mrnev=1&per_page=400
+wb/EG.ELC.PETR.ZS.json https://api.worldbank.org/v2/country/all/indicator/EG.ELC.PETR.ZS?format=json&mrnev=1&per_page=400
+wb/EG.ELC.RNEW.ZS.json https://api.worldbank.org/v2/country/all/indicator/EG.ELC.RNEW.ZS?format=json&mrnev=1&per_page=400
+wb/EG.USE.PCAP.KG.OE.json https://api.worldbank.org/v2/country/all/indicator/EG.USE.PCAP.KG.OE?format=json&mrnev=1&per_page=400
+wb/IS.SHP.GOOD.TU.json https://api.worldbank.org/v2/country/all/indicator/IS.SHP.GOOD.TU?format=json&mrnev=1&per_page=400
+wb/LP.LPI.OVRL.XQ.json https://api.worldbank.org/v2/country/all/indicator/LP.LPI.OVRL.XQ?format=json&mrnev=1&per_page=400
+wb/BX.KLT.DINV.WD.GD.ZS.json https://api.worldbank.org/v2/country/all/indicator/BX.KLT.DINV.WD.GD.ZS?format=json&mrnev=1&per_page=400
+wb/BN.CAB.XOKA.GD.ZS.json https://api.worldbank.org/v2/country/all/indicator/BN.CAB.XOKA.GD.ZS?format=json&mrnev=1&per_page=400
+wb/FI.RES.TOTL.MO.json https://api.worldbank.org/v2/country/all/indicator/FI.RES.TOTL.MO?format=json&mrnev=1&per_page=400
+wb/PA.NUS.PPPC.RF.json https://api.worldbank.org/v2/country/all/indicator/PA.NUS.PPPC.RF?format=json&mrnev=1&per_page=400
+wb/FR.INR.LEND.json https://api.worldbank.org/v2/country/all/indicator/FR.INR.LEND?format=json&mrnev=1&per_page=400
+wb/NE.TRD.GNFS.ZS.json https://api.worldbank.org/v2/country/all/indicator/NE.TRD.GNFS.ZS?format=json&mrnev=1&per_page=400
+wb/TM.VAL.FUEL.ZS.UN.json https://api.worldbank.org/v2/country/all/indicator/TM.VAL.FUEL.ZS.UN?format=json&mrnev=1&per_page=400
