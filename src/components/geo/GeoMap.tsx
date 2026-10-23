@@ -422,7 +422,9 @@ export default function GeoMap({
       handlers.current.onView({ center: [c.lng, c.lat], zoom: map.getZoom() });
     });
     map.on("error", (e) => {
-      const sourceId = (e as unknown as { sourceId?: string }).sourceId;
+      const { sourceId, error: err } = e as unknown as { sourceId?: string; error?: { status?: number } };
+      // Vector tile services answer 404 for tiles without any features (e.g. no fires there): not an error.
+      if (err?.status === 404 && sourceId && map.getSource(sourceId)?.type === "vector") return;
       if (sourceId?.startsWith("gibs-"))
         handlers.current.onTileError(sourceId.slice(5));
       else if (sourceId === "base") handlers.current.onTileError("blue-marble");

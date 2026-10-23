@@ -14,7 +14,27 @@ const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const layers = GEO_LAYERS.filter((l) => l.kind === 'gibs');
 
 async function tile(l) {
-  const url = gibsTiles(l, effectiveDate(l, yesterday, today)).replace('{z}', '1').replace('{y}', '0').replace('{x}', '1');
+  const template = gibsTiles(l, effectiveDate(l, yesterday, today));
+  const at = (y, x) => template.replace('{z}', '1').replace('{y}', String(y)).replace('{x}', String(x));
+  if (l.gibs.ext === 'mvt') {
+    // Vector services answer 404 for empty tiles: sample all four zoom-1 tiles and expect at least one with data.
+    const found = [];
+    let last = { status: 0, url: at(0, 0) };
+    for (const [y, x] of [[0, 0], [0, 1], [1, 0], [1, 1]]) {
+      try {
+        const res = await fetch(at(y, x), { signal: AbortSignal.timeout(20_000) });
+        last = { status: res.status, url: at(y, x) };
+        if (!res.ok) continue;
+        const tile = new VectorTile(new Pbf(new Uint8Array(await res.arrayBuffer())));
+        found.push(...Object.keys(tile.layers));
+      } catch (e) {
+        last = { status: 0, url: `${at(y, x)} (${e})` };
+      }
+    }
+    const want = l.gibs.sourceLayer ?? l.gibs.layer;
+    return { ok: found.includes(want), status: last.status, type: `vector layers: ${[...new Set(found)].join(', ') || 'none (all four tiles empty or missing)'}`, url: last.url };
+  }
+  const url = at(0, 1);
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     const type = res.headers.get('content-type') ?? '';
