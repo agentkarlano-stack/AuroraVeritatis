@@ -1,6 +1,6 @@
 # Development Progress
 
-_Last updated: 2026-10-22, run 25: guided World Briefing and Headquarters widgets (session `session_01DABSiCB2yNMA9QbADoheEi`)_
+_Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, integrations, audit (session `session_01DABSiCB2yNMA9QbADoheEi`)_
 
 ## Current status
 | Field | Value |
@@ -11,7 +11,7 @@ _Last updated: 2026-10-22, run 25: guided World Briefing and Headquarters widget
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Intelligence directive phase 7: Quant probabilistic forecasts (probabilities of up/down/range/target, distributions, calibration, walk-forward, fan charts), linked to the chart editor and the Brain |
+| Next recommended action | Business & Institutional quotation flow (private quotes, request form, organisations/seats migration, admin-only quotation calculator); then Quant probabilistic forecasts |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,26 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Runs 26–29 (2026-10-22/23) — Repairs, Map Explorer, integrations, comprehensive audit
+- PR #25: chart toolbar menus (instrument, interval, chart type, indicators, templates, settings,
+  saved, export) were clipped behind the chart by the toolbar's scroll container; they now render
+  in a positioned portal (verified 9/9 hidden before, all visible after, at 1440/1024/390 px and in
+  full screen). Candle intervals are searchable ("4h", "hourly", "weekly", "1M").
+- PR #26: the Worker serves the last good copy when a source is slow (>3 s) and refreshes in the
+  background (GDACS timeouts).
+- PR #27: brand intro default "every new visit and after sign-in" (fresh-visit detection, 30-minute
+  inactivity, no double play on email-link sign-in; old default migrated; explicit choices kept).
+- PR #28: Map Explorer `/geo` (MapLibre 2D/3D, five styles, NASA GIBS layers verified from CI,
+  13 World Bank choropleths, live events, shareable links, saved views, PNG export).
+- PR #29: Twelve Data (server side, prices gated by `MARKET_DATA_DISPLAY=licensed`, live
+  connection test: Basic plan, real 1m–1D bars) and Brevo newsletter (double opt-in, signed
+  unsubscribe/deletion links, Aurora list only; domain authenticated).
+- PR #30/#31: production UI audit workflow (26 routes × 9 widths, interaction checks, security
+  headers), touch targets, lazy quick search (initial JS 132.9 → 128.1 KB gzip), unused
+  dependencies removed, HSTS added, SECURITY.md corrected.
+- Audit: 239 owner requirements extracted; 107 (45%) fully implemented and verified (vault
+  `AUDIT-2026-10-23.md`).
+
 ### Run 25 (2026-10-22) — Phase 6: guided World Briefing, Headquarters widgets
 - `/briefing` (`pages/Briefing.tsx`, pure logic `lib/worldBriefing.ts`), a guided tour with no AI:
   - Period: guests see 24 hours, 3 days or 7 days. Signed-in users who opt in ("Remember when I finish a briefing")
