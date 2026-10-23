@@ -32,6 +32,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },
   '/geo': { title: 'Map Explorer', description: 'A 2D map and 3D globe combining NASA satellite observations, World Bank country statistics and live earthquake and disaster alerts, with sources and dates for every layer.' },
+  '/newsletter': { title: 'Newsletter', description: 'Subscribe to the Aurora Veritatis newsletter with double opt-in, or unsubscribe and delete your newsletter data.' },
   '/briefing': { title: 'World Briefing', description: 'A guided tour of recent earthquakes and disaster alerts, one event at a time, with location, background, severity, reliability and sources. No AI.' },
   '/brain': { title: 'Personal Intelligence Brain', description: 'Build your own research graph linking events, countries, companies, markets and indicators with typed, sourced relationships. Stored privately in your browser.' },
   '/share': { title: 'Share Aurora Veritatis', description: 'Link previews, Story and post images for Aurora Veritatis. Download them or copy a link to share.' },

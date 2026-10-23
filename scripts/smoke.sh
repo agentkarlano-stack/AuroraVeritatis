@@ -11,9 +11,15 @@ results=()
 check() { # name, path, expected status, grep pattern (extended regex, may be empty)
   local name=$1 path=$2 want=$3 pattern=$4 body code
   body=$(mktemp)
-  code=$(curl -sS -m 20 -A "aurora-smoke/1.0" -o "$body" -w '%{http_code}' "$base$path" 2>/dev/null || echo 000)
+  # curl prints 000 itself when it gets no response; do not append a second code on failure.
+  code=$(curl -sS -m 20 -A "aurora-smoke/1.0" -o "$body" -w '%{http_code}' "$base$path" 2>/dev/null)
+  [[ "$code" =~ ^[0-9]{3}$ ]] || code=000
   if [[ "$code" == "$want" ]] && { [[ -z "$pattern" ]] || grep -qE "$pattern" "$body"; }; then
     results+=("PASS $name ($code)")
+  elif [[ "${SOFT:-}" == "1" && "$code" == "000" ]]; then
+    # A third-party feed that did not answer in time (no saved copy yet on a fresh preview): report, do not fail.
+    results+=("WARN $name (upstream did not answer within 20 s)")
+    [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::warning title=Upstream feed slow::$name did not answer within 20 s"
   else
     results+=("FAIL $name (HTTP $code, expected $want${pattern:+ and /$pattern/} | body: $(head -c 240 "$body" | tr -d '\n;'))")
     fail=1
@@ -31,7 +37,7 @@ check "favicon"               /favicon.svg                             200 '<svg
 check "World Bank profile"    /api/countries/DEU                       200 '"iso3":"DEU"'
 check "World Bank comparison" /api/compare/2022                        200 '"points":\[\{'
 check "USGS earthquakes"      /api/events/earthquakes                  200 '"events"'
-check "GDACS disasters"       /api/events/disasters                    200 '"events"'
+SOFT=1 check "GDACS disasters" /api/events/disasters                    200 '"events"'
 check "positioning metadata"  /positioning                             200 '<title>[^<]*[Pp]ositioning'
 check "CFTC COT overview"     /api/cot                                 200 '"missing":\[\]'
 check "CFTC COT history"      '/api/cot/088691?years=3'                200 '"openInterest":[0-9]'
@@ -48,6 +54,7 @@ check "ECB series history"    '/api/macro/ECB-DFR?years=10'            200 '"val
 check "currency metadata"     /currency                                200 '<title>[^<]*[Pp]urchasing power'
 check "briefing metadata"     /briefing                                200 '<title>World Briefing'
 check "map explorer metadata" /geo                                     200 '<title>Map Explorer'
+check "newsletter metadata"   /newsletter                              200 '<title>Newsletter'
 check "currency (World Bank)" /api/currency/AUT                        200 '"cpi":\[\{"year"'
 check "bad indicator rejected" '/api/compare/2022?x=BAD.ID'            400 'Unsupported'
 check "unknown API route"     /api/does-not-exist                      404 'Not found'
@@ -84,6 +91,16 @@ print("email sign-up " + signup + ", email confirmation " + confirm)' 2>/dev/nul
 auth="Auth: $(auth_status)"
 echo "$auth"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Auth status::$auth"
+
+# Integrations: configuration flags (never values) and the cached, limited connection test (no prices, no contacts).
+integ=$(curl -sS -m 20 "$base/api/integrations" 2>/dev/null | tr -d '\n' || true)
+check_out=$(curl -sS -m 90 "$base/api/integrations/check" 2>/dev/null | tr -d '\n' | head -c 6000 || true)
+echo "Integrations: ${integ:-unavailable}"
+echo "Integration check: ${check_out:-unavailable}"
+if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+  echo "::notice title=Integrations::${integ:-unavailable}"
+  echo "::notice title=Integration check::${check_out:-unavailable}"
+fi
 
 printf '%s\n' "${results[@]}"
 passed=$(printf '%s\n' "${results[@]}" | grep -c '^PASS' || true)

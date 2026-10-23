@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { useRouteMeta } from '../lib/useMeta';
 import { CommandPalette } from './CommandPalette';
+import { NewsletterSignup } from './NewsletterSignup';
 import { Wordmark } from './Logo';
 
 const NAV = [
@@ -137,6 +138,9 @@ export function Layout() {
             <a className="mt-3 inline-block text-xs text-gold hover:text-gold-soft" href="mailto:auroraveritatissup@gmail.com">
               auroraveritatissup@gmail.com
             </a>
+            <div className="mt-6 max-w-sm">
+              <NewsletterSignup compact />
+            </div>
           </div>
           <div>
             <div className="eyebrow mb-3">Platform</div>

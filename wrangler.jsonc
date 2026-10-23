@@ -19,6 +19,8 @@
   // Plain-text vars (SUPABASE_URL, SUPABASE_ANON_KEY, POSTHOG_KEY, ...) are managed in the
   // Cloudflare dashboard. keep_vars stops `wrangler deploy` from wiping them.
   "keep_vars": true,
+  // Exposes the deployed version id at runtime (used as the integration-check cache key).
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "observability": { "enabled": true },
   "upload_source_maps": true
   // Custom domain aurorav.app is attached in the Cloudflare dashboard; it is intentionally

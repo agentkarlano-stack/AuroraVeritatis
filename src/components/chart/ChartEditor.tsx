@@ -6,7 +6,7 @@ import type { ChartPoint, Drawing } from '../../lib/chart';
 import { CHART_TYPES, CHART_TYPE_MAP, type ChartTypeId } from '../../lib/chart/chartTypes';
 import { composeExport, DEFAULT_EXPORT, downloadCanvas, downloadText, type ExportOptions } from '../../lib/chart/exportImage';
 import { INDICATOR_MAP, indicatorBlocker, indicatorLabel } from '../../lib/chart/indicators';
-import { INTERVALS, INTERVAL_MAP, RANGES, intervalAvailability, resample, type ChartRange, type IntervalId } from '../../lib/chart/intervals';
+import { INTERVAL_MAP, RANGES, intervalAvailability, resample, searchIntervals, type ChartRange, type IntervalId } from '../../lib/chart/intervals';
 import { INSTRUMENT_OPTIONS, type Dataset } from '../../lib/chart/sources';
 import { BUILT_IN_TEMPLATES, normalizeSettings, parseLayout, type ChartSettings, type IndicatorInstance, type SavedLayout } from '../../lib/chart/workspace';
 import { LimitNotice, ProvenanceBadge } from '../ui';
@@ -174,25 +174,8 @@ export function ChartEditor({ dataset, symbol, onSymbolChange, annotations, load
         <ChartMenu label={<span className="max-w-[9rem] truncate">{symbol.replace('ECB:', '')}</span>} icon={<Search className="h-3.5 w-3.5" aria-hidden />} title="Instrument" width="sm:w-80">
           {(close) => <InstrumentPicker current={symbol} onPick={(s) => (onSymbolChange(s), close())} />}
         </ChartMenu>
-        <ChartMenu label={INTERVAL_MAP.get(interval)!.short} title={`Candle interval: ${intervalLabel}`} width="sm:w-64">
-          {(close) => (
-            <div className="space-y-2">
-              <p className="text-[11px] text-slate-dim">Bar resolution. The history range is set separately.</p>
-              {(['Minutes', 'Hours', 'Days and longer'] as const).map((g) => (
-                <div key={g}>
-                  <div className="eyebrow mb-1">{g}</div>
-                  {INTERVALS.filter((i) => i.group === g).map((i) => {
-                    const av = dataset ? intervalAvailability(dataset.baseInterval, i.id) : { ok: true as const };
-                    return (
-                      <MenuOption key={i.id} selected={interval === i.id} disabled={!av.ok} reason={av.ok ? null : av.reason} onSelect={() => (update({ interval: i.id }), close())}>
-                        {i.label}
-                      </MenuOption>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          )}
+        <ChartMenu label={INTERVAL_MAP.get(interval)!.short} title={`Candle interval: ${intervalLabel}`} width="sm:w-72">
+          {(close) => <IntervalPicker current={interval} base={dataset?.baseInterval ?? null} onPick={(id) => (update({ interval: id }), close())} />}
         </ChartMenu>
         <div className="flex shrink-0 gap-1" role="group" aria-label="History range">
           {RANGES.map((r) => (
@@ -614,6 +597,52 @@ function SavedCharts({ onSave, onOpen, onImport }: { onSave: (name: string) => v
         <Upload className="h-3.5 w-3.5" aria-hidden /> Import a chart (JSON)
       </button>
       <p className="text-[11px] text-slate-dim">Saved in this browser. Cloud sync for saved charts is planned.</p>
+    </div>
+  );
+}
+
+/** Searchable candle-interval list, laid out like the indicator library ("4h", "4 hours", "hourly", "weekly"). */
+function IntervalPicker({ current, base, onPick }: { current: IntervalId; base: IntervalId | null; onPick: (id: IntervalId) => void }) {
+  const [q, setQ] = useState('');
+  const list = searchIntervals(q).map((i) => ({ def: i, av: base ? intervalAvailability(base, i.id) : ({ ok: true } as const) }));
+  const firstOk = list.find((x) => x.av.ok);
+  return (
+    <div className="space-y-2">
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-dim" aria-hidden />
+        <input
+          className="input pl-8"
+          placeholder="Search intervals (4h, daily, weekly)"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && firstOk) {
+              e.preventDefault();
+              onPick(firstOk.def.id);
+            }
+          }}
+          aria-label="Search intervals"
+          autoFocus
+        />
+      </label>
+      <p className="text-[11px] text-slate-dim">Bar resolution. The history range is set separately.</p>
+      <ul className="max-h-80 space-y-0.5 overflow-y-auto">
+        {list.length === 0 && <li className="px-2 py-3 text-sm text-slate-dim">No interval matches.</li>}
+        {(['Minutes', 'Hours', 'Days and longer'] as const).map((g) => {
+          const rows = list.filter((x) => x.def.group === g);
+          if (!rows.length) return null;
+          return (
+            <li key={g}>
+              <div className="eyebrow mb-1 mt-1">{g}</div>
+              {rows.map(({ def, av }) => (
+                <MenuOption key={def.id} selected={current === def.id} disabled={!av.ok} reason={av.ok ? null : av.reason} onSelect={() => onPick(def.id)}>
+                  {def.label} <span className="text-slate-dim">· {def.short}</span>
+                </MenuOption>
+              ))}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
