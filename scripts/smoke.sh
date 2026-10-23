@@ -11,7 +11,9 @@ results=()
 check() { # name, path, expected status, grep pattern (extended regex, may be empty)
   local name=$1 path=$2 want=$3 pattern=$4 body code
   body=$(mktemp)
-  code=$(curl -sS -m 20 -A "aurora-smoke/1.0" -o "$body" -w '%{http_code}' "$base$path" 2>/dev/null || echo 000)
+  # curl prints 000 itself when it gets no response; do not append a second code on failure.
+  code=$(curl -sS -m 20 -A "aurora-smoke/1.0" -o "$body" -w '%{http_code}' "$base$path" 2>/dev/null)
+  [[ "$code" =~ ^[0-9]{3}$ ]] || code=000
   if [[ "$code" == "$want" ]] && { [[ -z "$pattern" ]] || grep -qE "$pattern" "$body"; }; then
     results+=("PASS $name ($code)")
   elif [[ "${SOFT:-}" == "1" && "$code" == "000" ]]; then
