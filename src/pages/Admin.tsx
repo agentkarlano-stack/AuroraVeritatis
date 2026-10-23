@@ -121,7 +121,10 @@ export default function Admin() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <PageHeader eyebrow="Administration" title="Accounts and plans">
-        Manual plan grants are complimentary access, not payments. Payments are switched off. Every change is recorded in the audit log.
+        Manual plan grants are complimentary access, not payments. Payments are switched off. Every change is recorded in the audit log.{' '}
+        <Link to="/admin/quote" className="text-gold hover:underline">
+          Quotation calculator
+        </Link>
       </PageHeader>
       {error && (
         <p role="alert" className="mb-4 rounded-md border border-down/40 p-3 text-sm text-down">
