@@ -50,6 +50,9 @@ interface PrefsState {
   introChoice?: LegacyIntroMode | null;
   /** Legacy (before explicit choices were tracked); kept only so an old explicit "off" still applies. */
   introMode?: LegacyIntroMode;
+  /** Commodity & Energy Monitor watchlist (commodity ids from lib/commodities.ts). */
+  commodityWatch: string[];
+  toggleCommodity: (id: string) => void;
   /** World Briefing settings; the last-briefing time is kept only with consent (`remember`). Read via normalizeBriefingPrefs. */
   briefing: BriefingPrefs;
   setBriefing: (patch: Partial<BriefingPrefs>) => void;
@@ -112,6 +115,8 @@ export const usePrefs = create<PrefsState>()(
       introSeen: false,
       intro: null,
       setIntro: (intro) => set({ intro }),
+      commodityWatch: ['brent', 'gas-eu', 'gold', 'copper', 'wheat'],
+      toggleCommodity: (id) => set((s) => ({ commodityWatch: s.commodityWatch.includes(id) ? s.commodityWatch.filter((x) => x !== id) : [...s.commodityWatch, id].slice(-30) })),
       briefing: DEFAULT_BRIEFING_PREFS,
       setBriefing: (patch) => set((s) => ({ briefing: normalizeBriefingPrefs({ ...normalizeBriefingPrefs(s.briefing), ...patch }) })),
       brainCanvas: { background: 'dots', colorMode: 'type' },

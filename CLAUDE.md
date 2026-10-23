@@ -60,6 +60,11 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   (`latest` layers: most recent value per country with its year; allow-list `MAP_INDICATOR_IDS`), USGS/GDACS events, planned layers
   with their needs); shareable URL state in `lib/geo/state.ts`. `scripts/check-gibs.mjs` (preview workflow) verifies
   every GIBS layer from a GitHub runner, since cloud sessions cannot reach NASA. No WebGL2 → `WorldMap` SVG fallback.
+- Commodity & Energy Monitor (`pages/Commodities.tsx`, `/markets/commodities`): World Bank Pink Sheet monthly averages
+  (CC BY 4.0) in the static `public/data/commodities.json` (bypasses the Worker; too large to parse within Workers CPU
+  limits), built by `scripts/commodities/convert.py` and refreshed monthly by `commodities.yml` as a PR. Analytics in
+  `lib/commodities.ts`; `CMD:` symbols open close-only monthly datasets in the chart editor (`lib/chart/sources.ts`).
+  FRED refuses cloud runners; IMF PCPS is all-rights-reserved; daily/spot/futures prices need a licensed feed.
 - Introduction (`components/IntroSplash.tsx`, decisions in `lib/intro.ts`): synced `prefs.intro` = none | brand | cinematic
   | null (automatic: film on the first-ever visit, brand animation afterwards). The film (`public/media/intro/*-v1.*`,
   three variants) is requested only when it plays; edit, sources and licences in `docs/INTRO.md`; rebuild with

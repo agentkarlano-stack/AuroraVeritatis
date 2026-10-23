@@ -107,6 +107,9 @@ export default function Markets() {
         title="Market analysis"
         actions={
           <>
+            <Link to="/markets/commodities" className="btn-ghost text-xs">
+              Commodity &amp; Energy Monitor
+            </Link>
             <Link to="/impact" className="btn-ghost text-xs">
               Market Impact Radar
             </Link>
@@ -129,8 +132,17 @@ export default function Markets() {
         </DemoNotice>
       ) : (
         <p className="flex items-center gap-2 text-xs text-slate-dim">
-          <ProvenanceBadge kind="confirmed" /> Official ECB euro reference rates: one value per working day, published around 16:00 CET.
-          For information only, not trading rates.
+          <ProvenanceBadge kind="confirmed" />
+          {symbol.startsWith('CMD:') ? (
+            <span>
+              Official World Bank monthly average prices (CC BY 4.0): one value per month, not live or spot prices.{' '}
+              <Link className="text-gold hover:underline" to="/markets/commodities">
+                Commodity &amp; Energy Monitor
+              </Link>
+            </span>
+          ) : (
+            'Official ECB euro reference rates: one value per working day, published around 16:00 CET. For information only, not trading rates.'
+          )}
         </p>
       )}
 
