@@ -10,7 +10,7 @@ import { getJson } from '../lib/api';
 import { countryByIso3, searchCountries } from '../lib/countries';
 import { CATEGORY_LABEL, useEvents } from '../lib/events';
 import { relativeTime } from '../lib/format';
-import { CATEGORIES, COMBINATIONS, DATA_NATURE, GEO_LAYERS, LAYER_MAP, choroplethLegend, formatValue, isActive, type ActiveLayer, type ChoroplethLayer, type GeoLayer } from '../lib/geo/layers';
+import { CATEGORIES, COMBINATIONS, DATA_NATURE, GEO_LAYERS, LAYER_MAP, choroplethLegend, effectiveDate, formatValue, isActive, type ActiveLayer, type ChoroplethLayer, type GeoLayer } from '../lib/geo/layers';
 import { MAX_LAYERS, STYLES, decodeState, defaultState, encodeState, shiftDate, toggleLayer, type MapState, type MapStyleId } from '../lib/geo/state';
 import { hasWebGL2 } from '../lib/geo/webgl';
 import { STATUS, statusOf } from '../lib/worldBriefing';
@@ -74,9 +74,10 @@ function useChoropleths(layers: ChoroplethLayer[], year: number) {
 
 export default function GeoExplorer() {
   const [env] = useState(() => {
+    const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const thisYear = new Date().getUTCFullYear();
-    return { yesterday, minYear: 1990, maxYear: thisYear - 1, defaultYear: thisYear - 2, webgl: hasWebGL2() };
+    return { today, yesterday, minYear: 1990, maxYear: thisYear - 1, defaultYear: thisYear - 2, webgl: hasWebGL2() };
   });
   const [state, setState] = useState<MapState>(() => decodeState(location.search, defaultState(env.yesterday, env.defaultYear), { today: env.yesterday, minYear: env.minYear, maxYear: env.maxYear }));
   const [favourites, setFavourites] = useState<string[]>(() => readJson(FAV_KEY, []));
@@ -334,6 +335,7 @@ export default function GeoExplorer() {
                 <GeoMap
                   ref={map}
                   state={state}
+                  today={env.today}
                   events={events}
                   values={values}
                   onView={(v) => setState((s) => ({ ...s, ...v }))}
@@ -364,7 +366,7 @@ export default function GeoExplorer() {
                 {hover}
               </div>
             )}
-            <Legend active={active} counts={counts} loading={loading} failed={failed} state={state} />
+            <Legend active={active} counts={counts} loading={loading} failed={failed} state={state} today={env.today} />
           </div>
           {errors.length > 0 && (
             <p className="text-xs text-warn" role="status">
@@ -383,7 +385,7 @@ export default function GeoExplorer() {
             {state.country && (
               <CountryPanel iso3={state.country} name={country?.name ?? countryName ?? state.country} year={state.year} layers={choropleths} values={values} onClose={() => update({ country: null })} />
             )}
-            <ActiveLayersPanel active={active} state={state} failed={failed} onOpacity={(id, opacity) => setState((s) => ({ ...s, layers: s.layers.map((l) => (l.id === id ? { ...l, opacity } : l)) }))} onRemove={(id) => setState((s) => toggleLayer(s, id))} />
+            <ActiveLayersPanel active={active} state={state} today={env.today} failed={failed} onOpacity={(id, opacity) => setState((s) => ({ ...s, layers: s.layers.map((l) => (l.id === id ? { ...l, opacity } : l)) }))} onRemove={(id) => setState((s) => toggleLayer(s, id))} />
             <Panel title="Saved views" eyebrow="This browser">
               <form
                 className="mb-3 flex gap-2"
@@ -477,7 +479,7 @@ function LayerRow({ layer, on, fav, failed, onToggle, onFav }: { layer: GeoLayer
   );
 }
 
-function Legend({ active, counts, loading, failed, state }: { active: ActiveLayer[]; counts: Record<string, number>; loading: boolean; failed: Set<string>; state: MapState }) {
+function Legend({ active, counts, loading, failed, state, today }: { active: ActiveLayer[]; counts: Record<string, number>; loading: boolean; failed: Set<string>; state: MapState; today: string }) {
   const [open, setOpen] = useState(true);
   if (!active.length) return null;
   return (
@@ -490,7 +492,7 @@ function Legend({ active, counts, loading, failed, state }: { active: ActiveLaye
           <div key={l.id} className="mb-2 last:mb-0">
             <div className="text-platinum">{l.name}</div>
             <div className="text-slate-dim">
-              {l.kind === 'gibs' ? (l.gibs.time === 'daily' ? `Observed ${state.date}` : `Composite ${l.gibs.time.fixed.slice(0, 4)}`) : l.kind === 'choropleth' ? `${state.year} · ${loading ? 'loading…' : `${counts[l.id] ?? 0} economies`}` : l.updateFrequency}
+              {l.kind === 'gibs' ? (l.gibs.time === 'daily' ? `Observed ${effectiveDate(l, state.date, today)}${effectiveDate(l, state.date, today) !== state.date ? ' (latest published)' : ''}` : `Composite ${l.gibs.time.fixed.slice(0, 4)}`) : l.kind === 'choropleth' ? `${state.year} · ${loading ? 'loading…' : `${counts[l.id] ?? 0} economies`}` : l.updateFrequency}
               {failed.has(l.id) && <span className="text-warn"> · not loaded</span>}
             </div>
             {l.kind === 'choropleth' && (
@@ -523,7 +525,7 @@ function Legend({ active, counts, loading, failed, state }: { active: ActiveLaye
   );
 }
 
-function ActiveLayersPanel({ active, state, failed, onOpacity, onRemove }: { active: ActiveLayer[]; state: MapState; failed: Set<string>; onOpacity: (id: string, v: number) => void; onRemove: (id: string) => void }) {
+function ActiveLayersPanel({ active, state, today, failed, onOpacity, onRemove }: { active: ActiveLayer[]; state: MapState; today: string; failed: Set<string>; onOpacity: (id: string, v: number) => void; onRemove: (id: string) => void }) {
   return (
     <Panel title="Layers on the map" eyebrow="Source, freshness and how to read them" className="xl:col-span-2">
       {active.length === 0 ? (
@@ -556,7 +558,7 @@ function ActiveLayersPanel({ active, state, failed, onOpacity, onRemove }: { act
                   <dt>Updated</dt>
                   <dd>{l.updateFrequency}</dd>
                   <dt>Showing</dt>
-                  <dd>{l.kind === 'gibs' ? (l.gibs.time === 'daily' ? state.date : `${l.gibs.time.fixed.slice(0, 4)} composite`) : l.kind === 'choropleth' ? `Year ${state.year}` : 'Latest feed data'}</dd>
+                  <dd>{l.kind === 'gibs' ? (l.gibs.time === 'daily' ? effectiveDate(l, state.date, today) : `${l.gibs.time.fixed.slice(0, 4)} composite`) : l.kind === 'choropleth' ? `Year ${state.year}` : 'Latest feed data'}</dd>
                   <dt>Coverage</dt>
                   <dd>{l.coverage}</dd>
                   <dt>Resolution</dt>

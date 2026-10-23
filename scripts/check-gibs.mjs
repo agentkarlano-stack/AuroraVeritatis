@@ -4,17 +4,28 @@
 // WMTS capabilities to report the correct tile matrix set and format. Prints GitHub annotations; informational only
 // (exit 0), because the map itself reports layers that fail to load.
 // Usage: node scripts/check-gibs.mjs   (needs Node 22.18+ for TypeScript type stripping)
-import { GEO_LAYERS, gibsTiles } from '../src/lib/geo/layers.ts';
+import { VectorTile } from '@mapbox/vector-tile';
+import { PbfReader as Pbf } from 'pbf';
+import { GEO_LAYERS, effectiveDate, gibsTiles } from '../src/lib/geo/layers.ts';
 
 const CAPS = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapabilities.xml';
+const today = new Date().toISOString().slice(0, 10);
 const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const layers = GEO_LAYERS.filter((l) => l.kind === 'gibs');
 
 async function tile(l) {
-  const url = gibsTiles(l, yesterday).replace('{z}', '1').replace('{y}', '0').replace('{x}', '1');
+  const url = gibsTiles(l, effectiveDate(l, yesterday, today)).replace('{z}', '1').replace('{y}', '0').replace('{x}', '1');
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
     const type = res.headers.get('content-type') ?? '';
+    if (l.gibs.ext === 'mvt') {
+      // Vector tiles: decode and confirm the source layer the map draws.
+      if (!res.ok) return { ok: false, status: res.status, type, url };
+      const tile = new VectorTile(new Pbf(new Uint8Array(await res.arrayBuffer())));
+      const names = Object.keys(tile.layers);
+      const want = l.gibs.sourceLayer ?? l.gibs.layer;
+      return { ok: names.includes(want) || names.length === 0, status: res.status, type: `vector layers: ${names.join(', ') || 'none in this tile'}`, url };
+    }
     return { ok: res.ok && type.startsWith('image/'), status: res.status, type, url };
   } catch (e) {
     return { ok: false, status: 0, type: String(e), url };
@@ -49,4 +60,5 @@ for (const { l, r } of results) {
   failed++;
   console.log(`::warning title=GIBS layer ${l.id}::${l.gibs.layer} → HTTP ${r.status} ${r.type.slice(0, 60)}; ${await lookup(l.gibs.layer)}; tried ${r.url}`);
 }
-console.log(`::notice title=GIBS layers::${layers.length - failed}/${layers.length} NASA GIBS layers returned a tile (date ${yesterday})`);
+for (const { l, r } of results) if (r.ok && l.gibs.ext === 'mvt') console.log(`::notice title=GIBS vector layer ${l.id}::${r.type}`);
+console.log(`::notice title=GIBS layers::${layers.length - failed}/${layers.length} NASA GIBS layers returned a tile (daily layers: newest published date, up to ${yesterday})`);

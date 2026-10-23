@@ -21,6 +21,7 @@ import { countryByNumeric } from "../../lib/countries";
 import { CATEGORY_COLOR } from "../../lib/events";
 import {
   LAYER_MAP,
+  effectiveDate,
   gibsTiles,
   type ChoroplethLayer,
   type GibsLayer,
@@ -110,6 +111,8 @@ interface Props {
   ref?: Ref<GeoMapHandle>;
   state: MapState;
   events: GeoEvent[];
+  /** YYYY-MM-DD, used to cap daily layers at the newest date each product publishes. */
+  today: string;
   /** Per choropleth layer: ISO3 → value. */
   values: Record<string, Map<string, number>>;
   onView: (v: { center: [number, number]; zoom: number }) => void;
@@ -122,6 +125,7 @@ interface Props {
 /** MapLibre style for the current state. Rebuilt on every change and applied with `setStyle(…, { diff: true })`. */
 function buildStyle(
   s: MapState,
+  today: string,
   events: GeoEvent[],
   values: Props["values"],
 ): StyleSpecification {
@@ -203,10 +207,31 @@ function buildStyle(
   for (const ls of [...s.layers].sort((a, b) => rank(a.id) - rank(b.id))) {
     const def = LAYER_MAP.get(ls.id);
     if (!def) continue;
-    if (def.kind === "gibs") {
+    if (def.kind === "gibs" && def.gibs.ext === "mvt") {
+      // Vector tiles (e.g. fire detections): drawn as points.
+      sources[`gibs-${def.id}`] = {
+        type: "vector",
+        tiles: [gibsTiles(def, effectiveDate(def, s.date, today))],
+        maxzoom: def.gibs.maxZoom,
+        attribution: def.attribution,
+      };
+      layers.push({
+        id: `gibs-${def.id}`,
+        type: "circle",
+        source: `gibs-${def.id}`,
+        "source-layer": def.gibs.sourceLayer ?? def.gibs.layer,
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 1.5, 8, 4],
+          "circle-color": "#ff6a2a",
+          "circle-opacity": 0.85 * ls.opacity,
+          "circle-stroke-color": "#3a0d00",
+          "circle-stroke-width": 0.4,
+        },
+      });
+    } else if (def.kind === "gibs") {
       sources[`gibs-${def.id}`] = {
         type: "raster",
-        tiles: [gibsTiles(def, s.date)],
+        tiles: [gibsTiles(def, effectiveDate(def, s.date, today))],
         tileSize: 256,
         maxzoom: def.gibs.maxZoom,
         attribution: def.attribution,
@@ -344,6 +369,7 @@ function buildStyle(
 export default function GeoMap({
   ref,
   state,
+  today,
   events,
   values,
   onView,
@@ -378,7 +404,7 @@ export default function GeoMap({
     if (!box.current) return;
     const map = new MlMap({
       container: box.current,
-      style: buildStyle(state, events, values),
+      style: buildStyle(state, today, events, values),
       center: state.center,
       zoom: state.zoom,
       maxZoom: 9,
@@ -450,8 +476,8 @@ export default function GeoMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(buildStyle(styleState.current, events, values), { diff: true });
-  }, [state.mode, state.style, state.layers, state.date, state.country, events, values]);
+    map.setStyle(buildStyle(styleState.current, today, events, values), { diff: true });
+  }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values]);
 
   // Follow camera changes that come from outside (shared links, search, saved views).
   useEffect(() => {

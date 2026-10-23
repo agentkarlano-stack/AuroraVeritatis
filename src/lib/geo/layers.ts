@@ -42,10 +42,13 @@ interface Meta {
   uncertainty?: string;
 }
 
-/** NASA GIBS WMTS raster (EPSG:3857). `daily` layers take the selected date; `static` layers use a fixed date. */
+/**
+ * NASA GIBS WMTS layer (EPSG:3857), raster or vector tiles. `daily` layers take the selected date, limited to the
+ * newest day the product publishes (`lagDays` behind today); fixed layers use their composite date.
+ */
 export interface GibsLayer extends Meta {
   kind: 'gibs';
-  gibs: { layer: string; matrixSet: string; ext: 'jpg' | 'png'; time: 'daily' | { fixed: string }; maxZoom: number };
+  gibs: { layer: string; matrixSet: string; ext: 'jpg' | 'png' | 'mvt'; time: 'daily' | { fixed: string }; maxZoom: number; lagDays?: number; sourceLayer?: string };
   legend?: { stops: LegendStop[]; units: string };
 }
 
@@ -147,7 +150,7 @@ export const GEO_LAYERS: GeoLayer[] = [
     resolution: '375 m detections',
     interpretation: 'Hot spots detected by VIIRS on the selected day: wildfires, agricultural burning, gas flares and volcanoes. A detection is a heat signal, not a confirmed wildfire.',
     uncertainty: 'Cloud cover hides fires; small or short fires can be missed.',
-    gibs: { layer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All', matrixSet: 'GoogleMapsCompatible_Level9', ext: 'png', time: 'daily', maxZoom: 9 },
+    gibs: { layer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All', matrixSet: 'GoogleMapsCompatible_Level8', ext: 'mvt', time: 'daily', maxZoom: 8, sourceLayer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All' },
   },
   {
     kind: 'gibs',
@@ -172,12 +175,12 @@ export const GEO_LAYERS: GeoLayer[] = [
     category: 'Weather & environment',
     ...GIBS,
     nature: 'observation',
-    updateFrequency: 'Daily',
+    updateFrequency: 'Daily, published about 4 days after observation',
     coverage: 'Global, daytime',
     resolution: 'About 13 × 24 km',
     units: 'Tropospheric column (molecules/cm²)',
     interpretation: 'NO₂ from traffic, power plants and industry, a marker of fuel combustion. Daily values are noisy; compare several days before drawing conclusions.',
-    gibs: { layer: 'OMI_Nitrogen_Dioxide_Tropo_Column', matrixSet: 'GoogleMapsCompatible_Level6', ext: 'png', time: 'daily', maxZoom: 6 },
+    gibs: { layer: 'OMI_Nitrogen_Dioxide_Tropo_Column', matrixSet: 'GoogleMapsCompatible_Level6', ext: 'png', time: 'daily', maxZoom: 6, lagDays: 4 },
   },
   {
     kind: 'gibs',
@@ -186,12 +189,12 @@ export const GEO_LAYERS: GeoLayer[] = [
     category: 'Weather & environment',
     ...GIBS,
     nature: 'observation',
-    updateFrequency: 'Every 30 minutes (Aurora shows the selected day)',
+    updateFrequency: 'Every 30 minutes; daily images published about 2 days later',
     coverage: 'Global between 60°N and 60°S',
     resolution: 'About 10 km',
     units: 'mm per hour',
     interpretation: 'Satellite-estimated rainfall and snowfall rate. Useful for storms and flooding; it is an estimate from microwave and infrared sensors, not a rain-gauge reading.',
-    gibs: { layer: 'IMERG_Precipitation_Rate', matrixSet: 'GoogleMapsCompatible_Level6', ext: 'png', time: 'daily', maxZoom: 6 },
+    gibs: { layer: 'IMERG_Precipitation_Rate', matrixSet: 'GoogleMapsCompatible_Level6', ext: 'png', time: 'daily', maxZoom: 6, lagDays: 2 },
   },
   {
     kind: 'gibs',
@@ -207,22 +210,6 @@ export const GEO_LAYERS: GeoLayer[] = [
     interpretation: 'How hot the ground surface was during the satellite pass. Surface temperature can differ greatly from air temperature.',
     gibs: { layer: 'MODIS_Terra_Land_Surface_Temp_Day', matrixSet: 'GoogleMapsCompatible_Level7', ext: 'png', time: 'daily', maxZoom: 7 },
   },
-  {
-    kind: 'gibs',
-    id: 'population-density',
-    name: 'Population density (GPW)',
-    category: 'Society',
-    ...GIBS,
-    provider: 'NASA SEDAC Gridded Population of the World, via GIBS',
-    nature: 'modelled',
-    updateFrequency: 'Fixed (2020 estimate)',
-    coverage: 'Global',
-    resolution: 'About 1 km',
-    units: 'Persons per km²',
-    interpretation: 'Census counts spread over a grid. It shows where people live at a fine scale; values are modelled from administrative units.',
-    gibs: { layer: 'GPW_Population_Density_2020', matrixSet: 'GoogleMapsCompatible_Level7', ext: 'png', time: { fixed: '2020-01-01' }, maxZoom: 7 },
-  },
-
   // Live event feeds.
   {
     kind: 'events',
@@ -297,13 +284,21 @@ export const GEO_LAYERS: GeoLayer[] = [
   { kind: 'planned', id: 'ports', name: 'Ports, shipping corridors and chokepoints', category: 'Economics & trade', provider: 'World Port Index (NGA, public domain) and IMF PortWatch', providerUrl: 'https://portwatch.imf.org/', interpretation: 'Major ports, trade chokepoints and disruption indicators.', needs: 'Data preparation and a licence check for PortWatch.' },
   { kind: 'planned', id: 'outages', name: 'Internet outages', category: 'Energy & infrastructure', provider: 'IODA (Georgia Tech) and Cloudflare Radar', providerUrl: 'https://ioda.inetintel.cc.gatech.edu/', interpretation: 'Documented national and regional connectivity disruptions.', needs: 'API integration and a terms review.' },
   { kind: 'planned', id: 'drought', name: 'Drought and soil moisture', category: 'Weather & environment', provider: 'Copernicus European Drought Observatory / NASA SMAP', providerUrl: 'https://edo.jrc.ec.europa.eu/', interpretation: 'Drought indicators and soil moisture anomalies.', needs: 'Layer identifiers verified against the provider services.' },
+  { kind: 'planned', id: 'population-density', name: 'Population density (gridded)', category: 'Society', provider: 'WorldPop (CC BY 4.0) or GHSL (European Commission)', providerUrl: 'https://www.worldpop.org/', interpretation: 'Where people live at about 1 km resolution.', needs: 'NASA GIBS refuses the GPW layer (HTTP 403, verified 2026-10-23); an alternative needs preprocessing into tiles and storage.' },
   { kind: 'planned', id: 'displacement', name: 'Refugees and displacement', category: 'Geopolitics & security', provider: 'UNHCR Refugee Data Finder', providerUrl: 'https://www.unhcr.org/refugee-statistics/', interpretation: 'Refugees by country of origin and asylum.', needs: 'API integration (free, attribution required).' },
 ];
 
 export const LAYER_MAP = new Map(GEO_LAYERS.map((l) => [l.id, l]));
 export const isActive = (l: GeoLayer): l is ActiveLayer => l.kind !== 'planned';
 
-/** GIBS tile URL template for MapLibre. `date` is YYYY-MM-DD for daily layers. */
+/** The date a daily layer actually shows: the selected date, but never newer than the product publishes. */
+export function effectiveDate(l: GibsLayer, selected: string, today: string): string {
+  if (l.gibs.time !== 'daily') return l.gibs.time.fixed;
+  const newest = new Date(Date.parse(`${today}T00:00:00Z`) - (l.gibs.lagDays ?? 1) * 86_400_000).toISOString().slice(0, 10);
+  return selected < newest ? selected : newest;
+}
+
+/** GIBS tile URL template for MapLibre. `date` is the date to show (see `effectiveDate`). */
 export function gibsTiles(l: GibsLayer, date: string): string {
   const t = l.gibs.time === 'daily' ? date : l.gibs.time.fixed;
   return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${l.gibs.layer}/default/${t}/${l.gibs.matrixSet}/{z}/{y}/{x}.${l.gibs.ext}`;
@@ -348,6 +343,6 @@ export const COMBINATIONS: { layers: [string, string]; why: string }[] = [
   { layers: ['precipitation', 'disasters'], why: 'Heavy rain next to flood and cyclone alerts.' },
   { layers: ['night-lights', 'electricity-access'], why: 'Where light at night matches or contradicts reported electricity access.' },
   { layers: ['inflation', 'gdp-growth'], why: 'Stagflation risk: high inflation with weak growth.' },
-  { layers: ['earthquakes', 'population-density'], why: 'Earthquakes near dense populations carry the highest human risk.' },
+  { layers: ['earthquakes', 'density'], why: 'Earthquakes in densely populated countries carry the highest human risk.' },
   { layers: ['no2', 'night-lights'], why: 'Combustion and industrial activity next to settlement patterns.' },
 ];
