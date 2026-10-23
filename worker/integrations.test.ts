@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizeEmail, signLink, verifyLink } from './brevo';
 import { handleApi, type Env } from './index';
-import { exchangeTimeToUtc, freshnessOf, normalizeSeries, redact, resetBudgetForTests } from './twelvedata';
+import { freshnessOf, normalizeSeries, redact, resetBudgetForTests, utcDateTime } from './twelvedata';
 
 const TD_KEY = 'td_secret_key_123456';
 const BREVO_KEY = 'xkeysib-secret-abcdef';
@@ -20,11 +20,10 @@ afterEach(() => {
 });
 
 describe('Twelve Data', () => {
-  it('converts exchange time to UTC, including daylight saving time', () => {
-    expect(new Date(exchangeTimeToUtc('2026-07-01 09:30:00', 'America/New_York')).toISOString()).toBe('2026-07-01T13:30:00.000Z');
-    expect(new Date(exchangeTimeToUtc('2026-12-01 09:30:00', 'America/New_York')).toISOString()).toBe('2026-12-01T14:30:00.000Z');
-    expect(new Date(exchangeTimeToUtc('2026-10-22 15:00:00', 'Europe/Vienna')).toISOString()).toBe('2026-10-22T13:00:00.000Z');
-    expect(new Date(exchangeTimeToUtc('2026-10-22 15:00:00', 'UTC')).toISOString()).toBe('2026-10-22T15:00:00.000Z');
+  it('parses provider timestamps as UTC (requested with timezone=UTC)', () => {
+    expect(new Date(utcDateTime('2026-10-22 15:30:00')).toISOString()).toBe('2026-10-22T15:30:00.000Z');
+    expect(new Date(utcDateTime('2026-10-22')).toISOString()).toBe('2026-10-22T00:00:00.000Z');
+    expect(utcDateTime('22/10/2026')).toBeNaN();
   });
 
   it('labels observed freshness honestly', () => {
@@ -37,13 +36,20 @@ describe('Twelve Data', () => {
 
   it('normalises provider bars oldest first and never invents bars', () => {
     const s = normalizeSeries(
-      { meta: { symbol: 'AAPL', interval: '1min', exchange_timezone: 'America/New_York', exchange: 'NASDAQ', currency: 'USD', type: 'Common Stock' }, values: [{ datetime: '2026-10-22 10:01:00', open: '2', high: '3', low: '1', close: '2.5', volume: '100' }, { datetime: '2026-10-22 10:00:00', open: '1', high: '2', low: '1', close: '2', volume: '50' }, { datetime: '2026-10-22 09:59:00', open: 'x', high: '1', low: '1', close: '1' }] },
+      { meta: { symbol: 'AAPL', interval: '1min', exchange_timezone: 'America/New_York', exchange: 'NASDAQ', currency: 'USD', type: 'Common Stock' }, values: [{ datetime: '2026-10-22 14:01:00', open: '2', high: '3', low: '1', close: '2.5', volume: '100' }, { datetime: '2026-10-22 14:00:00', open: '1', high: '2', low: '1', close: '2', volume: '50' }, { datetime: '2026-10-22 13:59:00', open: 'x', high: '1', low: '1', close: '1' }] },
       '1m',
       Date.parse('2026-10-22T14:03:00Z'),
     );
     expect(s.bars.map((b) => b.time)).toEqual(['2026-10-22T14:00:00.000Z', '2026-10-22T14:01:00.000Z']);
     expect(s.freshness).toBe('near-real-time');
     expect(s.ageMinutes).toBe(2);
+    expect(s.exchangeTimeZone).toBe('America/New_York');
+  });
+
+  it('refuses to claim freshness for bars stamped in the future', () => {
+    const s = normalizeSeries({ meta: { symbol: 'EUR/USD', interval: '1min' }, values: [{ datetime: '2026-10-23 11:27:00', open: '1', high: '1', low: '1', close: '1' }] }, '1m', Date.parse('2026-10-23T00:28:00Z'));
+    expect(s.freshness).toBeNull();
+    expect(s.warning).toMatch(/future/);
   });
 
   it('redacts the key from any text', () => {

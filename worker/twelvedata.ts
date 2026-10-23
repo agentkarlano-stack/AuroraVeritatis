@@ -88,28 +88,13 @@ async function call<T>(env: TwelveDataEnv, path: string, params: Record<string, 
   return body;
 }
 
-/** Offset (minutes) of an IANA time zone from UTC at a given instant. */
-function tzOffsetMinutes(timeZone: string, at: number): number {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(at));
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
-  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
-  return Math.round((asUtc - at) / 60_000);
-}
-
-/** "2026-10-22 15:30:00" in the exchange's time zone → epoch milliseconds (UTC). Daily bars ("2026-10-22") stay dates. */
-export function exchangeTimeToUtc(datetime: string, timeZone: string): number {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(datetime);
-  if (!m) return NaN;
-  const naive = Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!, +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0));
-  try {
-    const first = naive - tzOffsetMinutes(timeZone, naive) * 60_000;
-    return naive - tzOffsetMinutes(timeZone, first) * 60_000;
-  } catch {
-    return naive;
-  }
-}
-
 export type Freshness = 'near-real-time' | 'delayed' | 'end-of-day' | 'historical';
+
+/** "2026-10-22 15:30:00" (requested with timezone=UTC) → epoch milliseconds. */
+export function utcDateTime(datetime: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(datetime);
+  return m ? Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!, +(m[4] ?? 0), +(m[5] ?? 0), +(m[6] ?? 0)) : NaN;
+}
 
 /**
  * Observed freshness of the latest bar. This describes what Aurora received, not a provider guarantee; a closed
@@ -142,11 +127,14 @@ export interface MarketSeries {
   currency: string | null;
   instrumentType: string | null;
   interval: TdInterval;
-  timeZone: string;
+  /** The exchange's own time zone (bars are delivered in UTC). */
+  exchangeTimeZone: string | null;
   bars: MarketBar[];
   latest: string | null;
   freshness: Freshness | null;
   ageMinutes: number | null;
+  /** Set when the data looks inconsistent (e.g. bars stamped in the future); freshness is then not claimed. */
+  warning?: string;
   fetchedAt: string;
 }
 
@@ -156,20 +144,21 @@ interface TdSeries {
 }
 
 export function normalizeSeries(raw: TdSeries, interval: TdInterval, now: number): MarketSeries {
-  const tz = raw.meta.exchange_timezone || 'UTC';
   const bars: MarketBar[] = [];
   for (const v of [...(raw.values ?? [])].reverse()) {
     const o = Number(v.open), h = Number(v.high), l = Number(v.low), c = Number(v.close);
     if (![o, h, l, c].every(Number.isFinite)) continue;
     const vol = v.volume === undefined ? null : Number(v.volume);
-    const time = interval === '1D' ? v.datetime.slice(0, 10) : new Date(exchangeTimeToUtc(v.datetime, tz)).toISOString();
-    if (interval !== '1D' && time === 'Invalid Date') continue;
+    const t = utcDateTime(v.datetime);
+    if (!Number.isFinite(t)) continue;
+    const time = interval === '1D' ? v.datetime.slice(0, 10) : new Date(t).toISOString();
     bars.push({ time, open: o, high: h, low: l, close: c, volume: vol !== null && Number.isFinite(vol) ? vol : null });
   }
   const last = bars.at(-1);
   // Daily bars are dated in the exchange's calendar; treat the session as ending at 23:59 UTC of that day.
   const latestUtc = last ? (interval === '1D' ? Date.parse(`${last.time}T23:59:00Z`) : Date.parse(last.time)) : NaN;
-  const f = Number.isFinite(latestUtc) ? freshnessOf(interval, latestUtc, now) : null;
+  const future = interval !== '1D' && Number.isFinite(latestUtc) && latestUtc > now + 5 * 60_000;
+  const f = Number.isFinite(latestUtc) && !future ? freshnessOf(interval, latestUtc, now) : null;
   return {
     provider: 'Twelve Data',
     symbol: raw.meta.symbol,
@@ -178,17 +167,18 @@ export function normalizeSeries(raw: TdSeries, interval: TdInterval, now: number
     currency: raw.meta.currency ?? null,
     instrumentType: raw.meta.type ?? null,
     interval,
-    timeZone: tz,
+    exchangeTimeZone: raw.meta.exchange_timezone ?? null,
     bars,
     latest: last?.time ?? null,
     freshness: f?.freshness ?? null,
     ageMinutes: f?.ageMinutes ?? null,
+    ...(future ? { warning: 'The latest bar is stamped in the future; freshness cannot be determined.' } : {}),
     fetchedAt: new Date(now).toISOString(),
   };
 }
 
 export async function timeSeries(env: TwelveDataEnv, symbol: string, interval: TdInterval, opts: { exchange?: string; outputsize?: number } = {}, now = Date.now()): Promise<MarketSeries> {
-  const params: Record<string, string> = { symbol, interval: TD_INTERVALS[interval].td, outputsize: String(Math.min(5000, Math.max(2, opts.outputsize ?? 500))), timezone: 'Exchange', order: 'desc' };
+  const params: Record<string, string> = { symbol, interval: TD_INTERVALS[interval].td, outputsize: String(Math.min(5000, Math.max(2, opts.outputsize ?? 500))), timezone: 'UTC', order: 'desc' };
   if (opts.exchange) params.exchange = opts.exchange;
   return normalizeSeries(await call<TdSeries>(env, '/time_series', params), interval, now);
 }
@@ -248,7 +238,7 @@ export async function diagnostics(env: TwelveDataEnv, now = Date.now()): Promise
   for (const p of PROBES) {
     try {
       const s = await timeSeries(env, p.symbol, p.interval, { outputsize: 3 }, now);
-      probes.push({ symbol: p.symbol, interval: p.interval, ok: s.bars.length > 0, latest: s.latest, freshness: s.freshness, ageMinutes: s.ageMinutes, bars: s.bars.length });
+      probes.push({ symbol: p.symbol, interval: p.interval, ok: s.bars.length > 0 && !s.warning, latest: s.latest, freshness: s.freshness, ageMinutes: s.ageMinutes, bars: s.bars.length, ...(s.warning ? { error: s.warning } : {}) });
     } catch (e) {
       probes.push({ symbol: p.symbol, interval: p.interval, ok: false, latest: null, freshness: null, ageMinutes: null, bars: 0, error: (e as Error).message.slice(0, 160) });
     }

@@ -19,6 +19,9 @@ export interface Env extends TwelveDataEnv, BrevoEnv {
   POSTHOG_HOST?: string;
 }
 
+declare const __BUILD_ID__: string | undefined;
+/** Build identifier injected by Vite (`define`); "dev" in tests. */
+const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
 const limiter = new RateLimiter(60, 1); // 60-request burst, 1 req/s sustained per client IP.
 const DAY = 86_400;
 
@@ -245,7 +248,10 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   // Limited live connection test for both providers. Cached for 6 hours at the edge; returns plans, freshness and
   // domain status but no prices and no contact data.
   if (path === '/api/integrations/check') {
-    return cached(request, ctx, async () => {
+    // One cache entry per deployment: query strings cannot force extra (credit-consuming) runs, and every new build
+    // re-tests the providers.
+    const key = new Request(`${url.origin}/api/integrations/check?build=${BUILD_ID}`);
+    return cached(key, ctx, async () => {
       const [td, br] = await Promise.all([
         marketConfigured(env) ? marketDiagnostics(env).catch((e: Error) => ({ error: e.message })) : Promise.resolve({ error: 'TWELVE_DATA_API_KEY not configured' }),
         brevoStatus(env).configured ? brevoDiagnostics(env).catch((e: Error) => ({ error: e.message })) : Promise.resolve({ error: 'BREVO_API_KEY not configured' }),
