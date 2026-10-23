@@ -42,6 +42,40 @@ export const INTERVALS: IntervalDef[] = [
 ];
 export const INTERVAL_MAP = new Map(INTERVALS.map((i) => [i.id, i]));
 
+const UNIT: Record<string, IntervalDef['group'] | 'day' | 'week' | 'month' | 'year'> = {
+  m: 'Minutes', min: 'Minutes', mins: 'Minutes', minute: 'Minutes', minutes: 'Minutes',
+  h: 'Hours', hr: 'Hours', hrs: 'Hours', hour: 'Hours', hours: 'Hours', hourly: 'Hours',
+  d: 'day', day: 'day', days: 'day', daily: 'day',
+  w: 'week', wk: 'week', week: 'week', weeks: 'week', weekly: 'week',
+  mo: 'month', mon: 'month', month: 'month', months: 'month', monthly: 'month', quarter: 'month', quarterly: 'month',
+  y: 'year', yr: 'year', year: 'year', years: 'year', yearly: 'year', annual: 'year',
+};
+const unitOf = (i: IntervalDef) => (i.group !== 'Days and longer' ? i.group : i.id === '1D' ? 'day' : i.id === '1W' ? 'week' : i.id === '1Y' ? 'year' : 'month');
+const countOf = (i: IntervalDef) => (i.id === '3Mo' ? 3 : Number.parseInt(i.id, 10));
+
+/**
+ * Interval search for the chart toolbar: "4h", "4 hours", "hourly", "15 min", "1D", "weekly". Lower-case "m" means
+ * minutes and upper-case "M" months (the usual chart convention); "quarter" finds 3 months. Falls back to a plain
+ * text match on label, short name and group.
+ */
+export function searchIntervals(query: string): IntervalDef[] {
+  const raw = query.trim();
+  if (!raw) return INTERVALS;
+  const m = /^(\d+)?\s*([a-zA-Z]+)$/.exec(raw);
+  if (m) {
+    const n = m[1] ? Number(m[1]) : null;
+    const word = m[2]!;
+    const unit = word === 'M' ? 'month' : UNIT[word.toLowerCase()];
+    if (unit) {
+      const n2 = /^quarter/i.test(word) ? 3 : n;
+      return INTERVALS.filter((i) => unitOf(i) === unit && (n2 === null || countOf(i) === n2));
+    }
+  }
+  if (/^\d+$/.test(raw)) return INTERVALS.filter((i) => countOf(i) === Number(raw));
+  const needle = raw.toLowerCase();
+  return INTERVALS.filter((i) => `${i.label} ${i.short} ${i.id} ${i.group}`.toLowerCase().includes(needle));
+}
+
 /** Bars per year for annualising (trading sessions for daily data). */
 export function periodsPerYear(id: IntervalId): number {
   if (id === '1D') return 252;
