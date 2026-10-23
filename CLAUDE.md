@@ -59,6 +59,11 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   `lib/geo/layers.ts` (NASA GIBS rasters, World Bank choropleths via `/api/compare`, USGS/GDACS events, planned layers
   with their needs); shareable URL state in `lib/geo/state.ts`. `scripts/check-gibs.mjs` (preview workflow) verifies
   every GIBS layer from a GitHub runner, since cloud sessions cannot reach NASA. No WebGL2 → `WorldMap` SVG fallback.
+- Introduction (`components/IntroSplash.tsx`, decisions in `lib/intro.ts`): synced `prefs.intro` = none | brand | cinematic
+  | null (automatic: film on the first-ever visit, brand animation afterwards). The film (`public/media/intro/*-v1.*`,
+  three variants) is requested only when it plays; edit, sources and licences in `docs/INTRO.md`; rebuild with
+  `scripts/intro/` (render-globe.py, build-intro.py, encode.sh). Stock sites are unreachable from cloud sessions: fetch on a
+  GitHub runner (work branch `claude/intro-work`, workflow `intro-fetch.yml`). Only Mixkit **Free** licence clips.
 - World Briefing (`pages/Briefing.tsx`): pure logic in `lib/worldBriefing.ts` (status labels, reliability, fixed
   background per event type, period window, cross-source de-duplication, consent-based `briefing` prefs synced via
   `SYNCED_KEYS`); `components/BriefingGlobe.tsx`; `WorldMap` exposes a `focus()` handle via `ref` for guided views.

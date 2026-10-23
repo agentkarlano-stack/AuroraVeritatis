@@ -101,6 +101,8 @@ async function sweep(browser: Browser) {
       try {
         sessionStorage.setItem('av-intro-shown', '1');
         localStorage.setItem('av-last-seen', String(Date.now()));
+        // Inspect pages without an introduction overlay.
+        if (!localStorage.getItem('av-prefs-v1')) localStorage.setItem('av-prefs-v1', JSON.stringify({ state: { intro: 'none' }, version: 1 }));
       } catch {
         /* ignore */
       }
@@ -134,17 +136,41 @@ async function sweep(browser: Browser) {
 }
 
 async function interactions(browser: Browser) {
-  // Brand intro on a fresh visit (default preference).
+  // Introduction (lib/intro.ts): film on the first-ever visit, brand intro afterwards, nothing on navigation or with
+  // reduced motion; the film is downloaded only when it plays.
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const filmRequests: string[] = [];
+    ctx.on('request', (r) => r.url().includes('/media/intro/') && filmRequests.push(r.url()));
     const page = await ctx.newPage();
     await page.goto(`${BASE}/`);
-    const plays = await page.getByRole('button', { name: 'Skip intro' }).waitFor({ timeout: 4000 }).then(() => true, () => false);
-    check('Brand intro plays on a fresh visit', plays);
-    if (plays) await page.getByRole('button', { name: 'Skip intro' }).click();
+    const skip = page.getByRole('button', { name: 'Skip intro' });
+    const plays = await skip.waitFor({ timeout: 4000 }).then(() => true, () => false);
+    const film = plays && (await page.locator('video').count()) > 0;
+    check('Cinematic intro plays on the first-ever visit', film, film ? `film requested: ${filmRequests.length} file(s)` : 'no film');
+    if (plays) await skip.click();
     await page.getByRole('link', { name: 'Global Radar' }).first().click();
     await page.waitForTimeout(800);
-    check('Intro does not replay on client navigation', (await page.getByRole('button', { name: 'Skip intro' }).count()) === 0);
+    check('Intro does not replay on client navigation', (await skip.count()) === 0);
+    await page.reload();
+    await page.waitForTimeout(1500);
+    check('Intro does not replay on a reload', (await skip.count()) === 0);
+    // A later visit: a new tab after the visit gap.
+    await page.evaluate(() => localStorage.setItem('av-last-seen', String(Date.now() - 31 * 60_000)));
+    filmRequests.length = 0;
+    const later = await ctx.newPage();
+    await later.goto(`${BASE}/`);
+    const laterSkip = later.getByRole('button', { name: 'Skip intro' });
+    const brand = (await laterSkip.waitFor({ timeout: 4000 }).then(() => true, () => false)) && (await later.locator('video').count()) === 0;
+    check('Brand intro (no film) on a later visit', brand && filmRequests.length === 0, `film requests: ${filmRequests.length}`);
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce', isMobile: true, hasTouch: true });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/`);
+    await page.waitForTimeout(2000);
+    check('No intro with reduced motion', (await page.getByRole('button', { name: 'Skip intro' }).count()) === 0);
     await ctx.close();
   }
   // Mobile menu.

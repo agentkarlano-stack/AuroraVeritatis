@@ -43,6 +43,8 @@ const SOURCES = [
   { name: 'European Central Bank Data Portal', url: 'https://data.ecb.europa.eu/', license: 'Free reuse with the source quoted ("Source: ECB statistics")', use: 'Macro & FX' },
   { name: 'U.S. CFTC Commitments of Traders', url: 'https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm', license: 'U.S. government work', use: 'Futures positioning' },
   { name: 'Natural Earth via world-atlas', url: 'https://www.naturalearthdata.com/', license: 'Public domain', use: 'Map boundaries' },
+  { name: 'NASA Earth Observatory, Black Marble 2016', url: 'https://earthobservatory.nasa.gov/images/144898/earth-at-night-2016', license: 'Public domain (NASA imagery)', use: 'Globe in the cinematic introduction' },
+  { name: 'Mixkit stock video', url: 'https://mixkit.co/license/', license: 'Mixkit Stock Video Free License (commercial use, no attribution required)', use: 'City footage in the cinematic introduction' },
   { name: 'TradingView Lightweight Charts', url: 'https://github.com/tradingview/lightweight-charts', license: 'Apache 2.0 (attribution)', use: 'Financial charts' },
 ];
 

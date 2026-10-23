@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BrainBackground, BrainColorMode } from '../lib/brainDisplay';
 import type { Drawing } from '../lib/chart';
-import type { IntroMode } from '../lib/intro';
+import type { IntroExperience, LegacyIntroMode } from '../lib/intro';
 import { DEFAULT_BRIEFING_PREFS, normalizeBriefingPrefs, type BriefingPrefs } from '../lib/worldBriefing';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
 
@@ -43,11 +43,13 @@ interface PrefsState {
   notes: Note[];
   alerts: AlertRule[];
   introSeen: boolean;
-  /** The user's explicit intro setting; null means the default (lib/intro.ts). Read through `resolveIntroMode`. */
-  introChoice: IntroMode | null;
+  /** Introduction experience; null means automatic (lib/intro.ts). Always read through `resolveIntroExperience`. */
+  intro: IntroExperience | null;
+  setIntro: (m: IntroExperience | null) => void;
+  /** Legacy explicit intro setting (before the three experiences); kept so an old "off" still applies. */
+  introChoice?: LegacyIntroMode | null;
   /** Legacy (before explicit choices were tracked); kept only so an old explicit "off" still applies. */
-  introMode?: IntroMode;
-  setIntroMode: (m: IntroMode) => void;
+  introMode?: LegacyIntroMode;
   /** World Briefing settings; the last-briefing time is kept only with consent (`remember`). Read via normalizeBriefingPrefs. */
   briefing: BriefingPrefs;
   setBriefing: (patch: Partial<BriefingPrefs>) => void;
@@ -108,8 +110,8 @@ export const usePrefs = create<PrefsState>()(
       notes: [],
       alerts: [],
       introSeen: false,
-      introChoice: null,
-      setIntroMode: (introChoice) => set({ introChoice }),
+      intro: null,
+      setIntro: (intro) => set({ intro }),
       briefing: DEFAULT_BRIEFING_PREFS,
       setBriefing: (patch) => set((s) => ({ briefing: normalizeBriefingPrefs({ ...normalizeBriefingPrefs(s.briefing), ...patch }) })),
       brainCanvas: { background: 'dots', colorMode: 'type' },

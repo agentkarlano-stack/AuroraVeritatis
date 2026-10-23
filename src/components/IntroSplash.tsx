@@ -1,140 +1,233 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { VISIT_GAP_MS, isFreshVisit, resolveIntroMode, shouldPlayIntro } from '../lib/intro';
+import { BRAND_INTRO_MS, CINEMATIC_START_TIMEOUT_MS, VISIT_GAP_MS, decideIntro, isFreshVisit, resolveIntroExperience, type IntroPlay, type IntroTrigger } from '../lib/intro';
 import { usePrefs } from '../store/prefs';
 import { Monogram } from './Logo';
 
-const DURATION_MS = 2600;
 const WORD = 'AURORA VERITATIS';
 /** Indices of the initials that become the monogram: the A of AURORA and the V of VERITATIS. */
 const INITIALS = [0, 7];
 export const INTRO_SHOWN_KEY = 'av-intro-shown';
 export const INTRO_LOGIN_KEY = 'av-intro-login';
+/** Dispatch with `detail: 'brand' | 'cinematic'` to preview an intro (Account → Introduction). */
 export const INTRO_REPLAY_EVENT = 'av-intro-replay';
+/** Set once this device has started the cinematic intro (the automatic default then switches to the brand intro). */
+const CINEMATIC_SEEN_KEY = 'av-cinematic-seen';
+/** Set when the cinematic intro played in this browser session (a reload never repeats it). */
+const CINEMATIC_SESSION_KEY = 'av-cinematic-session';
+const LAST_SEEN_KEY = 'av-last-seen';
+
+/** Film variants in public/media/intro (see docs/INTRO.md for the edit, sources and licences). */
+const film = (name: string) => ({ webm: `/media/intro/${name}-v1.webm`, mp4: `/media/intro/${name}-v1.mp4`, poster: `/media/intro/${name}-v1.jpg` });
+const FILM = { large: film('aurora-intro-1920'), landscape: film('aurora-intro-1280'), portrait: film('aurora-intro-720x1280') };
+/** Portrait screens get the vertical edit; large landscape screens the 1080p file; everything else 720p. */
+function pickFilm() {
+  if (window.innerHeight > window.innerWidth * 1.1) return FILM.portrait;
+  return window.innerWidth * (window.devicePixelRatio || 1) > 1600 ? FILM.large : FILM.landscape;
+}
 
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
-const LAST_SEEN_KEY = 'av-last-seen';
-/** When the intro last started in this page (prevents a second play when a sign-in completes during the same load). */
+function saveData() {
+  const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  return !!c && (c.saveData === true || c.effectiveType === '2g' || c.effectiveType === 'slow-2g');
+}
+const local = {
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* storage unavailable */
+    }
+  },
+};
+const session = {
+  get: (k: string) => {
+    try {
+      return sessionStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string | null) => {
+    try {
+      if (v === null) sessionStorage.removeItem(k);
+      else sessionStorage.setItem(k, v);
+    } catch {
+      /* storage unavailable */
+    }
+  },
+};
+/** When an intro last started in this page (a sign-in completing during the same load must not replay it). */
 let playedAt = 0;
 
 /** Decided once per page load, before this load records itself as the latest activity. */
 function freshVisit(): boolean {
   if (typeof window === 'undefined') return false;
-  let lastSeen: number | null = null;
-  try {
-    const v = Number(localStorage.getItem(LAST_SEEN_KEY));
-    lastSeen = Number.isFinite(v) && v > 0 ? v : null;
-  } catch {
-    /* storage unavailable: treat as a new visit */
-  }
+  const v = Number(local.get(LAST_SEEN_KEY));
+  const lastSeen = Number.isFinite(v) && v > 0 ? v : null;
   const nav = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined;
   return isFreshVisit({ navigationType: nav?.type, referrer: document.referrer, origin: location.origin, lastSeen, now: Date.now() });
 }
 const FRESH_VISIT = freshVisit();
-const touch = () => {
-  try {
-    localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
-  } catch {
-    /* ignore */
-  }
-};
+const touch = () => local.set(LAST_SEEN_KEY, String(Date.now()));
 
-const read = (k: string) => {
-  try {
-    return sessionStorage.getItem(k);
-  } catch {
-    return null;
-  }
-};
-const write = (k: string, v: string | null) => {
-  try {
-    if (v === null) sessionStorage.removeItem(k);
-    else sessionStorage.setItem(k, v);
-  } catch {
-    /* storage unavailable */
-  }
-};
+function decide(trigger: IntroTrigger): IntroPlay {
+  if (typeof window === 'undefined') return 'none';
+  const s = usePrefs.getState();
+  return decideIntro({
+    pref: resolveIntroExperience(s.intro, s.introChoice, s.introMode),
+    trigger,
+    freshVisit: FRESH_VISIT,
+    reducedMotion: reducedMotion(),
+    path: location.pathname,
+    cinematicSeen: local.get(CINEMATIC_SEEN_KEY) === '1',
+    cinematicThisSession: session.get(CINEMATIC_SESSION_KEY) === '1',
+    saveData: saveData(),
+  });
+}
 
 /**
- * Brand intro: AURORA VERITATIS appears letter by letter; the other letters fall away while the A and the V glide
- * together and settle into the AV monogram. About 2.6 s, silent, skippable (button, Esc, click) and never shown with
- * reduced motion. When it plays is the user's choice (Account → Preferences): by default on every new visit and
- * after signing in; or every page load, once per session, only after signing in, or never. It is decided on page load and after a fresh sign-in, never on route changes.
+ * Introduction overlay. The app renders underneath while it plays. Which intro plays is the user's choice
+ * (Account → Introduction; lib/intro.ts): none, the brand animation, or the cinematic film followed by the brand
+ * animation; automatic by default (the film on the first-ever visit, the brand animation afterwards). It is decided on
+ * page load, on returning to a tab after a visit gap and after an interactive sign-in; never on route changes, token
+ * refreshes or data fetching. Silent, always skippable (button or Esc), never shown with reduced motion.
  */
 export function IntroSplash() {
-  const mode = usePrefs((s) => resolveIntroMode(s.introChoice, s.introMode));
-  const [visible, setVisible] = useState(() =>
-    shouldPlayIntro({
-      mode,
-      freshVisit: FRESH_VISIT,
-      reducedMotion: reducedMotion(),
-      path: typeof location === 'undefined' ? '/' : location.pathname,
-      shownThisSession: read(INTRO_SHOWN_KEY) === '1',
-      loginPending: read(INTRO_LOGIN_KEY) === '1',
-      replay: false,
-    }),
-  );
+  const [play, setPlay] = useState<IntroPlay>(() => decide('load'));
 
-  // A fresh sign-in or a manual replay (Account → Preferences) can start it later in the session.
   useEffect(() => {
     const onLogin = () => {
-      const s = usePrefs.getState();
-      const play = shouldPlayIntro({ mode: resolveIntroMode(s.introChoice, s.introMode), reducedMotion: reducedMotion(), path: location.pathname, shownThisSession: true, loginPending: true, replay: false });
-      // A sign-in completing during the same load (e.g. arriving from an email link) must not replay it.
-      if (play && Date.now() - playedAt > 15_000) setVisible(true);
-      else write(INTRO_LOGIN_KEY, null);
+      const next = decide('login');
+      if (next !== 'none' && Date.now() - playedAt > 15_000) setPlay(next);
+      else session.set(INTRO_LOGIN_KEY, null);
     };
-    // Record activity. Coming back to a tab that was left in the background for longer than a visit gap is a new
-    // visit: with the default mode the intro plays then.
+    // Coming back to a tab left in the background for longer than a visit gap starts a new visit.
     touch();
-    const onHide = () => {
-      if (document.visibilityState === 'hidden') {
-        touch();
-        return;
-      }
-      let last = 0;
-      try {
-        last = Number(localStorage.getItem(LAST_SEEN_KEY)) || 0;
-      } catch {
-        /* ignore */
-      }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') return touch();
+      const last = Number(local.get(LAST_SEEN_KEY)) || 0;
       touch();
-      const s = usePrefs.getState();
-      if (last && Date.now() - last > VISIT_GAP_MS && resolveIntroMode(s.introChoice, s.introMode) === 'visit' && !reducedMotion() && !location.pathname.startsWith('/share/card')) setVisible(true);
+      if (last && Date.now() - last > VISIT_GAP_MS) {
+        const next = decide('return');
+        if (next !== 'none') setPlay(next);
+      }
     };
-    document.addEventListener('visibilitychange', onHide);
+    const onReplay = (e: Event) => {
+      const which = (e as CustomEvent<string>).detail === 'cinematic' ? 'preview-cinematic' : 'preview-brand';
+      setPlay(decide(which));
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', touch);
-    const onReplay = () => !reducedMotion() && setVisible(true);
     window.addEventListener('av-intro-login', onLogin);
     window.addEventListener(INTRO_REPLAY_EVENT, onReplay);
     return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', touch);
       window.removeEventListener('av-intro-login', onLogin);
       window.removeEventListener(INTRO_REPLAY_EVENT, onReplay);
-      document.removeEventListener('visibilitychange', onHide);
-      window.removeEventListener('pagehide', touch);
     };
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
+    if (play === 'none') return;
     playedAt = Date.now();
-    write(INTRO_SHOWN_KEY, '1');
-    write(INTRO_LOGIN_KEY, null);
-    const timer = setTimeout(() => setVisible(false), DURATION_MS);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setVisible(false);
+    session.set(INTRO_SHOWN_KEY, '1');
+    session.set(INTRO_LOGIN_KEY, null);
+    if (play === 'cinematic') {
+      local.set(CINEMATIC_SEEN_KEY, '1');
+      session.set(CINEMATIC_SESSION_KEY, '1');
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPlay('none');
     window.addEventListener('keydown', onKey);
+    const timer = play === 'brand' ? setTimeout(() => setPlay('none'), BRAND_INTRO_MS) : undefined;
     return () => {
       clearTimeout(timer);
       window.removeEventListener('keydown', onKey);
     };
-  }, [visible]);
+  }, [play]);
 
-  if (!visible) return null;
-  return <IntroStage onSkip={() => setVisible(false)} />;
+  if (play === 'none') return null;
+  if (play === 'cinematic') return <CinematicStage onEnd={() => setPlay('brand')} onSkip={() => setPlay('none')} />;
+  return <BrandStage onSkip={() => setPlay('none')} />;
 }
 
-function IntroStage({ onSkip }: { onSkip: () => void }) {
+function SkipButton({ onSkip }: { onSkip: () => void }) {
+  return (
+    <button
+      type="button"
+      className="btn-quiet tap absolute bottom-6 right-6 z-10 text-xs text-platinum/80 hover:text-platinum"
+      onClick={(e) => {
+        e.stopPropagation();
+        onSkip();
+      }}
+      autoFocus
+    >
+      Skip intro
+    </button>
+  );
+}
+
+/**
+ * The film (about 13 s, muted). It is requested only when it is about to play. If it fails to load or has not started
+ * within CINEMATIC_START_TIMEOUT_MS, the brand animation plays instead; at the end it fades into the brand animation.
+ */
+function CinematicStage({ onEnd, onSkip }: { onEnd: () => void; onSkip: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [fading, setFading] = useState(false);
+  const [film] = useState(pickFilm);
+  const done = useRef(false);
+
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    const finish = () => {
+      if (done.current) return;
+      done.current = true;
+      onEnd();
+    };
+    const timeout = setTimeout(() => v.currentTime === 0 && finish(), CINEMATIC_START_TIMEOUT_MS);
+    const onTime = () => {
+      if (v.duration && v.duration - v.currentTime < 0.6) setFading(true);
+    };
+    v.addEventListener('ended', finish);
+    v.addEventListener('error', finish);
+    v.addEventListener('timeupdate', onTime);
+    // Autoplay can be refused (power saving); then the brand animation plays.
+    void v.play().catch(finish);
+    return () => {
+      clearTimeout(timeout);
+      v.removeEventListener('ended', finish);
+      v.removeEventListener('error', finish);
+      v.removeEventListener('timeupdate', onTime);
+    };
+  }, [onEnd]);
+
+  return (
+    <div className={`av-film fixed inset-0 z-[100] bg-ink-950 ${fading ? 'av-film-out' : ''}`} role="presentation">
+      <video ref={video} className="h-full w-full object-cover" muted playsInline autoPlay preload="auto" poster={film.poster} aria-hidden disablePictureInPicture>
+        <source src={film.webm} type="video/webm" onError={() => undefined} />
+        <source src={film.mp4} type="video/mp4" onError={() => video.current?.dispatchEvent(new Event('error'))} />
+      </video>
+      <SkipButton onSkip={onSkip} />
+    </div>
+  );
+}
+
+/**
+ * Brand animation, about 4.2 s: AURORA VERITATIS appears letter by letter and stays readable for about 1.5 s; the
+ * other letters dissolve while the A and the V glide together and settle into the AV monogram; the tagline follows and
+ * the page fades in. Timings live in the av2-* keyframes (index.css).
+ */
+function BrandStage({ onSkip }: { onSkip: () => void }) {
   const stage = useRef<HTMLDivElement>(null);
   const mono = useRef<HTMLDivElement>(null);
   const letters = useRef<(HTMLSpanElement | null)[]>([]);
@@ -175,8 +268,8 @@ function IntroStage({ onSkip }: { onSkip: () => void }) {
               }}
               className={`inline-block ${INITIALS.includes(i) ? 'av2-initial' : 'av2-rest'}`}
             >
-              <span className="av2-letter inline-block" style={{ animationDelay: `${i * 32}ms` }}>
-                {ch === ' ' ? '\u00a0' : ch}
+              <span className="av2-letter inline-block" style={{ animationDelay: `${120 + i * 45}ms` }}>
+                {ch === ' ' ? ' ' : ch}
               </span>
             </span>
           ))}
@@ -186,17 +279,7 @@ function IntroStage({ onSkip }: { onSkip: () => void }) {
           GLOBAL ANALYSIS &amp; STRATEGIC INSIGHT
         </div>
       </div>
-      <button
-        type="button"
-        className="btn-quiet absolute bottom-6 right-6 text-xs"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSkip();
-        }}
-        autoFocus
-      >
-        Skip intro
-      </button>
+      <SkipButton onSkip={onSkip} />
     </div>
   );
 }
