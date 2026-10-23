@@ -6,10 +6,14 @@ import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
+import { BrevoError, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
+import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries } from './worldbank';
 
-export interface Env {
+export interface Env extends TwelveDataEnv, BrevoEnv {
   ASSETS: Fetcher;
+  /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
+  CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
   ENVIRONMENT?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
@@ -94,6 +98,9 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '');
 
+  const ip0 = request.headers.get('CF-Connecting-IP') ?? 'local';
+  const BUILD_ID = env.CF_VERSION_METADATA?.id?.slice(0, 12) ?? 'dev';
+  if (request.method === 'POST' && path.startsWith('/api/newsletter/')) return newsletterPost(request, env, url, path, ip0);
   if (request.method !== 'GET') return error(405, 'Method not allowed');
 
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
@@ -230,7 +237,117 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     });
   }
 
+  // ---------- Integrations (status only; never key values) ----------
+  if (path === '/api/integrations') {
+    return json({
+      build: BUILD_ID,
+      twelveData: { configured: marketConfigured(env), publicDisplay: displayLicensed(env) ? 'licensed' : 'pending-licence-confirmation' },
+      brevo: brevoStatus(env),
+    });
+  }
+
+  // Limited live connection test for both providers. Cached for 6 hours at the edge; returns plans, freshness and
+  // domain status but no prices and no contact data.
+  if (path === '/api/integrations/check') {
+    // One cache entry per deployment: query strings cannot force extra (credit-consuming) runs, and every new build
+    // re-tests the providers.
+    const key = new Request(`${url.origin}/api/integrations/check?build=${BUILD_ID}`);
+    return cached(key, ctx, async () => {
+      const [td, br] = await Promise.all([
+        marketConfigured(env) ? marketDiagnostics(env).catch((e: Error) => ({ error: e.message })) : Promise.resolve({ error: 'TWELVE_DATA_API_KEY not configured' }),
+        brevoStatus(env).configured ? brevoDiagnostics(env).catch((e: Error) => ({ error: e.message })) : Promise.resolve({ error: 'BREVO_API_KEY not configured' }),
+      ]);
+      // Cache a complete success for 6 hours; anything with an error only briefly, so fixes show up quickly.
+      const failed = 'error' in td || 'error' in br || ('probes' in td && td.probes.some((p) => !p.ok));
+      return json({ build: BUILD_ID, twelveData: td, brevo: br }, { maxAge: failed ? 300 : 6 * 3600 });
+    });
+  }
+
+  // ---------- Market data (Twelve Data) ----------
+  if (path === '/api/market/search') {
+    const q = (url.searchParams.get('q') ?? '').trim();
+    if (!marketConfigured(env)) return error(503, 'Market data provider not configured');
+    if (q.length < 1 || q.length > 30 || !/^[\p{L}\p{N} .:/&-]+$/u.test(q)) return error(400, 'Invalid search');
+    return cached(request, ctx, async () => {
+      try {
+        return json({ results: await symbolSearch(env, q), provider: 'Twelve Data' }, { maxAge: DAY });
+      } catch (e) {
+        return error(e instanceof TwelveDataError ? e.status : 502, (e as Error).message);
+      }
+    });
+  }
+
+  if (path === '/api/market/series') {
+    const symbol = url.searchParams.get('symbol') ?? '';
+    const interval = (url.searchParams.get('interval') ?? '1D') as TdInterval;
+    const exchange = url.searchParams.get('exchange') ?? undefined;
+    if (!validSymbol(symbol) || !(interval in TD_INTERVALS) || (exchange && !validExchange(exchange))) return error(400, 'Invalid symbol, interval or exchange');
+    if (!marketConfigured(env)) return error(503, 'Market data provider not configured');
+    // Prices stay private until the display/redistribution rights of the subscription are confirmed.
+    if (!displayLicensed(env)) return error(451, 'Public display of market data is pending licence confirmation');
+    return cached(request, ctx, async () => {
+      try {
+        return json(await timeSeries(env, symbol, interval, { exchange, outputsize: Number(url.searchParams.get('n')) || 500 }), { maxAge: TD_INTERVALS[interval].ttl });
+      } catch (e) {
+        return error(e instanceof TwelveDataError ? e.status : 502, (e as Error).message);
+      }
+    });
+  }
+
+  // ---------- Newsletter confirmation links (unsubscribe / delete) ----------
+  if (path === '/api/newsletter/confirm') {
+    const p = { e: url.searchParams.get('e') ?? '', a: url.searchParams.get('a') ?? '', x: url.searchParams.get('x') ?? '', t: url.searchParams.get('t') ?? '' };
+    const go = (status: string) => Response.redirect(`${url.origin}/newsletter?status=${status}`, 303);
+    if (!brevoStatus(env).configured || !brevoStatus(env).listConfigured) return go('unavailable');
+    if (!(await verifyLink(env, p))) return go('invalid');
+    try {
+      if (p.a === 'delete') {
+        await eraseForAurora(env, p.e);
+        return go('deleted');
+      }
+      await unsubscribe(env, p.e);
+      return go('unsubscribed');
+    } catch {
+      return go('error');
+    }
+  }
+
   return error(404, 'Not found');
+}
+
+/** POST /api/newsletter/subscribe and /api/newsletter/request (same-origin JSON only; generic answers). */
+async function newsletterPost(request: Request, env: Env, url: URL, path: string, ip: string): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  if (!origin || origin !== url.origin) return error(403, 'Cross-site requests are not accepted');
+  if (!(request.headers.get('Content-Type') ?? '').includes('application/json')) return error(415, 'JSON expected');
+  const body = (await request.json().catch(() => null)) as { email?: unknown; consent?: unknown; website?: unknown; action?: unknown } | null;
+  if (!body) return error(400, 'Invalid request');
+  // Honeypot: real people never fill this hidden field. Answer as if it worked.
+  const accepted = json({ ok: true, message: 'If the address is valid, we have sent an email. Please check your inbox (and spam folder) to confirm.' }, { status: 202 });
+  if (typeof body.website === 'string' && body.website.trim()) return accepted;
+  const email = normalizeEmail(body.email);
+  if (!email) return error(400, 'Please enter a valid email address');
+  if (!allowRequest(ip, email)) return error(429, 'Too many requests. Please try again later.');
+  try {
+    if (path === '/api/newsletter/subscribe') {
+      if (body.consent !== true) return error(400, 'Please confirm that you agree to receive the newsletter');
+      if (!subscriptionsReady(env)) return error(503, 'Newsletter sign-up is not open yet');
+      await startDoubleOptIn(env, email, `${url.origin}/newsletter?status=confirmed`);
+      return accepted;
+    }
+    if (path === '/api/newsletter/request') {
+      if (body.action !== 'unsubscribe' && body.action !== 'delete') return error(400, 'Unknown request');
+      const st = brevoStatus(env);
+      if (!st.configured || !st.listConfigured || !st.senderConfigured) return error(503, 'This request cannot be processed online yet. Email auroraveritatissup@gmail.com.');
+      await sendConfirmation(env, url.origin, body.action, email);
+      return accepted;
+    }
+    return error(404, 'Not found');
+  } catch (e) {
+    // Brevo rejects some addresses (e.g. already blocklisted); keep answers generic so addresses cannot be probed.
+    if (e instanceof BrevoError && e.status === 400) return accepted;
+    return error(502, 'The newsletter service is unavailable right now. Please try again later.');
+  }
 }
 
 export default {
