@@ -33,6 +33,7 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const Account = lazy(() => import('./pages/Account'));
 const Admin = lazy(() => import('./pages/Admin'));
+const AdminQuote = lazy(() => import('./pages/AdminQuote'));
 const Status = lazy(() => import('./pages/Status'));
 const Legal = lazy(() => import('./pages/Legal'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -72,6 +73,7 @@ export function App() {
             <Route path="signin" element={<Lazy><SignIn /></Lazy>} />
             <Route path="account" element={<Lazy><Account /></Lazy>} />
             <Route path="admin" element={<Lazy><Admin /></Lazy>} />
+            <Route path="admin/quote" element={<Lazy><AdminQuote /></Lazy>} />
             <Route path="status" element={<Lazy><Status /></Lazy>} />
             <Route path="legal/:doc" element={<Lazy><Legal /></Lazy>} />
             <Route path="*" element={<Lazy><NotFound /></Lazy>} />
