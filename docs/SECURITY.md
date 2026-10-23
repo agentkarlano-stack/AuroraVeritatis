@@ -9,7 +9,16 @@
   per-isolate token-bucket rate limit (60 burst, 1 req/s). Upgrade path: Workers Rate Limiting binding.
 - **Auth**: Supabase PKCE flow. Authorisation must be enforced in Postgres RLS (see migration) and in Worker routes for
   any privileged action — never only in the UI.
-- **Admin / AI Operations HQ** (future): owner-only, verified server-side via Supabase JWT + role claim; no public routes.
+- **Administrator role**: membership in `aurora_private.admins` (not exposed by the Data API), inserted only by the
+  owner's SQL bootstrap for their own confirmed account (never guessed, never the first or newest account). Every admin
+  function is `SECURITY DEFINER` in `aurora_private`, starts with `require_admin()` (raises 42501 otherwise) and writes
+  `admin_audit`; the browser only sees `my_entitlements().is_admin` for display. Tested with three users in
+  `supabase/tests/admin.sql`. The `/admin` page is noindex and disallowed in robots.txt; hiding it is not the protection.
+- **AI Operations HQ** (future): same server-side admin check; no public routes.
+- **Integrations**: `TWELVE_DATA_API_KEY` and `BREVO_API_KEY` are Worker secrets used only server side; errors are redacted;
+  `/api/integrations` reports configuration flags, never values. Market prices stay private (HTTP 451) until
+  `MARKET_DATA_DISPLAY=licensed`. Newsletter POSTs accept same-origin JSON only, with honeypot and rate limits;
+  unsubscribe and deletion require a signed, expiring link.
 - **Privacy**: guests' data stays in localStorage; Account page offers export and deletion. Analytics only with consent.
 - **Separation**: no shared resources with MARVETO.
 

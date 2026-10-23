@@ -409,7 +409,7 @@ export default function GeoExplorer() {
                         {s.name}
                       </button>
                       <button
-                        className="text-slate-dim hover:text-down"
+                        className="tap text-slate-dim hover:text-down"
                         aria-label={`Delete saved view ${s.name}`}
                         onClick={() => {
                           const next = saved.filter((x) => x.name !== s.name);
@@ -484,7 +484,7 @@ function Legend({ active, counts, loading, failed, state, today }: { active: Act
   if (!active.length) return null;
   return (
     <div className="absolute bottom-2 left-2 z-10 max-h-[60%] max-w-[min(320px,calc(100%-16px))] overflow-y-auto rounded-md border border-line bg-ink-900/92 p-2 text-[11px] text-mist">
-      <button className="mb-1 flex w-full items-center justify-between gap-2 font-semibold text-platinum" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+      <button className="mb-1 flex min-h-6 w-full items-center justify-between gap-2 font-semibold text-platinum" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         Legend <span className="text-slate-dim">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open &&
@@ -541,7 +541,7 @@ function ActiveLayersPanel({ active, state, today, failed, onOpacity, onRemove }
                     <div className="text-sm font-medium text-platinum">{l.name}</div>
                     <NatureBadge nature={l.nature} />
                   </div>
-                  <button className="text-slate-dim hover:text-down" onClick={() => onRemove(l.id)} aria-label={`Remove ${l.name}`}>
+                  <button className="tap text-slate-dim hover:text-down" onClick={() => onRemove(l.id)} aria-label={`Remove ${l.name}`}>
                     <X className="h-4 w-4" />
                   </button>
                 </div>

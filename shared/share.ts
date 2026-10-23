@@ -1,6 +1,6 @@
 /**
  * Social sharing assets. One catalogue drives the Open Graph / Twitter tags (Worker + client), the /share page and
- * `scripts/render-share-assets.mjs`, which renders every asset from the real interface (`/share/card`).
+ * `scripts/render-share-assets.ts`, which renders every asset from the real interface (`/share/card`).
  * Files live in `public/media/` and are served at https://aurorav.app/media/… (bypassing the Worker).
  */
 

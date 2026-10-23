@@ -58,7 +58,7 @@ export default function CountriesVs() {
           {codes.map((c) => (
             <span key={c} className="chip">
               <span className="text-platinum">{countryByIso3(c)?.name ?? c}</span>
-              <button aria-label={`Remove ${c}`} className="hover:text-down" onClick={() => setCodes(codes.filter((x) => x !== c))}>
+              <button aria-label={`Remove ${c}`} className="tap hover:text-down" onClick={() => setCodes(codes.filter((x) => x !== c))}>
                 <X className="h-3 w-3" />
               </button>
             </span>

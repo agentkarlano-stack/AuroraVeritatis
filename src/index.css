@@ -59,6 +59,10 @@
 @utility panel {
   @apply rounded-xl border border-line bg-ink-900/80;
 }
+/* Minimum 24×24 px hit area for small icon buttons (WCAG 2.5.8), without changing their look. */
+@utility tap {
+  @apply inline-flex min-h-6 min-w-6 items-center justify-center;
+}
 @utility eyebrow {
   @apply font-display text-[11px] font-semibold tracking-[0.22em] text-gold uppercase;
 }

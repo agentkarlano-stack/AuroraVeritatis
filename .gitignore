@@ -12,3 +12,4 @@ dist
 coverage
 test-results
 playwright-report
+ui-audit-results.json
