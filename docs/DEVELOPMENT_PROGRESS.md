@@ -11,7 +11,7 @@ _Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, int
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Business & Institutional quotation flow (private quotes, request form, organisations/seats migration, admin-only quotation calculator); then Quant probabilistic forecasts |
+| Next recommended action | Organisations/seats/AI-allowance migration with RLS tests (owner applies), then the admin-only quotation calculator; then the Aurora AI architecture skeleton and news verification rules |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 30 (2026-10-23) — Business & Institutional quote requests (PR #32)
+- **Pricing:** new "Business & Institutional Solutions" section with a **Request a Business Quote** button. Business prices are not published.
+- **`/business` form:** has every owner-specified field. Validation is shared with the Worker (`shared/businessQuote.ts`).
+- **`POST /api/business/quote`:**
+  - Same-origin JSON, honeypot, 3 requests per IP per hour.
+  - Emails the team through Brevo (`BUSINESS_QUOTE_TO`, default the support inbox) with reply-to set to the requester and no auto-reply.
+  - Returns 503 with an email fallback when Brevo is not configured.
+- **Sender:** `BREVO_SENDER_EMAIL`, or `business@aurorav.app` (the domain is authenticated in Brevo). Real delivery still needs to be verified on production with one test request.
+- **Production UI audit after #31:** 26 routes × 9 widths, 0 issues, 13/13 interaction checks.
+
 ### Runs 26–29 (2026-10-22/23) — Repairs, Map Explorer, integrations, comprehensive audit
 - PR #25: chart toolbar menus (instrument, interval, chart type, indicators, templates, settings,
   saved, export) were clipped behind the chart by the toolbar's scroll container; they now render

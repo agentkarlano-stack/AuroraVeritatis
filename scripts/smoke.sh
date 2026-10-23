@@ -55,6 +55,7 @@ check "currency metadata"     /currency                                200 '<tit
 check "briefing metadata"     /briefing                                200 '<title>World Briefing'
 check "map explorer metadata" /geo                                     200 '<title>Map Explorer'
 check "newsletter metadata"   /newsletter                              200 '<title>Newsletter'
+check "business metadata"     /business                                200 '<title>Business'
 check "currency (World Bank)" /api/currency/AUT                        200 '"cpi":\[\{"year"'
 check "bad indicator rejected" '/api/compare/2022?x=BAD.ID'            400 'Unsupported'
 check "unknown API route"     /api/does-not-exist                      404 'Not found'

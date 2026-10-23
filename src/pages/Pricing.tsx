@@ -1,4 +1,5 @@
-import { Check, Clock } from 'lucide-react';
+import { Building2, Check, Clock } from 'lucide-react';
+import { Link } from 'react-router';
 import { DemoNotice, PageHeader } from '../components/ui';
 import { TIERS } from '../data/tiers';
 import { useTier } from '../lib/entitlements';
@@ -62,6 +63,24 @@ export default function Pricing() {
           </div>
         ))}
       </div>
+      <section className="panel mt-8 grid gap-5 p-6 md:grid-cols-[1fr_auto] md:items-center" aria-labelledby="business-heading">
+        <div>
+          <div className="eyebrow flex items-center gap-2">
+            <Building2 className="h-4 w-4" aria-hidden /> For organisations
+          </div>
+          <h2 id="business-heading" className="mt-2 font-display text-xl font-bold text-platinum">
+            Business & Institutional Solutions
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-mist">
+            For companies, consultancies, universities, newsrooms and public institutions. Each proposal is prepared individually: the number of
+            seats, the features your team needs, AI usage allowances, administrator controls and the contract term. Business prices are not
+            published; you receive a private quote by email.
+          </p>
+        </div>
+        <Link to="/business" className="btn-primary justify-self-start">
+          Request a Business Quote
+        </Link>
+      </section>
     </div>
   );
 }

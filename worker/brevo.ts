@@ -199,3 +199,30 @@ export async function brevoDiagnostics(env: BrevoEnv, now = Date.now()): Promise
     checkedAt: new Date(now).toISOString(),
   };
 }
+
+// ---------- Business quote requests ----------
+
+/** Inbox that receives business quote requests (owner-configurable; defaults to the support address). */
+export const quoteInbox = (env: BrevoEnv & { BUSINESS_QUOTE_TO?: string }) => normalizeEmail(env.BUSINESS_QUOTE_TO) ?? 'auroraveritatissup@gmail.com';
+
+/**
+ * Emails a quote request to the team (Brevo transactional). The requester gets no automatic email, so the form cannot
+ * be used to send mail to third parties; replies go to the requester through reply-to.
+ * The sender falls back to an address on aurorav.app, whose domain is authenticated in Brevo.
+ */
+export async function sendQuoteRequest(env: BrevoEnv & { BUSINESS_QUOTE_TO?: string }, mail: { subject: string; text: string; html: string }, replyTo: { email: string; name: string }, reference: string): Promise<void> {
+  await call(env, 'POST', '/smtp/email', {
+    sender: { email: normalizeEmail(env.BREVO_SENDER_EMAIL) ?? 'business@aurorav.app', name: 'Aurora Veritatis Business' },
+    to: [{ email: quoteInbox(env) }],
+    replyTo,
+    subject: mail.subject,
+    textContent: mail.text,
+    htmlContent: mail.html,
+    headers: { 'X-Aurora-Reference': reference },
+    tags: ['aurora-business-quote'],
+  });
+}
+
+const quoteIp = new RateLimiter(3, 3 / 3600); // 3 quote requests per hour per IP
+/** Three quote requests per IP per hour (per isolate; best effort). */
+export const allowQuote = (ip: string, now = Date.now()) => quoteIp.allow(`q:${ip}`, now);
