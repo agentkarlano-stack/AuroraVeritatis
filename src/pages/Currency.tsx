@@ -95,7 +95,7 @@ export default function Currency() {
               <span className="h-2 w-2 rounded-full" style={{ background: COLORS[i] }} aria-hidden />
               {label(iso3)}
               {selected.length > 1 && (
-                <button className="btn-quiet -mr-1 px-0.5" aria-label={`Remove ${countryName(iso3) ?? iso3}`} onClick={() => remove(iso3)}>
+                <button className="btn-quiet tap -mr-1 px-0.5" aria-label={`Remove ${countryName(iso3) ?? iso3}`} onClick={() => remove(iso3)}>
                   <X className="h-3 w-3" />
                 </button>
               )}

@@ -1,9 +1,11 @@
 import { BarChart3, Globe2, Landmark, LayoutDashboard, Menu, Search, UserRound, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { useRouteMeta } from '../lib/useMeta';
-import { CommandPalette } from './CommandPalette';
+const loadPalette = () => import('./CommandPalette');
+/** Quick search is loaded on first use (or when the browser is idle), keeping its country and instrument lists out of the initial page load. */
+const CommandPalette = lazy(() => loadPalette().then((m) => ({ default: m.CommandPalette })));
 import { NewsletterSignup } from './NewsletterSignup';
 import { Wordmark } from './Logo';
 
@@ -36,6 +38,11 @@ export function Layout() {
   const setOpen = (v: boolean) => setOpenAt(v ? pathname : null);
   const { status, session } = useAuth();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Warm the quick-search chunk once the page is idle, so the first Ctrl+K opens instantly.
+  useEffect(() => {
+    const t = setTimeout(() => void loadPalette(), 4000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -59,7 +66,11 @@ export function Layout() {
 
   return (
     <div className="flex min-h-dvh flex-col pb-16 lg:pb-0">
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {paletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette open onClose={() => setPaletteOpen(false)} />
+        </Suspense>
+      )}
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-gold focus:px-3 focus:py-2 focus:text-ink-950">
         Skip to content
       </a>
@@ -135,7 +146,7 @@ export function Layout() {
             <p className="mt-4 max-w-sm text-xs leading-relaxed text-slate-dim">
               Research and analysis platform. Nothing on Aurora Veritatis is investment advice. Simulated data is always labelled as such.
             </p>
-            <a className="mt-3 inline-block text-xs text-gold hover:text-gold-soft" href="mailto:auroraveritatissup@gmail.com">
+            <a className="mt-2 inline-block py-1 text-xs text-gold hover:text-gold-soft" href="mailto:auroraveritatissup@gmail.com">
               auroraveritatissup@gmail.com
             </a>
             <div className="mt-6 max-w-sm">

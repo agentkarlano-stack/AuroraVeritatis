@@ -1,0 +1,44 @@
+name: UI audit
+
+# Read-only browser audit of a deployed site: every route at 320–1920 px, interaction checks and security headers.
+# No accounts and no emails. Runs after each merge to main (once the deployment has had time to roll out) and on demand.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Base URL to audit
+        default: https://aurorav.app
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ui-audit
+  cancel-in-progress: true
+
+jobs:
+  ui-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Wait for the Workers Builds deployment
+        if: github.event_name == 'push'
+        run: sleep 200
+      - name: UI audit
+        run: node e2e/ui-audit.ts
+        env:
+          BASE_URL: ${{ inputs.url || 'https://aurorav.app' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-audit-results
+          path: ui-audit-results.json
+          if-no-files-found: ignore

@@ -83,7 +83,7 @@ export default function Radar() {
                   </span>
                   {quakeStale && <StaleNote stale={quakeStale} />}
                   {quakeError && (
-                    <button className="text-xs text-gold hover:underline" onClick={reloadQuakes}>
+                    <button className="min-h-6 text-xs text-gold hover:underline" onClick={reloadQuakes}>
                       Retry feed
                     </button>
                   )}
@@ -99,7 +99,7 @@ export default function Radar() {
                   </span>
                   {disasterStale && <StaleNote stale={disasterStale} />}
                   {disasterStatus === 'error' && (
-                    <button className="text-xs text-gold hover:underline" onClick={reloadDisasters}>
+                    <button className="min-h-6 text-xs text-gold hover:underline" onClick={reloadDisasters}>
                       Retry feed
                     </button>
                   )}
