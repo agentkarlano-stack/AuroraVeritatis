@@ -17,14 +17,27 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Tools
+        run: command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - name: Download
         run: |
           set -u
           ok=0; bad=0
           : > intro-work/fetch-log.txt
-          while read -r out url; do
+          while read -r out url start dur; do
             [ -z "${out:-}" ] && continue
             case "$out" in \#*) continue;; esac
+            if [ -n "${dur:-}" ]; then
+              # "<out> <url> <start s> <duration s>": trim a window, keep 1920 px, near-lossless, no audio.
+              mkdir -p "intro-work/$(dirname "$out")"
+              curl -sL --max-time 300 -o /tmp/src.mp4 "$url"
+              if ffmpeg -hide_banner -loglevel error -y -ss "$start" -t "$dur" -i /tmp/src.mp4 -an -vf "scale='min(1920,iw)':-2" -c:v libx264 -preset slow -crf 15 -pix_fmt yuv420p "intro-work/$out"; then
+                echo "200 $(stat -c %s "intro-work/$out") $out $url $start $dur $(ffprobe -v error -select_streams v -show_entries stream=width,height,r_frame_rate -of csv=p=0 /tmp/src.mp4)" >> intro-work/fetch-log.txt; ok=$((ok+1))
+              else
+                echo "ERR 0 $out $url" >> intro-work/fetch-log.txt; bad=$((bad+1))
+              fi
+              continue
+            fi
             mkdir -p "intro-work/$(dirname "$out")"
             code=$(curl -sL --max-time 120 -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36" -H "Accept-Language: en" -o "intro-work/$out" -w "%{http_code}" "$url" || echo 000)
             size=$(stat -c %s "intro-work/$out" 2>/dev/null || echo 0)
