@@ -1,7 +1,7 @@
 import { Bookmark, Camera, ChevronLeft, ChevronRight, Expand, ExternalLink, Globe2, Layers, Link2, Map as MapIcon, Pause, Play, Search, Star, X } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import type { CompareYear, GeoEvent } from '../../shared/types';
+import type { CompareYear, GeoEvent, LatestValues } from '../../shared/types';
 import { AddToBrain } from '../components/AddToBrain';
 import type { GeoMapHandle } from '../components/geo/GeoMap';
 import { AppLoading, PageHeader, Panel } from '../components/ui';
@@ -37,17 +37,43 @@ const writeJson = (k: string, v: unknown) => {
 type Saved = { name: string; query: string };
 const NO_VALUES: Record<string, Map<string, number>> = {};
 const NO_COUNTS: Record<string, number> = {};
+const NO_YEARS: Record<string, Map<string, number>> = {};
+const NO_SPANS: Record<string, { min: number; max: number } | null> = {};
 
-/** Country values for the active choropleth layers (World Bank via Aurora's API), refetched when the year changes. */
+/**
+ * Country values for the active choropleth layers (World Bank via Aurora's API), refetched when the year changes.
+ * `latest` layers show each country's most recent value; `years` then holds the year of every value.
+ */
 function useChoropleths(layers: ChoroplethLayer[], year: number) {
   const key = `${layers.map((l) => l.id).join(',')}@${year}`;
-  const [result, setResult] = useState<{ key: string; values: Record<string, Map<string, number>>; counts: Record<string, number>; errors: string[] }>({ key: '', values: {}, counts: {}, errors: [] });
+  const [result, setResult] = useState<{
+    key: string;
+    values: Record<string, Map<string, number>>;
+    years: Record<string, Map<string, number>>;
+    spans: Record<string, { min: number; max: number } | null>;
+    counts: Record<string, number>;
+    errors: string[];
+  }>({ key: '', values: {}, years: {}, spans: {}, counts: {}, errors: [] });
   useEffect(() => {
     if (!layers.length) return;
     const ctrl = new AbortController();
     Promise.all(
       layers.map(async (l) => {
         const [x, y] = l.derive ? [l.derive.numerator, l.derive.denominator] : [l.indicator, l.indicator];
+        if (l.latest) {
+          try {
+            const d = await getJson<LatestValues>(`/api/map/${l.indicator}`, ctrl.signal);
+            const m = new Map<string, number>();
+            const ys = new Map<string, number>();
+            for (const p of d.points) {
+              m.set(p.iso3, p.value);
+              ys.set(p.iso3, p.year);
+            }
+            return { id: l.id, m, ys, span: d.years, error: null as string | null };
+          } catch (e) {
+            return { id: l.id, m: new Map<string, number>(), ys: new Map<string, number>(), span: null, error: `${l.name}: ${(e as Error).message}` };
+          }
+        }
         try {
           const d = await getJson<CompareYear>(`/api/compare/${year}?x=${x}&y=${y}&size=${x}`, ctrl.signal);
           const m = new Map<string, number>();
@@ -55,21 +81,21 @@ function useChoropleths(layers: ChoroplethLayer[], year: number) {
             const v = l.derive ? (p.y > 0 ? (p.x / p.y) * (l.derive.scale ?? 1) : NaN) : p.x;
             if (Number.isFinite(v)) m.set(p.iso3, v);
           }
-          return { id: l.id, m, error: null as string | null };
+          return { id: l.id, m, ys: new Map<string, number>(), span: null, error: null as string | null };
         } catch (e) {
-          return { id: l.id, m: new Map<string, number>(), error: `${l.name}: ${(e as Error).message}` };
+          return { id: l.id, m: new Map<string, number>(), ys: new Map<string, number>(), span: null, error: `${l.name}: ${(e as Error).message}` };
         }
       }),
     ).then((rows) => {
       if (ctrl.signal.aborted) return;
-      setResult({ key, values: Object.fromEntries(rows.map((r) => [r.id, r.m])), counts: Object.fromEntries(rows.map((r) => [r.id, r.m.size])), errors: rows.flatMap((r) => (r.error ? [r.error] : [])) });
+      setResult({ key, values: Object.fromEntries(rows.map((r) => [r.id, r.m])), years: Object.fromEntries(rows.map((r) => [r.id, r.ys])), spans: Object.fromEntries(rows.map((r) => [r.id, r.span])), counts: Object.fromEntries(rows.map((r) => [r.id, r.m.size])), errors: rows.flatMap((r) => (r.error ? [r.error] : [])) });
     });
     return () => ctrl.abort();
     // The key captures the layer ids and the year.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const ready = result.key === key;
-  return { values: ready ? result.values : NO_VALUES, counts: ready ? result.counts : NO_COUNTS, errors: ready ? result.errors : [], loading: layers.length > 0 && !ready };
+  return { values: ready ? result.values : NO_VALUES, years: ready ? result.years : NO_YEARS, spans: ready ? result.spans : NO_SPANS, counts: ready ? result.counts : NO_COUNTS, errors: ready ? result.errors : [], loading: layers.length > 0 && !ready };
 }
 
 export default function GeoExplorer() {
@@ -98,7 +124,7 @@ export default function GeoExplorer() {
 
   const active = state.layers.map((l) => LAYER_MAP.get(l.id)).filter((l): l is ActiveLayer => !!l && isActive(l));
   const choropleths = active.filter((l): l is ChoroplethLayer => l.kind === 'choropleth');
-  const { values, counts, errors, loading } = useChoropleths(choropleths, state.year);
+  const { values, years, spans, counts, errors, loading } = useChoropleths(choropleths, state.year);
   const hasDaily = active.some((l) => l.kind === 'gibs' && l.gibs.time === 'daily');
   const update = (patch: Partial<MapState>) => setState((s) => ({ ...s, ...patch }));
 
@@ -366,7 +392,7 @@ export default function GeoExplorer() {
                 {hover}
               </div>
             )}
-            <Legend active={active} counts={counts} loading={loading} failed={failed} state={state} today={env.today} />
+            <Legend active={active} counts={counts} spans={spans} loading={loading} failed={failed} state={state} today={env.today} />
           </div>
           {errors.length > 0 && (
             <p className="text-xs text-warn" role="status">
@@ -383,7 +409,7 @@ export default function GeoExplorer() {
           <div className="grid gap-4 xl:grid-cols-2">
             {event && <EventPanel event={event} onClose={() => setEvent(null)} />}
             {state.country && (
-              <CountryPanel iso3={state.country} name={country?.name ?? countryName ?? state.country} year={state.year} layers={choropleths} values={values} onClose={() => update({ country: null })} />
+              <CountryPanel iso3={state.country} name={country?.name ?? countryName ?? state.country} year={state.year} layers={choropleths} values={values} years={years} onClose={() => update({ country: null })} />
             )}
             <ActiveLayersPanel active={active} state={state} today={env.today} failed={failed} onOpacity={(id, opacity) => setState((s) => ({ ...s, layers: s.layers.map((l) => (l.id === id ? { ...l, opacity } : l)) }))} onRemove={(id) => setState((s) => toggleLayer(s, id))} />
             <Panel title="Saved views" eyebrow="This browser">
@@ -479,7 +505,7 @@ function LayerRow({ layer, on, fav, failed, onToggle, onFav }: { layer: GeoLayer
   );
 }
 
-function Legend({ active, counts, loading, failed, state, today }: { active: ActiveLayer[]; counts: Record<string, number>; loading: boolean; failed: Set<string>; state: MapState; today: string }) {
+function Legend({ active, counts, spans, loading, failed, state, today }: { active: ActiveLayer[]; counts: Record<string, number>; spans: Record<string, { min: number; max: number } | null>; loading: boolean; failed: Set<string>; state: MapState; today: string }) {
   const [open, setOpen] = useState(true);
   if (!active.length) return null;
   return (
@@ -492,7 +518,7 @@ function Legend({ active, counts, loading, failed, state, today }: { active: Act
           <div key={l.id} className="mb-2 last:mb-0">
             <div className="text-platinum">{l.name}</div>
             <div className="text-slate-dim">
-              {l.kind === 'gibs' ? (l.gibs.time === 'daily' ? `Observed ${effectiveDate(l, state.date, today)}${effectiveDate(l, state.date, today) !== state.date ? ' (latest published)' : ''}` : `Composite ${l.gibs.time.fixed.slice(0, 4)}`) : l.kind === 'choropleth' ? `${state.year} · ${loading ? 'loading…' : `${counts[l.id] ?? 0} economies`}` : l.updateFrequency}
+              {l.kind === 'gibs' ? (l.gibs.time === 'daily' ? `Observed ${effectiveDate(l, state.date, today)}${effectiveDate(l, state.date, today) !== state.date ? ' (latest published)' : ''}` : `Composite ${l.gibs.time.fixed.slice(0, 4)}`) : l.kind === 'choropleth' ? `${l.latest ? `Most recent per country${spans[l.id] ? ` (${spans[l.id]!.min === spans[l.id]!.max ? spans[l.id]!.max : `${spans[l.id]!.min}–${spans[l.id]!.max}`})` : ''}` : state.year} · ${loading ? 'loading…' : `${counts[l.id] ?? 0} economies`} · ${l.units}` : l.updateFrequency}
               {failed.has(l.id) && <span className="text-warn"> · not loaded</span>}
             </div>
             {l.kind === 'choropleth' && (
@@ -558,7 +584,7 @@ function ActiveLayersPanel({ active, state, today, failed, onOpacity, onRemove }
                   <dt>Updated</dt>
                   <dd>{l.updateFrequency}</dd>
                   <dt>Showing</dt>
-                  <dd>{l.kind === 'gibs' ? (l.gibs.time === 'daily' ? effectiveDate(l, state.date, today) : `${l.gibs.time.fixed.slice(0, 4)} composite`) : l.kind === 'choropleth' ? `Year ${state.year}` : 'Latest feed data'}</dd>
+                  <dd>{l.kind === 'gibs' ? (l.gibs.time === 'daily' ? effectiveDate(l, state.date, today) : `${l.gibs.time.fixed.slice(0, 4)} composite`) : l.kind === 'choropleth' ? (l.latest ? 'Most recent value per country' : `Year ${state.year}`) : 'Latest feed data'}</dd>
                   <dt>Coverage</dt>
                   <dd>{l.coverage}</dd>
                   <dt>Resolution</dt>
@@ -586,7 +612,7 @@ function ActiveLayersPanel({ active, state, today, failed, onOpacity, onRemove }
   );
 }
 
-function CountryPanel({ iso3, name, year, layers, values, onClose }: { iso3: string; name: string; year: number; layers: ChoroplethLayer[]; values: Record<string, Map<string, number>>; onClose: () => void }) {
+function CountryPanel({ iso3, name, year, layers, values, years, onClose }: { iso3: string; name: string; year: number; layers: ChoroplethLayer[]; values: Record<string, Map<string, number>>; years: Record<string, Map<string, number>>; onClose: () => void }) {
   return (
     <Panel
       title={name}
@@ -605,7 +631,7 @@ function CountryPanel({ iso3, name, year, layers, values, onClose }: { iso3: str
               return (
                 <div key={l.id} className="contents">
                   <dt className="text-mist">
-                    {l.name} ({year})
+                    {l.name} ({l.latest ? (years[l.id]?.get(iso3) ?? '–') : year})
                   </dt>
                   <dd className="num text-right text-platinum">{v === undefined ? 'No data' : formatValue(v, l.format)}</dd>
                 </div>

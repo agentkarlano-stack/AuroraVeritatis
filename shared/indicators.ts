@@ -43,6 +43,20 @@ export const INDICATORS: readonly IndicatorDef[] = [
 
 export const INDICATOR_IDS = new Set(INDICATORS.map((i) => i.id));
 
+/**
+ * Further WDI series for the economic and financial map layers (src/lib/geo/layers.ts, `latest` layers). Served as the
+ * most recent value per economy by /api/map/:indicator; not part of country dossiers (each dossier request stays well
+ * below the Workers subrequest limit). Coverage of every code was checked against the World Bank API on 2026-10-23.
+ */
+export const MAP_INDICATOR_IDS = new Set([
+  'FB.CBK.BRCH.P5', 'FB.ATM.TOTL.P5', 'FS.AST.PRVT.GD.ZS', 'CM.MKT.LCAP.GD.ZS', 'CM.MKT.LDOM.NO', 'FI.RES.TOTL.MO', 'FR.INR.LEND',
+  'NY.GDP.PCAP.PP.CD', 'NV.IND.TOTL.ZS', 'NV.IND.MANF.ZS', 'SL.IND.EMPL.ZS',
+  'NE.TRD.GNFS.ZS', 'LP.LPI.OVRL.XQ', 'IS.SHP.GOOD.TU', 'BX.KLT.DINV.WD.GD.ZS', 'BN.CAB.XOKA.GD.ZS',
+  'TX.VAL.FUEL.ZS.UN', 'TX.VAL.MMTL.ZS.UN', 'TX.VAL.FOOD.ZS.UN', 'TM.VAL.FUEL.ZS.UN', 'EG.IMP.CONS.ZS',
+  'NY.GDP.TOTL.RT.ZS', 'NY.GDP.PETR.RT.ZS', 'NY.GDP.NGAS.RT.ZS', 'NY.GDP.MINR.RT.ZS',
+  'EG.ELC.COAL.ZS', 'EG.ELC.NGAS.ZS', 'EG.ELC.NUCL.ZS', 'EG.ELC.RNEW.ZS', 'EG.USE.PCAP.KG.OE',
+]);
+
 export const WORLD_BANK_SOURCE = {
   name: 'World Bank Open Data (WDI)',
   url: 'https://data.worldbank.org/',

@@ -89,6 +89,16 @@ export interface ComparePoint {
   size: number | null;
 }
 
+/** Most recent observation per economy for one indicator (/api/map/:indicator). Years differ between economies. */
+export interface LatestValues {
+  indicator: string;
+  /** The World Bank's own name for the series. */
+  label: string;
+  points: { iso3: string; name: string; value: number; year: number }[];
+  years: { min: number; max: number } | null;
+  source: SourceRef;
+}
+
 export interface CompareYear {
   year: number;
   x: string;

@@ -9,7 +9,7 @@ import { earthquakes } from './usgs';
 import { quoteEmail, validateQuote } from '../shared/businessQuote';
 import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, sendQuoteRequest, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
-import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries } from './worldbank';
+import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries, latestValues } from './worldbank';
 
 export interface Env extends TwelveDataEnv, BrevoEnv {
   ASSETS: Fetcher;
@@ -146,6 +146,19 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
       try {
         const data = await compareYear(Number(compare[1]), x, y, size);
         return data ? json(data, { maxAge: DAY }) : error(400, 'Unsupported indicator or year');
+      } catch (e) {
+        return error(502, 'Country data source unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  // Most recent value per economy for one map indicator (economic and financial map layers).
+  const latest = path.match(/^\/api\/map\/([A-Z0-9.]{4,30})$/);
+  if (latest) {
+    return cached(request, ctx, async () => {
+      try {
+        const data = await latestValues(latest[1]!);
+        return data ? json(data, { maxAge: DAY }) : error(400, 'Unsupported indicator');
       } catch (e) {
         return error(502, 'Country data source unavailable', (e as Error).message);
       }

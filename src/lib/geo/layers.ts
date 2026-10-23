@@ -15,7 +15,7 @@ export const DATA_NATURE = {
 } as const;
 export type DataNature = keyof typeof DATA_NATURE;
 
-export const CATEGORIES = ['Base maps', 'Weather & environment', 'Energy & infrastructure', 'Economics & trade', 'Geopolitics & security', 'Society'] as const;
+export const CATEGORIES = ['Base maps', 'Weather & environment', 'Energy & infrastructure', 'Energy & commodities', 'Economics & trade', 'Finance & markets', 'Geopolitics & security', 'Society'] as const;
 export type GeoCategory = (typeof CATEGORIES)[number];
 
 export interface LegendStop {
@@ -60,7 +60,12 @@ export interface ChoroplethLayer extends Meta {
   /** Fixed class breaks (ascending); colours run from low to high. */
   breaks: number[];
   palette: string[];
-  format: 'percent' | 'usd' | 'number' | 'years' | 'density';
+  format: 'percent' | 'usd' | 'intl' | 'months' | 'number' | 'years' | 'density';
+  /**
+   * Most recent value per country (each with its own year) instead of one selected year: for series that are
+   * published with different lags per country or only every few years. Served by /api/map/:indicator.
+   */
+  latest?: boolean;
 }
 
 /** Point events from Aurora's live feeds (USGS, GDACS) and labelled simulated scenarios. */
@@ -96,6 +101,63 @@ const WB = {
 };
 const SEQ = ['#2b2a26', '#4a3f2a', '#6e5a31', '#957636', '#bf9a45', '#e3c98f'];
 const DIV = ['#3d6e8f', '#6f9cb5', '#a9bfc9', '#d9b46a', '#c9733f', '#a33a2c'];
+
+type LatestSpec = [id: string, name: string, category: GeoCategory, indicator: string, units: string, breaks: number[], format: ChoroplethLayer['format'], interpretation: string, extra?: Partial<ChoroplethLayer>];
+const LATEST: LatestSpec[] = [
+  // Finance & markets
+  ['bank-branches', 'Commercial bank branches', 'Finance & markets', 'FB.CBK.BRCH.P5', 'Per 100,000 adults', [2, 5, 10, 20, 40], 'number', 'Physical banking reach. Low values can mean weak access, or banking that has moved to mobile and digital channels (for example in East Africa).'],
+  ['atms', 'ATMs', 'Finance & markets', 'FB.ATM.TOTL.P5', 'Per 100,000 adults', [5, 20, 40, 70, 120], 'number', 'Cash infrastructure. Falling counts in rich economies usually reflect card and mobile payments, not weaker banking.'],
+  ['private-credit', 'Domestic credit to the private sector', 'Finance & markets', 'FS.AST.PRVT.GD.ZS', '% of GDP', [15, 30, 60, 100, 150], 'percent', 'Depth of bank lending to firms and households. High values mean deep credit markets and higher sensitivity to interest rates and credit cycles.'],
+  ['market-cap', 'Stock market capitalisation', 'Finance & markets', 'CM.MKT.LCAP.GD.ZS', '% of GDP', [10, 30, 60, 100, 200], 'percent', 'Value of listed domestic companies relative to the economy. Coverage is limited to economies with a stock exchange that reports to the World Federation of Exchanges.', { uncertainty: 'About 90 economies report recent values.' }],
+  ['listed-companies', 'Listed domestic companies', 'Finance & markets', 'CM.MKT.LDOM.NO', 'Number of companies', [20, 100, 300, 1000, 3000], 'number', 'Breadth of the local equity market. A few very large firms can dominate even where the count is high.', { uncertainty: 'About 90 economies report recent values.' }],
+  ['reserves', 'Foreign exchange reserves', 'Finance & markets', 'FI.RES.TOTL.MO', 'Months of imports', [2, 3, 6, 9, 15], 'months', 'How many months of imports reserves could pay for. Below three months is a common warning level for external payment stress.'],
+  ['lending-rate', 'Bank lending interest rate', 'Finance & markets', 'FR.INR.LEND', '% per year', [3, 6, 10, 15, 25], 'percent', 'Typical rate banks charge on loans. Definitions differ between countries, so compare levels with care.', { uncertainty: 'Definitions differ by country; about 150 economies.' }],
+  // Economic geography
+  ['gdp-ppp', 'GDP per capita (purchasing power)', 'Economics & trade', 'NY.GDP.PCAP.PP.CD', 'International $ (PPP)', [3000, 8000, 20000, 40000, 70000], 'intl', 'Output per person adjusted for price levels, so it compares living standards better than market exchange rates.'],
+  ['industry-share', 'Industry share of the economy', 'Economics & trade', 'NV.IND.TOTL.ZS', '% of GDP (value added)', [15, 22, 30, 40, 55], 'percent', 'Industry including mining, construction and utilities. Very high values often reflect oil and gas extraction rather than manufacturing.'],
+  ['manufacturing', 'Manufacturing share of the economy', 'Economics & trade', 'NV.IND.MANF.ZS', '% of GDP (value added)', [5, 10, 15, 20, 28], 'percent', 'Where factories carry the economy. High values mean exposure to global supply chains, energy prices and export demand.'],
+  ['industry-jobs', 'Employment in industry', 'Economics & trade', 'SL.IND.EMPL.ZS', '% of total employment', [10, 18, 24, 30, 38], 'percent', 'Share of workers in industry (ILO-modelled estimate).', { uncertainty: 'Modelled estimates for many economies.' }],
+  // Trade & logistics
+  ['trade-share', 'Trade (exports plus imports)', 'Economics & trade', 'NE.TRD.GNFS.ZS', '% of GDP', [30, 50, 75, 100, 150], 'percent', 'Openness to international trade. Trade hubs can exceed 100% because goods pass through them.'],
+  ['logistics', 'Logistics Performance Index', 'Economics & trade', 'LP.LPI.OVRL.XQ', 'Score from 1 (low) to 5 (high)', [2.2, 2.6, 3.0, 3.5, 3.9], 'number', 'Survey-based quality of customs, infrastructure, shipping and tracking. Published every few years (latest 2022).', { uncertainty: 'Survey-based; latest edition 2022.' }],
+  ['container-ports', 'Container port traffic', 'Economics & trade', 'IS.SHP.GOOD.TU', 'TEU per year', [100000, 500000, 2000000, 8000000, 30000000], 'number', 'Twenty-foot container units handled by the country\'s ports: a proxy for the role in global shipping. Landlocked countries have no value.'],
+  ['fdi', 'Foreign direct investment, net inflows', 'Economics & trade', 'BX.KLT.DINV.WD.GD.ZS', '% of GDP', [0, 1, 3, 6, 10], 'percent', 'New long-term foreign investment. Financial centres show very large or negative swings from corporate flows passing through.', { palette: DIV }],
+  ['current-account', 'Current account balance', 'Economics & trade', 'BN.CAB.XOKA.GD.ZS', '% of GDP', [-8, -3, 0, 3, 8], 'percent', 'Whether a country earns more abroad than it spends (surplus) or relies on foreign financing (deficit). Large deficits raise currency risk.', { palette: DIV }],
+  // Energy & commodities
+  ['fuel-exports', 'Fuel exports', 'Energy & commodities', 'TX.VAL.FUEL.ZS.UN', '% of merchandise exports', [5, 15, 40, 70, 90], 'percent', 'Dependence on oil, gas and coal sales. High values mean public finances and the currency move with energy prices.'],
+  ['metal-exports', 'Ores and metals exports', 'Energy & commodities', 'TX.VAL.MMTL.ZS.UN', '% of merchandise exports', [3, 10, 25, 45, 70], 'percent', 'Dependence on mining exports such as copper, iron ore and gold-bearing ores.'],
+  ['food-exports', 'Food exports', 'Energy & commodities', 'TX.VAL.FOOD.ZS.UN', '% of merchandise exports', [10, 20, 35, 50, 70], 'percent', 'Dependence on agricultural and food exports, which are exposed to weather, harvests and trade restrictions.'],
+  ['fuel-imports', 'Fuel imports', 'Energy & commodities', 'TM.VAL.FUEL.ZS.UN', '% of merchandise imports', [5, 10, 15, 20, 30], 'percent', 'How much of the import bill goes on fuel: exposure to oil and gas price shocks.'],
+  ['energy-dependence', 'Net energy imports', 'Energy & commodities', 'EG.IMP.CONS.ZS', '% of energy use', [-100, -20, 0, 30, 70], 'percent', 'Positive: the country imports this share of the energy it uses. Negative: a net exporter (values far below −100% mean exports are several times domestic use).', { palette: DIV }],
+  ['resource-rents', 'Natural resource rents', 'Energy & commodities', 'NY.GDP.TOTL.RT.ZS', '% of GDP', [2, 5, 10, 20, 35], 'percent', 'Income from oil, gas, coal, minerals and forests above extraction costs. High values signal commodity dependence and often weaker diversification.'],
+  ['oil-rents', 'Oil rents', 'Energy & commodities', 'NY.GDP.PETR.RT.ZS', '% of GDP', [1, 5, 10, 20, 35], 'percent', 'Oil income above production cost relative to the economy.'],
+  ['gas-rents', 'Natural gas rents', 'Energy & commodities', 'NY.GDP.NGAS.RT.ZS', '% of GDP', [0.5, 1, 3, 6, 12], 'percent', 'Gas income above production cost relative to the economy.'],
+  ['mineral-rents', 'Mineral rents', 'Energy & commodities', 'NY.GDP.MINR.RT.ZS', '% of GDP', [0.5, 1, 3, 6, 12], 'percent', 'Income from metals and minerals (for example copper, gold, iron ore, bauxite) above extraction costs.'],
+  ['power-coal', 'Electricity from coal', 'Energy & commodities', 'EG.ELC.COAL.ZS', '% of electricity generated', [5, 20, 40, 60, 80], 'percent', 'Coal in the power mix: exposure to coal prices and carbon policy.'],
+  ['power-gas', 'Electricity from natural gas', 'Energy & commodities', 'EG.ELC.NGAS.ZS', '% of electricity generated', [10, 25, 45, 65, 85], 'percent', 'Gas in the power mix: electricity prices follow gas prices where this share is high.'],
+  ['power-nuclear', 'Electricity from nuclear', 'Energy & commodities', 'EG.ELC.NUCL.ZS', '% of electricity generated', [1, 10, 20, 35, 55], 'percent', 'Nuclear in the power mix; zero where no reactors operate.'],
+  ['power-renewable', 'Renewable electricity', 'Energy & commodities', 'EG.ELC.RNEW.ZS', '% of electricity generated', [10, 25, 50, 75, 95], 'percent', 'Hydro, wind, solar, geothermal and biomass in power generation. Hydro dominates many high values.'],
+  ['energy-use', 'Energy use per person', 'Energy & commodities', 'EG.USE.PCAP.KG.OE', 'kg of oil equivalent', [500, 1000, 2500, 5000, 8000], 'number', 'Primary energy consumed per person: a proxy for industrial intensity and climate.'],
+];
+
+function latestLayers(): ChoroplethLayer[] {
+  return LATEST.map(([id, name, category, indicator, units, breaks, format, interpretation, extra]) => ({
+    kind: 'choropleth',
+    id,
+    name,
+    category,
+    ...WB,
+    updateFrequency: 'Annual, published with a lag that differs by country; Aurora shows each country\'s most recent value and its year',
+    units,
+    indicator,
+    breaks,
+    palette: SEQ,
+    format,
+    interpretation,
+    latest: true,
+    ...extra,
+  }));
+}
 
 export const GEO_LAYERS: GeoLayer[] = [
   // Base maps (also used as styles).
@@ -248,6 +310,10 @@ export const GEO_LAYERS: GeoLayer[] = [
   },
 
   // Country statistics.
+  // Economic and financial maps (owner directive "Institutional market intelligence", priority 1). Most recent value
+  // per country; every code was checked against the World Bank API for coverage (2026-10-23).
+  ...latestLayers(),
+
   { kind: 'choropleth', id: 'gdp-per-capita', name: 'GDP per capita', category: 'Economics & trade', ...WB, units: 'Current US$', indicator: 'NY.GDP.PCAP.CD', breaks: [1000, 4000, 12000, 25000, 50000], palette: SEQ, format: 'usd', interpretation: 'Economic output per person at market exchange rates. It does not account for price differences between countries (see the Currency module for purchasing power).' },
   { kind: 'choropleth', id: 'gdp-growth', name: 'Real GDP growth', category: 'Economics & trade', ...WB, units: '% per year', indicator: 'NY.GDP.MKTP.KD.ZG', breaks: [-2, 0, 2, 4, 6], palette: DIV, format: 'percent', interpretation: 'Annual change in inflation-adjusted output. Single years can be distorted by crises, commodity swings or rebounds.' },
   { kind: 'choropleth', id: 'inflation', name: 'Inflation (consumer prices)', category: 'Economics & trade', ...WB, units: '% per year', indicator: 'FP.CPI.TOTL.ZG', breaks: [0, 2, 5, 10, 20], palette: DIV, format: 'percent', interpretation: 'Annual change in consumer prices. Above 10% erodes purchasing power quickly; very high values often signal currency crises.' },
@@ -306,6 +372,10 @@ export function formatValue(v: number, format: ChoroplethLayer['format']): strin
       return `${v.toFixed(1)}%`;
     case 'usd':
       return `US$ ${compact(v)}`;
+    case 'intl':
+      return `Int$ ${compact(v)}`;
+    case 'months':
+      return `${v.toFixed(1)} months`;
     case 'years':
       return `${v.toFixed(1)} years`;
     case 'density':
@@ -333,3 +403,4 @@ export const COMBINATIONS: { layers: [string, string]; why: string }[] = [
   { layers: ['earthquakes', 'density'], why: 'Earthquakes in densely populated countries carry the highest human risk.' },
   { layers: ['no2', 'night-lights'], why: 'Combustion and industrial activity next to settlement patterns.' },
 ];
+

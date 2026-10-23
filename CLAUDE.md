@@ -56,7 +56,8 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
   3D (globe) projection, so layers and view are preserved. Layer catalogue with provider/licence/freshness metadata in
-  `lib/geo/layers.ts` (NASA GIBS rasters, World Bank choropleths via `/api/compare`, USGS/GDACS events, planned layers
+  `lib/geo/layers.ts` (NASA GIBS rasters, World Bank choropleths via `/api/compare` (one year) or `/api/map/:indicator`
+  (`latest` layers: most recent value per country with its year; allow-list `MAP_INDICATOR_IDS`), USGS/GDACS events, planned layers
   with their needs); shareable URL state in `lib/geo/state.ts`. `scripts/check-gibs.mjs` (preview workflow) verifies
   every GIBS layer from a GitHub runner, since cloud sessions cannot reach NASA. No WebGL2 → `WorldMap` SVG fallback.
 - World Briefing (`pages/Briefing.tsx`): pure logic in `lib/worldBriefing.ts` (status labels, reliability, fixed
