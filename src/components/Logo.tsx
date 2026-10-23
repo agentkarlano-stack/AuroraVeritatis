@@ -31,13 +31,13 @@ export function Monogram({ className = 'h-8 w-auto', title = 'Aurora Veritatis' 
 /** Horizontal lockup for navigation bars: monogram | wordmark over tagline. */
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="flex items-center gap-3">
+    <span className="flex items-center gap-2 sm:gap-3">
       <Monogram className="h-6 w-auto shrink-0" />
       <span aria-hidden className="h-7 w-px bg-gold-dim/60" />
       <span className="flex flex-col leading-none">
         <span className="font-display text-[13px] font-bold tracking-[0.08em] text-platinum">AURORA VERITATIS</span>
         {!compact && (
-          <span className="mt-1.5 hidden font-display text-[8px] font-medium tracking-[0.2em] text-gold sm:block">
+          <span className="mt-1.5 hidden whitespace-nowrap font-display text-[8px] font-medium tracking-[0.2em] text-gold sm:block">
             GLOBAL ANALYSIS &amp; STRATEGIC INSIGHT
           </span>
         )}
