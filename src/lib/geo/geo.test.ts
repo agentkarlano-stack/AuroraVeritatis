@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DATA_NATURE, GEO_LAYERS, choroplethLegend, classOf, formatValue, gibsTiles, isActive, type ChoroplethLayer, type GibsLayer } from './layers';
 import { MAX_LAYERS, decodeState, defaultState, encodeState, shiftDate, toggleLayer } from './state';
+import { MAP_INDICATOR_IDS } from '../../../shared/indicators';
 
 const TODAY = '2026-10-22';
 const BOUNDS = { today: TODAY, minYear: 1990, maxYear: 2025 };
@@ -79,3 +80,20 @@ describe('shareable map state', () => {
     expect(shiftDate('2026-12-31', 1)).toBe('2027-01-01');
   });
 });
+
+describe('economic and financial map layers', () => {
+  it('use allow-listed World Bank series with valid classes', () => {
+    const latest = GEO_LAYERS.filter((l): l is ChoroplethLayer => l.kind === 'choropleth' && !!l.latest);
+    expect(latest.length).toBeGreaterThanOrEqual(29);
+    for (const l of latest) {
+      expect(MAP_INDICATOR_IDS.has(l.indicator), l.id).toBe(true);
+      expect([...l.breaks].sort((a, b) => a - b), l.id).toEqual(l.breaks);
+      expect(l.palette.length, l.id).toBe(l.breaks.length + 1);
+      expect(l.units && l.interpretation && l.license, l.id).toBeTruthy();
+    }
+    expect(new Set(GEO_LAYERS.map((l) => l.id)).size).toBe(GEO_LAYERS.length);
+    expect(formatValue(12345, 'intl')).toBe('Int$ 12k');
+    expect(formatValue(4.25, 'months')).toBe('4.3 months');
+  });
+});
+

@@ -1,6 +1,6 @@
-import { INDICATORS, INDICATOR_IDS, WORLD_BANK_SOURCE } from '../shared/indicators';
+import { INDICATORS, INDICATOR_IDS, MAP_INDICATOR_IDS, WORLD_BANK_SOURCE } from '../shared/indicators';
 import { CURRENCY_INDICATORS, type CurrencyProfile, type CurrencySeriesKey } from '../shared/currency';
-import type { ComparePoint, CompareYear, CountryProfile, IndicatorSeries, IndicatorValue } from '../shared/types';
+import type { ComparePoint, CompareYear, CountryProfile, IndicatorSeries, IndicatorValue, LatestValues } from '../shared/types';
 import { fetchJson } from './http';
 
 const BASE = 'https://api.worldbank.org/v2';
@@ -113,6 +113,26 @@ async function yearValues(indicator: string, year: number): Promise<Map<string, 
  */
 export function compareYears(now = Date.now()): { min: number; max: number } {
   return { min: 1990, max: new Date(now).getUTCFullYear() - 1 };
+}
+
+/**
+ * Most recent non-empty value per economy for one indicator, each with its own year (one upstream request).
+ * Aggregates (regions, income groups) are dropped. Null for indicators outside the allow-lists.
+ */
+export async function latestValues(indicator: string): Promise<LatestValues | null> {
+  if (!MAP_INDICATOR_IDS.has(indicator) && !INDICATOR_IDS.has(indicator)) return null;
+  const [meta, data] = await Promise.all([economies(), fetchJson<WbResponse<WbObservation>>(`${BASE}/country/all/indicator/${indicator}?format=json&mrnev=1&per_page=400`)]);
+  const points: LatestValues['points'] = [];
+  let label = indicator;
+  for (const o of rows(data)) {
+    if (o.indicator?.value) label = o.indicator.value;
+    const m = o.countryiso3code ? meta.get(o.countryiso3code) : undefined;
+    const year = Number(o.date);
+    if (!m || typeof o.value !== 'number' || !Number.isInteger(year)) continue;
+    points.push({ iso3: o.countryiso3code!, name: m.name, value: o.value, year });
+  }
+  const ys = points.map((p) => p.year);
+  return { indicator, label, points, years: ys.length ? { min: Math.min(...ys), max: Math.max(...ys) } : null, source: WORLD_BANK_SOURCE };
 }
 
 /** One year of a three-indicator cross-section (x, y, bubble size) for all economies. */

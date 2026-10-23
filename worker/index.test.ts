@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CompareYear, CountryProfile, IndicatorSeries, PublicConfig } from '../shared/types';
+import type { CompareYear, LatestValues, CountryProfile, IndicatorSeries, PublicConfig } from '../shared/types';
 import { handleApi, type Env } from './index';
 import { RateLimiter } from './ratelimit';
 import { magnitudeToSeverity, normalizeUsgs } from './usgs';
@@ -139,6 +139,41 @@ describe('country comparison endpoint', () => {
     expect(data.points).toEqual([{ iso3: 'DEU', name: 'Germany', region: 'Europe & Central Asia', x: 50000, y: 81, size: 83e6 }]);
     expect((await get('/api/compare/1800')).status).toBe(400);
     expect((await get('/api/compare/2022?x=BAD.ID')).status).toBe(400);
+  });
+
+  it('serves the most recent value per economy with its own year, without aggregates', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        const u = new URL(input);
+        if (u.pathname === '/v2/country') {
+          return Response.json([{ page: 1 }, [
+            { id: 'DEU', name: 'Germany', region: { id: 'ECS', value: 'Europe & Central Asia' } },
+            { id: 'KEN', name: 'Kenya', region: { id: 'SSF', value: 'Sub-Saharan Africa ' } },
+            { id: 'WLD', name: 'World', region: { id: 'NA', value: 'Aggregates' } },
+          ]]);
+        }
+        expect(u.searchParams.get('mrnev')).toBe('1');
+        const indicator = { id: 'FB.CBK.BRCH.P5', value: 'Commercial bank branches (per 100,000 adults)' };
+        return Response.json([{ page: 1 }, [
+          { indicator, countryiso3code: 'DEU', date: '2024', value: 9.2 },
+          { indicator, countryiso3code: 'KEN', date: '2022', value: 5.1 },
+          { indicator, countryiso3code: 'WLD', date: '2024', value: 11 },
+          { indicator, countryiso3code: '', date: '2024', value: 3 },
+        ]]);
+      }),
+    );
+    const res = await get('/api/map/FB.CBK.BRCH.P5');
+    expect(res.status).toBe(200);
+    const data = await body<LatestValues>(res);
+    expect(data.label).toBe('Commercial bank branches (per 100,000 adults)');
+    expect(data.points).toEqual([
+      { iso3: 'DEU', name: 'Germany', value: 9.2, year: 2024 },
+      { iso3: 'KEN', name: 'Kenya', value: 5.1, year: 2022 },
+    ]);
+    expect(data.years).toEqual({ min: 2022, max: 2024 });
+    expect((await get('/api/map/NOT.ALLOWED')).status).toBe(400);
+    expect((await get('/api/map/x;drop')).status).toBe(404);
   });
 
   it('derives the valid year range from the request-time clock, not module load', () => {

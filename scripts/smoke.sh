@@ -36,6 +36,7 @@ check "unknown path noindex"  /this-page-does-not-exist                200 'noin
 check "favicon"               /favicon.svg                             200 '<svg'
 check "World Bank profile"    /api/countries/DEU                       200 '"iso3":"DEU"'
 check "World Bank comparison" /api/compare/2022                        200 '"points":\[\{'
+check "economic map layer"    /api/map/FB.CBK.BRCH.P5                  200 '"points":\[\{'
 check "USGS earthquakes"      /api/events/earthquakes                  200 '"events"'
 SOFT=1 check "GDACS disasters" /api/events/disasters                    200 '"events"'
 check "positioning metadata"  /positioning                             200 '<title>[^<]*[Pp]ositioning'
