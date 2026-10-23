@@ -6,7 +6,8 @@ import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
-import { BrevoError, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
+import { quoteEmail, validateQuote } from '../shared/businessQuote';
+import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, sendQuoteRequest, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries } from './worldbank';
 
@@ -19,6 +20,8 @@ export interface Env extends TwelveDataEnv, BrevoEnv {
   SUPABASE_ANON_KEY?: string;
   POSTHOG_KEY?: string;
   POSTHOG_HOST?: string;
+  /** Inbox for business quote requests (defaults to the support address). */
+  BUSINESS_QUOTE_TO?: string;
 }
 
 const limiter = new RateLimiter(60, 1); // 60-request burst, 1 req/s sustained per client IP.
@@ -101,6 +104,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   const ip0 = request.headers.get('CF-Connecting-IP') ?? 'local';
   const BUILD_ID = env.CF_VERSION_METADATA?.id?.slice(0, 12) ?? 'dev';
   if (request.method === 'POST' && path.startsWith('/api/newsletter/')) return newsletterPost(request, env, url, path, ip0);
+  if (request.method === 'POST' && path === '/api/business/quote') return quotePost(request, env, url, ip0);
   if (request.method !== 'GET') return error(405, 'Method not allowed');
 
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
@@ -347,6 +351,32 @@ async function newsletterPost(request: Request, env: Env, url: URL, path: string
     // Brevo rejects some addresses (e.g. already blocklisted); keep answers generic so addresses cannot be probed.
     if (e instanceof BrevoError && e.status === 400) return accepted;
     return error(502, 'The newsletter service is unavailable right now. Please try again later.');
+  }
+}
+
+const QUOTE_FALLBACK = 'Online quote requests are not available right now. Please email auroraveritatissup@gmail.com with your organisation and needs.';
+
+/** POST /api/business/quote: validates a business quote request and emails it to the team (no prices, no auto-reply). */
+async function quotePost(request: Request, env: Env, url: URL, ip: string): Promise<Response> {
+  const origin = request.headers.get('Origin');
+  if (!origin || origin !== url.origin) return error(403, 'Cross-site requests are not accepted');
+  if (!(request.headers.get('Content-Type') ?? '').includes('application/json')) return error(415, 'JSON expected');
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return error(400, 'Invalid request');
+  const reference = `Q-${crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+  const accepted = json({ ok: true, reference, message: `Thank you. Your request ${reference} has reached our team, and we will reply by email with a private proposal.` }, { status: 202 });
+  // Honeypot: real people never fill this hidden field. Answer as if it worked.
+  if (typeof body.website === 'string' && body.website.trim()) return accepted;
+  const v = validateQuote(body);
+  if (!v.ok) return error(400, v.error);
+  if (!allowQuote(ip)) return error(429, 'Too many requests. Please try again later or email auroraveritatissup@gmail.com.');
+  if (!brevoStatus(env).configured) return error(503, QUOTE_FALLBACK);
+  try {
+    const mail = quoteEmail(v.value, { freeMail: v.freeMail, receivedAt: new Date().toISOString(), reference });
+    await sendQuoteRequest(env, mail, { email: v.value.email, name: v.value.contact }, reference);
+    return accepted;
+  } catch {
+    return error(502, QUOTE_FALLBACK);
   }
 }
 

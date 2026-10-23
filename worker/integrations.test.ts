@@ -202,3 +202,44 @@ describe('newsletter', () => {
     expect(body.textContent).not.toContain(BREVO_KEY);
   });
 });
+
+describe('business quote requests', () => {
+  const quote = {
+    organization: 'Example Research <b>Ltd</b>',
+    contact: 'Dana Example',
+    email: 'dana@example.org',
+    country: 'Germany',
+    industry: 'Consulting',
+    seats: '10',
+    functions: ['Global Radar and briefings'],
+    aiUsage: 'Not sure yet',
+    duration: '12 months',
+    consent: true,
+  };
+
+  it('emails the team only, with reply-to the requester and no prices', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ messageId: 'm1' }, { status: 201 }));
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await post('/api/business/quote', full, quote, 'https://evil.example')).status).toBe(403);
+    expect((await post('/api/business/quote', full, { ...quote, consent: false })).status).toBe(400);
+    expect((await post('/api/business/quote', full, { ...quote, website: 'spam' })).status).toBe(202);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const res = await post('/api/business/quote', { ...full, BUSINESS_QUOTE_TO: 'sales@aurorav.app' }, quote);
+    expect(res.status).toBe(202);
+    expect(((await res.json()) as { reference: string }).reference).toMatch(/^Q-[0-9A-F]{6}$/);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.brevo.com/v3/smtp/email');
+    const body = JSON.parse(init.body as string) as { to: { email: string }[]; replyTo: { email: string }; htmlContent: string; textContent: string };
+    expect(body.to).toEqual([{ email: 'sales@aurorav.app' }]);
+    expect(body.replyTo.email).toBe('dana@example.org');
+    expect(body.htmlContent).toContain('&lt;b&gt;Ltd');
+    expect(body.textContent).not.toMatch(/€|price per/i);
+  });
+
+  it('falls back to email when Brevo is not configured', async () => {
+    const res = await post('/api/business/quote', base, quote);
+    expect(res.status).toBe(503);
+    expect(((await res.json()) as { error: string }).error).toContain('auroraveritatissup@gmail.com');
+  });
+});
