@@ -32,6 +32,7 @@ describe('Twelve Data', () => {
     expect(freshnessOf('1m', now - 20 * 60_000, now)).toEqual({ freshness: 'delayed', ageMinutes: 20 });
     expect(freshnessOf('1h', now - 3 * 86_400_000, now).freshness).toBe('historical');
     expect(freshnessOf('1D', now - 86_400_000, now).freshness).toBe('end-of-day');
+    expect(freshnessOf('1D', now + 3_600_000, now).freshness).toBe('session-in-progress');
   });
 
   it('normalises provider bars oldest first and never invents bars', () => {

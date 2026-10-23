@@ -88,7 +88,7 @@ async function call<T>(env: TwelveDataEnv, path: string, params: Record<string, 
   return body;
 }
 
-export type Freshness = 'near-real-time' | 'delayed' | 'end-of-day' | 'historical';
+export type Freshness = 'near-real-time' | 'delayed' | 'session-in-progress' | 'end-of-day' | 'historical';
 
 /** "2026-10-22 15:30:00" (requested with timezone=UTC) → epoch milliseconds. */
 export function utcDateTime(datetime: string): number {
@@ -103,7 +103,11 @@ export function utcDateTime(datetime: string): number {
 export function freshnessOf(interval: TdInterval, latestUtc: number, now: number): { freshness: Freshness; ageMinutes: number } {
   const ageMinutes = Math.max(0, Math.round((now - latestUtc) / 60_000));
   const step = TD_INTERVALS[interval].minutes;
-  if (interval === '1D') return { freshness: ageMinutes <= 4 * 1440 ? 'end-of-day' : 'historical', ageMinutes };
+  if (interval === '1D') {
+    // Daily bars are dated by session; today's bar is still forming.
+    if (latestUtc > now) return { freshness: 'session-in-progress', ageMinutes: 0 };
+    return { freshness: ageMinutes <= 4 * 1440 ? 'end-of-day' : 'historical', ageMinutes };
+  }
   if (ageMinutes <= 2 * step + 3) return { freshness: 'near-real-time', ageMinutes };
   if (ageMinutes <= 24 * 60) return { freshness: 'delayed', ageMinutes };
   return { freshness: 'historical', ageMinutes };
