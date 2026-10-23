@@ -140,20 +140,6 @@ export const GEO_LAYERS: GeoLayer[] = [
   },
   {
     kind: 'gibs',
-    id: 'fires',
-    name: 'Active fires and thermal anomalies',
-    category: 'Weather & environment',
-    ...GIBS,
-    nature: 'observation',
-    updateFrequency: 'Daily (near real time)',
-    coverage: 'Global',
-    resolution: '375 m detections',
-    interpretation: 'Hot spots detected by VIIRS on the selected day: wildfires, agricultural burning, gas flares and volcanoes. A detection is a heat signal, not a confirmed wildfire.',
-    uncertainty: 'Cloud cover hides fires; small or short fires can be missed.',
-    gibs: { layer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All', matrixSet: 'GoogleMapsCompatible_Level8', ext: 'mvt', time: 'daily', maxZoom: 8, sourceLayer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All' },
-  },
-  {
-    kind: 'gibs',
     id: 'aerosol',
     name: 'Air quality: aerosol optical depth',
     category: 'Weather & environment',
@@ -285,6 +271,7 @@ export const GEO_LAYERS: GeoLayer[] = [
   { kind: 'planned', id: 'outages', name: 'Internet outages', category: 'Energy & infrastructure', provider: 'IODA (Georgia Tech) and Cloudflare Radar', providerUrl: 'https://ioda.inetintel.cc.gatech.edu/', interpretation: 'Documented national and regional connectivity disruptions.', needs: 'API integration and a terms review.' },
   { kind: 'planned', id: 'drought', name: 'Drought and soil moisture', category: 'Weather & environment', provider: 'Copernicus European Drought Observatory / NASA SMAP', providerUrl: 'https://edo.jrc.ec.europa.eu/', interpretation: 'Drought indicators and soil moisture anomalies.', needs: 'Layer identifiers verified against the provider services.' },
   { kind: 'planned', id: 'population-density', name: 'Population density (gridded)', category: 'Society', provider: 'WorldPop (CC BY 4.0) or GHSL (European Commission)', providerUrl: 'https://www.worldpop.org/', interpretation: 'Where people live at about 1 km resolution.', needs: 'NASA GIBS refuses the GPW layer (HTTP 403, verified 2026-10-23); an alternative needs preprocessing into tiles and storage.' },
+  { kind: 'planned', id: 'fires', name: 'Active fires and thermal anomalies', category: 'Weather & environment', provider: 'NASA FIRMS (VIIRS), via GIBS vector tiles', providerUrl: 'https://firms.modaps.eosdis.nasa.gov/', interpretation: 'Daily satellite heat detections: wildfires, agricultural burning, gas flares and volcanoes.', needs: 'The vector tile address could not be confirmed yet (verified in CI on 2026-10-23); it is enabled once a test tile loads.' },
   { kind: 'planned', id: 'displacement', name: 'Refugees and displacement', category: 'Geopolitics & security', provider: 'UNHCR Refugee Data Finder', providerUrl: 'https://www.unhcr.org/refugee-statistics/', interpretation: 'Refugees by country of origin and asylum.', needs: 'API integration (free, attribution required).' },
 ];
 
@@ -339,7 +326,7 @@ export function choroplethLegend(l: ChoroplethLayer): { color: string; label: st
 
 /** Layer pairs worth combining, with why (shown as suggestions). */
 export const COMBINATIONS: { layers: [string, string]; why: string }[] = [
-  { layers: ['fires', 'aerosol'], why: 'Fire detections next to the smoke they produce.' },
+  { layers: ['true-color', 'aerosol'], why: 'Smoke and dust plumes in the satellite image next to measured haze.' },
   { layers: ['precipitation', 'disasters'], why: 'Heavy rain next to flood and cyclone alerts.' },
   { layers: ['night-lights', 'electricity-access'], why: 'Where light at night matches or contradicts reported electricity access.' },
   { layers: ['inflation', 'gdp-growth'], why: 'Stagflation risk: high inflation with weak growth.' },

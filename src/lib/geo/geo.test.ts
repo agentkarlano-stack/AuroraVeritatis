@@ -72,9 +72,9 @@ describe('shareable map state', () => {
 
   it('limits the number of combined layers and steps dates', () => {
     let s: typeof base = { ...base, layers: [] };
-    for (const id of ['fires', 'aerosol', 'inflation', 'earthquakes', 'disasters']) s = toggleLayer(s, id);
+    for (const id of ['true-color', 'aerosol', 'inflation', 'earthquakes', 'disasters']) s = toggleLayer(s, id);
     expect(s.layers).toHaveLength(MAX_LAYERS);
-    expect(toggleLayer(s, 'fires').layers.map((l) => l.id)).toEqual(['aerosol', 'inflation', 'earthquakes']);
+    expect(toggleLayer(s, 'true-color').layers.map((l) => l.id)).toEqual(['aerosol', 'inflation', 'earthquakes']);
     expect(shiftDate('2026-03-01', -1)).toBe('2026-02-28');
     expect(shiftDate('2026-12-31', 1)).toBe('2027-01-01');
   });

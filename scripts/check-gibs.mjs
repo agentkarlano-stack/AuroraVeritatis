@@ -12,6 +12,11 @@ const CAPS = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/1.0.0/WMTSCapab
 const today = new Date().toISOString().slice(0, 10);
 const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const layers = GEO_LAYERS.filter((l) => l.kind === 'gibs');
+// Candidates being verified before they are offered in the map (not in the catalogue yet).
+const CANDIDATES = [
+  { id: 'fires (candidate)', kind: 'gibs', gibs: { layer: 'VIIRS_SNPP_Thermal_Anomalies_375m_All', matrixSet: 'GoogleMapsCompatible_Level8', ext: 'mvt', time: 'daily', maxZoom: 8 } },
+];
+layers.push(...CANDIDATES);
 
 async function tile(l) {
   const template = gibsTiles(l, effectiveDate(l, yesterday, today));
@@ -70,7 +75,8 @@ async function lookup(id) {
   const sets = [...block.matchAll(/<TileMatrixSet>([^<]+)<\/TileMatrixSet>/g)].map((m) => m[1]);
   const formats = [...block.matchAll(/<Format>([^<]+)<\/Format>/g)].map((m) => m[1]);
   const def = /<Default>([^<]+)<\/Default>/.exec(block)?.[1];
-  return `capabilities: matrix set ${sets.join(' / ') || '?'}, format ${formats.join(' / ') || '?'}, default time ${def ?? 'none'}`;
+  const templates = [...block.matchAll(/<ResourceURL[^>]*template="([^"]+)"/g)].map((m) => m[1]);
+  return `capabilities: matrix set ${sets.join(' / ') || '?'}, format ${formats.join(' / ') || '?'}, default time ${def ?? 'none'}, URL template ${templates.join(' | ') || '?'}`;
 }
 
 const results = await Promise.all(layers.map(async (l) => ({ l, r: await tile(l) })));
