@@ -12,6 +12,8 @@ import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries 
 
 export interface Env extends TwelveDataEnv, BrevoEnv {
   ASSETS: Fetcher;
+  /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
+  CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
   ENVIRONMENT?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
@@ -19,9 +21,6 @@ export interface Env extends TwelveDataEnv, BrevoEnv {
   POSTHOG_HOST?: string;
 }
 
-declare const __BUILD_ID__: string | undefined;
-/** Build identifier injected by Vite (`define`); "dev" in tests. */
-const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
 const limiter = new RateLimiter(60, 1); // 60-request burst, 1 req/s sustained per client IP.
 const DAY = 86_400;
 
@@ -100,6 +99,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   const path = url.pathname.replace(/\/+$/, '');
 
   const ip0 = request.headers.get('CF-Connecting-IP') ?? 'local';
+  const BUILD_ID = env.CF_VERSION_METADATA?.id?.slice(0, 12) ?? 'dev';
   if (request.method === 'POST' && path.startsWith('/api/newsletter/')) return newsletterPost(request, env, url, path, ip0);
   if (request.method !== 'GET') return error(405, 'Method not allowed');
 
