@@ -119,7 +119,7 @@ export default function Positioning() {
                 {rows.map(({ def, s }) => (
                   <tr key={def.code} className={`cursor-pointer hover:bg-ink-800/60 ${def.code === code ? 'bg-ink-800/60' : ''}`} onClick={() => select({ m: def.code })}>
                     <td className="px-4 py-2 font-sans">
-                      <button className="text-left text-platinum hover:text-gold-soft" onClick={() => select({ m: def.code })}>
+                      <button className="min-h-6 text-left text-platinum hover:text-gold-soft" onClick={() => select({ m: def.code })}>
                         {def.name}
                       </button>
                       <span className="block text-[11px] text-slate-dim">

@@ -93,6 +93,13 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   unit tests run in Node and cannot catch Workers-runtime failures.
 - Never compute time-dependent values at Worker module scope (`new Date()`, `Date.now()`): during global
   initialisation the Workers clock reads as the Unix epoch. (This made `/api/compare/:year` reject every year.)
+- `e2e/ui-audit.ts` (workflow `ui-audit.yml`, after each merge and on demand) is the read-only production browser audit:
+  26 routes × 9 widths (overflow, errors, unnamed controls, WCAG touch targets), interaction checks and security
+  headers. Read its annotations ("UI audit", "UI audit checks"). Run locally with `BASE_URL=http://localhost:4173
+  CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome node e2e/ui-audit.ts`.
+- Integrations: `worker/twelvedata.ts` (market data; prices return 451 until `MARKET_DATA_DISPLAY=licensed`) and
+  `worker/brevo.ts` (newsletter, Aurora list only). `/api/integrations` shows flags; `/api/integrations/check` is the
+  limited live test (cached per deployment via the `CF_VERSION_METADATA` binding). Never log or return key values.
 - `scripts/smoke.sh <base-url>` is the read-only HTTP smoke test; CI runs it on each PR preview and on aurorav.app. It
   also prints an informational "Auth status" line (Supabase configured? schema applied? sign-up settings) from public values.
 - Public copy: approved homepage strings live in `shared/copy.ts` (pinned by a test); `scripts/copyStyle.test.ts` enforces
