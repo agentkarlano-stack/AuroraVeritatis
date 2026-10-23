@@ -116,7 +116,8 @@ export default function Account() {
         </Panel>
 
         {status === 'signed-in' && <ProfileEditor onLoaded={onProfile} />}
-        {status === 'signed-in' && <SecuritySettings />}
+        {/* During password recovery the user has no current password; only the recovery form is shown. */}
+        {status === 'signed-in' && !recovery && <SecuritySettings />}
 
         <Panel title="Data stored in this browser" eyebrow={status === 'signed-in' ? 'Synced to your account. Signing out removes this copy from the browser.' : undefined}>
           <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">

@@ -464,15 +464,15 @@ async function main() {
     await check('P1', 'Profile is edited from the Account page and persists', 'browser', async () => {
       await pageA.goto(`${BASE}/account`);
       const name = `E2E Profile ${randomBytes(2).toString('hex')}`;
-      await pageA.getByLabel('Display name').fill(name);
+      await pageA.getByLabel('Display name', { exact: true }).fill(name);
       await pageA.getByRole('button', { name: 'Save profile' }).click();
       await pageA.getByRole('status').filter({ hasText: 'Saved.' }).waitFor({ timeout: 15_000 });
       const { data } = await a!.from('profiles').select('display_name');
       assert(data?.[0]?.display_name === name, `stored display name: ${JSON.stringify(data)}`);
       await pageA.reload();
-      await pageA.getByLabel('Display name').waitFor({ timeout: 15_000 });
+      await pageA.getByLabel('Display name', { exact: true }).waitFor({ timeout: 15_000 });
       await sleep(1500);
-      assert((await pageA.getByLabel('Display name').inputValue()) === name, 'display name not shown after reload');
+      assert((await pageA.getByLabel('Display name', { exact: true }).inputValue()) === name, 'display name not shown after reload');
       return 'saved, stored in the database, shown after reload';
     });
 
@@ -558,7 +558,7 @@ async function main() {
       await page.goto(mail.link);
       await page.getByText('Set a new password').waitFor({ timeout: 30_000 });
       const next = password();
-      await page.getByLabel('New password').fill(next);
+      await page.getByLabel('New password', { exact: true }).fill(next);
       await page.getByRole('button', { name: 'Update password' }).click();
       await page.getByText('Set a new password').waitFor({ state: 'detached', timeout: 15_000 });
       // From here the new password is the valid one, whatever happens next (cleanup depends on it).
