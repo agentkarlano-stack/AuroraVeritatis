@@ -1,3 +1,16 @@
-200 9523374 clips/42343.mp4 https://assets.mixkit.co/videos/42343/42343-1080.mp4 15 4.5 1920,1080,24000/1001
+200 12260836 clips/4457.mp4 https://assets.mixkit.co/videos/4457/4457-1080.mp4 9.5 4.5 1920,1080,30/1
+200 14752869 clips/4331.mp4 https://assets.mixkit.co/videos/4331/4331-1080.mp4 4.5 4.5 1920,1080,30/1
+200 8907745 clips/4334.mp4 https://assets.mixkit.co/videos/4334/4334-1080.mp4 5.5 4.5 1920,1080,30/1
+200 7592821 clips/4383.mp4 https://assets.mixkit.co/videos/4383/4383-1080.mp4 3.5 4.5 1920,1080,30/1
+200 8955748 clips/4455.mp4 https://assets.mixkit.co/videos/4455/4455-1080.mp4 7.5 4.5 1920,1080,30/1
+200 7692225 clips/4308.mp4 https://assets.mixkit.co/videos/4308/4308-1080.mp4 8.8 3.2 1920,1080,30/1
+200 9990696 clips/42342.mp4 https://assets.mixkit.co/videos/42342/42342-1080.mp4 8.5 4.5 1920,1080,24000/1001
+200 11410887 clips/49878.mp4 https://assets.mixkit.co/videos/49878/49878-1080.mp4 0 4.5 1080,1920,24/1
+200 10807539 clips/49878b.mp4 https://assets.mixkit.co/videos/49878/49878-1080.mp4 8 4.5 1080,1920,24/1
+200 14072730 clips/40654.mp4 https://assets.mixkit.co/videos/40654/40654-1080.mp4 3.5 4.5 1080,1920,24000/1001
+200 14288806 clips/49876.mp4 https://assets.mixkit.co/videos/49876/49876-1080.mp4 5.5 4.5 1080,1920,24/1
+200 17452971 clips/34562.mp4 https://assets.mixkit.co/videos/34562/34562-1080.mp4 1.5 4.5 1080,1920,24000/1001
+200 779638 nasa/BlackMarble_2016_01deg.jpg https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg
+200 8106233 nasa/BlackMarble_2016_3km.jpg https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144898/BlackMarble_2016_3km.jpg
 200 334988 nasa/page.html https://earthobservatory.nasa.gov/features/NightLights/page3.php
 200 319024 nasa/eo-image.html https://earthobservatory.nasa.gov/images/144898/earth-at-night-2016
