@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { friendlyAuthError } from '../../auth/authErrors';
 import { useAuth } from '../../auth/AuthProvider';
 import { Panel } from '../ui';
 
@@ -48,7 +49,7 @@ export function SecuritySettings() {
     try {
       if (!(await reauth(current))) return setPwMsg({ ok: false, text: 'Your current password is not correct.' });
       const { error } = await client!.auth.updateUser({ password: next });
-      if (error) return setPwMsg({ ok: false, text: error.message });
+      if (error) return setPwMsg({ ok: false, text: friendlyAuthError(error) });
       setPwMsg({ ok: true, text: 'Password changed.' });
       setCurrent('');
       setNext('');

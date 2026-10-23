@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { TIERS, type TierId } from '../data/tiers';
 import { Loading, PageHeader, Panel } from '../components/ui';
 import { refreshEntitlements, useEntitlements } from '../store/entitlements';
+import { runAdminSelfCheck, summarize, type StepResult } from '../lib/adminSelfCheck';
 
 interface Stats {
   users: number;
@@ -248,6 +249,12 @@ export default function Admin() {
           </Panel>
         </div>
       </div>
+      <SelfCheck
+        onDone={() => {
+          void load(q.trim());
+          refreshEntitlements();
+        }}
+      />
       <p className="mt-6 text-xs text-slate-dim">
         Planned here: editorial content, predictions and polls, usage and API monitoring, operational alerts. Administrator roles are assigned in the
         database by the project owner, not from this page.
@@ -349,6 +356,67 @@ function GrantForm({ user, history, onDone }: { user: UserRow; history: GrantRow
           })}
         </ul>
       </div>
+    </Panel>
+  );
+}
+
+/** One-click verification of the administrator role, plan grant/revoke, audit log and profile editing (lib/adminSelfCheck). */
+function SelfCheck({ onDone }: { onDone: () => void }) {
+  const { client, session } = useAuth();
+  const [results, setResults] = useState<StepResult[] | null>(null);
+  const [summary, setSummary] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const run = async () => {
+    const id = session?.user.id;
+    if (!client || !id) return;
+    setBusy(true);
+    setCopied(false);
+    const r = await runAdminSelfCheck(
+      (fn, args) => client.rpc(fn, args),
+      {
+        read: async () => (await client.from('profiles').select('display_name').eq('id', id).maybeSingle()).data,
+        write: async (display_name) => {
+          const { data, error } = await client.from('profiles').update({ display_name }).eq('id', id).select('id');
+          return { ok: !error && data?.length === 1, message: error?.message };
+        },
+      },
+      id,
+    );
+    setResults(r);
+    setSummary(summarize(r, new Date().toISOString()));
+    setBusy(false);
+    onDone();
+  };
+  return (
+    <Panel className="mt-4" title="Verify administrator access" eyebrow="Self-check">
+      <p className="text-xs text-slate-dim">
+        Confirms on the server that your account has the administrator role, can read statistics, users and the audit log, can grant and revoke a
+        complimentary plan (a one-hour Premium grant on your own account, revoked at once; skipped if you already have a grant), and can edit its
+        profile. Both plan actions appear in the audit log.
+      </p>
+      <button className="btn-ghost mt-3 text-xs" disabled={busy} onClick={() => void run()}>
+        {busy ? 'Checking…' : 'Run the check'}
+      </button>
+      {results && (
+        <div className="mt-3 space-y-1.5 text-xs" role="status">
+          {results.map((r) => (
+            <div key={r.name}>
+              <span className={r.status === 'pass' ? 'text-up' : r.status === 'fail' ? 'text-down' : 'text-warn'}>{r.status === 'pass' ? 'Passed' : r.status === 'fail' ? 'Failed' : 'Skipped'}</span>
+              <span className="text-platinum"> · {r.name}</span>
+              <div className="text-slate-dim">{r.detail}</div>
+            </div>
+          ))}
+          <button
+            className="btn-quiet px-0 text-[11px] text-gold hover:underline"
+            onClick={() => {
+              void navigator.clipboard?.writeText(summary).then(() => setCopied(true));
+            }}
+          >
+            {copied ? 'Copied' : 'Copy the result to send to the developer'}
+          </button>
+        </div>
+      )}
     </Panel>
   );
 }

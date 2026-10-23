@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { friendlyAuthError } from '../auth/authErrors';
 import { Link, Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Monogram } from '../components/Logo';
@@ -38,7 +39,7 @@ export default function SignIn() {
         await auth.signInWithPassword(email, password);
       }
     } catch (err) {
-      setMsg({ kind: 'err', text: (err as Error).message });
+      setMsg({ kind: 'err', text: friendlyAuthError(err) });
     } finally {
       setBusy(false);
     }
