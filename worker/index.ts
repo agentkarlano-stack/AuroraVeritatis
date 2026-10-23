@@ -240,6 +240,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   // ---------- Integrations (status only; never key values) ----------
   if (path === '/api/integrations') {
     return json({
+      build: BUILD_ID,
       twelveData: { configured: marketConfigured(env), publicDisplay: displayLicensed(env) ? 'licensed' : 'pending-licence-confirmation' },
       brevo: brevoStatus(env),
     });
@@ -258,7 +259,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
       ]);
       // Cache a complete success for 6 hours; anything with an error only briefly, so fixes show up quickly.
       const failed = 'error' in td || 'error' in br || ('probes' in td && td.probes.some((p) => !p.ok));
-      return json({ twelveData: td, brevo: br }, { maxAge: failed ? 300 : 6 * 3600 });
+      return json({ build: BUILD_ID, twelveData: td, brevo: br }, { maxAge: failed ? 300 : 6 * 3600 });
     });
   }
 

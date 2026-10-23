@@ -91,7 +91,7 @@ describe('Twelve Data', () => {
 describe('integration status and check', () => {
   it('reports configuration without values', async () => {
     const body = (await (await req('/api/integrations', full)).json()) as Record<string, unknown>;
-    expect(body).toEqual({ twelveData: { configured: true, publicDisplay: 'pending-licence-confirmation' }, brevo: { configured: true, listConfigured: true, doubleOptInConfigured: true, senderConfigured: true } });
+    expect(body).toEqual({ build: 'dev', twelveData: { configured: true, publicDisplay: 'pending-licence-confirmation' }, brevo: { configured: true, listConfigured: true, doubleOptInConfigured: true, senderConfigured: true } });
     expect(JSON.stringify(body)).not.toContain(TD_KEY);
     const none = (await (await req('/api/integrations', base)).json()) as { twelveData: { configured: boolean }; brevo: { configured: boolean } };
     expect(none.twelveData.configured).toBe(false);
