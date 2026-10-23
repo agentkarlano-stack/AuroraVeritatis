@@ -156,12 +156,12 @@ export default function Commodities() {
                       {s.benchmark} · {s.group}
                     </div>
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-                      <Link className="text-gold hover:underline" to={`/markets?symbol=CMD:${s.id}`}>
+                      <Link className="inline-flex min-h-6 items-center text-gold hover:underline" to={`/markets?symbol=CMD:${s.id}`}>
                         <LineIcon className="mr-0.5 inline h-3 w-3" aria-hidden />
                         Chart
                       </Link>
                       {COT_LINKS[s.id] && (
-                        <Link className="text-gold hover:underline" to={`/positioning?m=${COT_LINKS[s.id]}`}>
+                        <Link className="inline-flex min-h-6 items-center text-gold hover:underline" to={`/positioning?m=${COT_LINKS[s.id]}`}>
                           Positioning
                         </Link>
                       )}
