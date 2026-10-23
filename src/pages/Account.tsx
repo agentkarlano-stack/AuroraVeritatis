@@ -164,7 +164,7 @@ export default function Account() {
               )}
               {ent.status === 'unavailable' && status === 'signed-in' && <span className="block text-xs text-warn">Plan details become available after a pending database update.</span>}
             </span>
-            <Link to="/pricing" className="text-xs text-gold hover:underline">
+            <Link to="/pricing" className="inline-flex min-h-6 items-center text-xs text-gold hover:underline">
               Compare plans
             </Link>
           </div>
