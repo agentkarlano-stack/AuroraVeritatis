@@ -13,7 +13,7 @@ import { Avatar } from '../components/Avatar';
 import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEditor';
 import { SecuritySettings } from '../components/account/SecuritySettings';
 import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
-import { INTRO_MODES, resolveIntroMode, type IntroMode } from '../lib/intro';
+import { INTRO_EXPERIENCES, resolveIntroExperience } from '../lib/intro';
 
 export default function Account() {
   const { status, session, signOut, config, recovery, urlError, client } = useAuth();
@@ -196,24 +196,7 @@ export default function Account() {
           </div>
         </Panel>
 
-        <Panel title="Preferences">
-          <div className="flex flex-wrap items-end gap-3 text-sm">
-            <label className="text-xs text-mist">
-              Brand intro
-              <select className="input mt-1 w-auto" value={resolveIntroMode(prefs.introChoice, prefs.introMode)} onChange={(e) => prefs.setIntroMode(e.target.value as IntroMode)}>
-                {INTRO_MODES.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="btn-ghost text-xs" onClick={() => window.dispatchEvent(new Event(INTRO_REPLAY_EVENT))}>
-              Play the intro now
-            </button>
-          </div>
-          <p className="mt-2 text-[11px] text-slate-dim">The intro never plays when your device asks for reduced motion. It is silent and can always be skipped.</p>
-        </Panel>
+        <IntroPreferences />
 
         {status === 'signed-in' && <DeleteAccount />}
 
@@ -324,5 +307,54 @@ function SyncLine() {
       {sync.message && <span className="block text-slate-dim">{sync.message}</span>}
       <span className="block text-[11px] text-slate-dim">Watchlist, layout, alerts, favourites, chart settings, drawings and research notes sync across devices.</span>
     </div>
+  );
+}
+
+/** Introduction experience (lib/intro.ts): three choices plus the automatic default, with previews. Synced with the account. */
+function IntroPreferences() {
+  const prefs = usePrefs();
+  const chosen = resolveIntroExperience(prefs.intro, prefs.introChoice, prefs.introMode);
+  const preview = (which: 'brand' | 'cinematic') => window.dispatchEvent(new CustomEvent(INTRO_REPLAY_EVENT, { detail: which }));
+  return (
+    <Panel title="Introduction" eyebrow="Preferences">
+      <fieldset>
+        <legend className="sr-only">Introduction experience</legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {INTRO_EXPERIENCES.map((m) => (
+            <label key={m.id} className={`flex cursor-pointer gap-2 rounded-md border p-3 text-sm ${chosen === m.id ? 'border-gold-dim bg-gold/5' : 'border-line'}`}>
+              <input type="radio" name="intro-experience" className="mt-1 accent-[#c9a35a]" checked={chosen === m.id} onChange={() => prefs.setIntro(m.id)} />
+              <span>
+                <span className="text-platinum">{m.label}</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-slate-dim">{m.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <p className="mt-2 text-[11px] text-slate-dim">
+        {chosen === null ? (
+          'Not chosen yet: automatic. The cinematic intro plays on your first visit on a device, and the brand intro on later visits.'
+        ) : (
+          <>
+            Your choice is saved{prefs.intro !== null ? ' and synced with your account when you are signed in' : ''}.{' '}
+            <button className="btn-quiet px-0 text-[11px] text-gold hover:underline" onClick={() => prefs.setIntro(null)}>
+              Use automatic instead
+            </button>
+          </>
+        )}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className="btn-ghost text-xs" onClick={() => preview('brand')}>
+          Preview Brand Intro
+        </button>
+        <button className="btn-ghost text-xs" onClick={() => preview('cinematic')}>
+          Preview Cinematic Intro
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] text-slate-dim">
+        Introductions are silent, can always be skipped (button or Esc) and never play when your device asks for reduced motion, on reloads or when you
+        move between pages. With data saver on, the brand intro replaces the film.
+      </p>
+    </Panel>
   );
 }

@@ -1,39 +1,61 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_INTRO_MODE, VISIT_GAP_MS, isFreshVisit, resolveIntroMode, shouldPlayIntro } from './intro';
+import { VISIT_GAP_MS, decideIntro, isFreshVisit, resolveIntroExperience, type IntroExperience } from './intro';
 
-const base = { mode: 'session' as const, reducedMotion: false, path: '/', shownThisSession: false, loginPending: false, replay: false };
-const ORIGIN = 'https://aurorav.app';
-const NOW = 1_000_000_000;
+const base = { reducedMotion: false, path: '/', cinematicSeen: false, cinematicThisSession: false };
+const load = (pref: IntroExperience | null, extra: Partial<Parameters<typeof decideIntro>[0]> = {}) => decideIntro({ ...base, pref, trigger: 'load', freshVisit: true, ...extra });
 
-describe('intro triggers', () => {
-  it('session mode: once per session, and again after a fresh sign-in', () => {
-    expect(shouldPlayIntro(base)).toBe(true);
-    expect(shouldPlayIntro({ ...base, shownThisSession: true })).toBe(false);
-    expect(shouldPlayIntro({ ...base, shownThisSession: true, loginPending: true })).toBe(true);
+describe('intro decision', () => {
+  it('automatic default: cinematic on the first-ever visit, brand afterwards', () => {
+    expect(load(null)).toBe('cinematic');
+    expect(load(null, { cinematicSeen: true })).toBe('brand');
+    expect(decideIntro({ ...base, pref: null, trigger: 'login', cinematicSeen: false })).toBe('brand');
   });
-  it('default visit mode: plays on a fresh visit and after sign-in, not otherwise', () => {
-    const v = { ...base, mode: 'visit' as const, shownThisSession: true };
-    expect(shouldPlayIntro({ ...v, freshVisit: true })).toBe(true);
-    expect(shouldPlayIntro({ ...v, freshVisit: false })).toBe(false);
-    expect(shouldPlayIntro({ ...v, freshVisit: false, loginPending: true })).toBe(true);
+
+  it('cinematic: each new visit, but never twice in one browser session', () => {
+    expect(load('cinematic', { cinematicSeen: true })).toBe('cinematic');
+    expect(load('cinematic', { cinematicThisSession: true })).toBe('brand');
+    expect(decideIntro({ ...base, pref: 'cinematic', trigger: 'return', cinematicSeen: true })).toBe('cinematic');
   });
-  it('respects every/login/off', () => {
-    expect(shouldPlayIntro({ ...base, mode: 'every', shownThisSession: true })).toBe(true);
-    expect(shouldPlayIntro({ ...base, mode: 'login' })).toBe(false);
-    expect(shouldPlayIntro({ ...base, mode: 'login', loginPending: true })).toBe(true);
-    expect(shouldPlayIntro({ ...base, mode: 'off', loginPending: true, freshVisit: true })).toBe(false);
+
+  it('brand never shows the film; none shows nothing', () => {
+    expect(load('brand')).toBe('brand');
+    expect(decideIntro({ ...base, pref: 'brand', trigger: 'login' })).toBe('brand');
+    expect(load('none')).toBe('none');
+    expect(decideIntro({ ...base, pref: 'none', trigger: 'login' })).toBe('none');
   });
-  it('never plays with reduced motion or on the social card route; replays on request', () => {
-    expect(shouldPlayIntro({ ...base, reducedMotion: true, replay: true })).toBe(false);
-    expect(shouldPlayIntro({ ...base, mode: 'visit', freshVisit: true, path: '/share/card' })).toBe(false);
-    expect(shouldPlayIntro({ ...base, mode: 'off', replay: true })).toBe(true);
+
+  it('reloads and internal loads inside a visit play nothing', () => {
+    for (const pref of [null, 'brand', 'cinematic'] as const) expect(load(pref, { freshVisit: false })).toBe('none');
+  });
+
+  it('respects reduced motion, data saver and the social-card route; previews play on request', () => {
+    expect(load('cinematic', { reducedMotion: true })).toBe('none');
+    expect(decideIntro({ ...base, pref: 'none', trigger: 'preview-cinematic', reducedMotion: true })).toBe('none');
+    expect(load(null, { saveData: true })).toBe('brand');
+    expect(load('brand', { path: '/share/card' })).toBe('none');
+    expect(decideIntro({ ...base, pref: 'none', trigger: 'preview-cinematic' })).toBe('cinematic');
+    expect(decideIntro({ ...base, pref: 'none', trigger: 'preview-brand' })).toBe('brand');
+  });
+});
+
+describe('intro preference', () => {
+  it('keeps explicit choices and carries legacy settings over', () => {
+    expect(resolveIntroExperience('cinematic', 'off')).toBe('cinematic');
+    expect(resolveIntroExperience(null, 'off')).toBe('none');
+    expect(resolveIntroExperience(undefined, null, 'off')).toBe('none');
+    expect(resolveIntroExperience(null, 'every')).toBe('brand');
+    expect(resolveIntroExperience(null, 'login')).toBe('brand');
+    expect(resolveIntroExperience(null, 'visit', 'session')).toBeNull();
+    expect(resolveIntroExperience('bogus')).toBeNull();
   });
 });
 
 describe('fresh visits', () => {
+  const NOW = 1_800_000_000_000;
+  const ORIGIN = 'https://aurorav.app';
   const v = { navigationType: 'navigate', referrer: '', origin: ORIGIN, lastSeen: NOW - 60_000, now: NOW };
   it('counts arrivals from outside the site and returns after inactivity', () => {
-    expect(isFreshVisit(v)).toBe(true); // typed address, bookmark or new tab
+    expect(isFreshVisit(v)).toBe(true);
     expect(isFreshVisit({ ...v, referrer: 'https://www.google.com/' })).toBe(true);
     expect(isFreshVisit({ ...v, lastSeen: null, navigationType: 'reload' })).toBe(true);
     expect(isFreshVisit({ ...v, navigationType: 'reload', lastSeen: NOW - VISIT_GAP_MS - 1 })).toBe(true);
@@ -42,17 +64,5 @@ describe('fresh visits', () => {
     expect(isFreshVisit({ ...v, navigationType: 'reload' })).toBe(false);
     expect(isFreshVisit({ ...v, navigationType: 'back_forward' })).toBe(false);
     expect(isFreshVisit({ ...v, referrer: `${ORIGIN}/radar` })).toBe(false);
-  });
-});
-
-describe('intro preference', () => {
-  it('gives the new default to users without an explicit choice and keeps explicit ones', () => {
-    expect(DEFAULT_INTRO_MODE).toBe('visit');
-    expect(resolveIntroMode(null)).toBe('visit');
-    expect(resolveIntroMode(undefined, 'session')).toBe('visit'); // the previous default
-    expect(resolveIntroMode(undefined, 'off')).toBe('off');
-    expect(resolveIntroMode(undefined, 'login')).toBe('login');
-    expect(resolveIntroMode('session', 'off')).toBe('session'); // a new explicit choice wins
-    expect(resolveIntroMode('bogus', 'bogus')).toBe('visit');
   });
 });

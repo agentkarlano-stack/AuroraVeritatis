@@ -11,7 +11,7 @@ _Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, int
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Organisations/seats/AI-allowance migration with RLS tests (owner applies), then the admin-only quotation calculator; then the Aurora AI architecture skeleton and news verification rules |
+| Next recommended action | Economic and financial map layers (32 verified World Bank series; most-recent-value endpoint), then the commodity and energy monitor in Market Terminal (owner directive "Institutional market intelligence") |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,19 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Runs 31–32 (2026-10-23) — Admin verification, quotation calculator, cinematic introduction
+- **PRs #33–#35 (admin verification):**
+  - Production live test **31/31**: ordinary users are refused every admin function, entitlements come from the server and profile editing works.
+  - A `/admin` self-check for the owner.
+  - The admin-only quotation calculator.
+  - The breached-password message.
+- **Introduction experience:**
+  - Three synced choices: none, brand or cinematic. Automatic default: the film on the first-ever visit, the brand intro afterwards.
+  - The brand animation is slowed to 4.2 s, with a 1.5 s readable name and a clean letter-to-monogram handover.
+  - A 12.5 s night-city film, original edit (`docs/INTRO.md`): London, New York and Tokyo, Mixkit Free licence; closing globe rendered from NASA Black Marble.
+  - Delivery: WebM 1.4–2.4 MB, MP4 fallback. The film is requested only when it plays; it falls back to the brand intro on failure or after 3.5 s; it respects reduced motion and data saver.
+  - Local browser tests 18/18, and the production UI audit intro checks are updated.
+
 ### Run 30 (2026-10-23) — Business & Institutional quote requests (PR #32)
 - **Pricing:** new "Business & Institutional Solutions" section with a **Request a Business Quote** button. Business prices are not published.
 - **`/business` form:** has every owner-specified field. Validation is shared with the Worker (`shared/businessQuote.ts`).
