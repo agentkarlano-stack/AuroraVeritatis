@@ -8,6 +8,7 @@ import { refreshEntitlements, useEntitlements } from '../store/entitlements';
 import { runAdminSelfCheck, summarize, type StepResult } from '../lib/adminSelfCheck';
 import { PERIODS, type PeriodMonths } from '../lib/billing';
 import { isMissingFunction } from '../lib/sessions';
+import { OrganisationsAdmin } from '../components/admin/OrganisationsAdmin';
 
 interface Stats {
   users: number;
@@ -255,6 +256,7 @@ export default function Admin() {
         </div>
       </div>
       <ExpiringPanel />
+      <OrganisationsAdmin />
       <SessionPolicy />
       <SelfCheck
         onDone={() => {

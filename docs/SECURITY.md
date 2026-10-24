@@ -38,9 +38,17 @@ Report vulnerabilities to auroraveritatissup@gmail.com.
 - **One-device rule (optional, off by default, admin switch, audited):**
   - For paid individual plans, the newest interactive sign-in (`claim_session`) signs out the other sessions, and the displaced device is told why.
   - Tabs of one browser share a session, so they are unaffected.
-  - Free accounts are never limited; organisation seats will be named users.
+  - Free accounts and organisation seats (named users) are never limited by this rule.
   - IP changes and mobile data never sign anyone out.
 - **Tests:** `supabase/tests/sessions.sql` in the `migrations` CI job.
+
+## Organisations and AI budgets (2026-10-24, migration 20261024000200)
+- Tables live in `aurora_private` with no grants to `anon`/`authenticated`; all access goes through `security definer` functions.
+- Only Aurora administrators (role + active session) create organisations, change contracts and add or remove seats; each action is audited. Organisation administrators can read their own organisation's members and AI spend, nothing else.
+- Seats are named, confirmed accounts, at most one organisation per account; the seat count cannot drop below the members.
+- AI usage is written only by the server (`record_ai_usage`, service role). `ai_allowance` blocks organisation members when the monthly budget is reached (hard cap on by default) or when the contract has no AI allowance, so usage is never unlimited by default.
+- A suspended or ended contract removes the organisation plan at once; members keep their own accounts and data.
+- **Tests:** `supabase/tests/organisations.sql`.
 
 ## Supabase schema review (2026-10-21)
 - Column-level `REVOKE` does not override a table-level grant. Supabase grants ALL on new public tables to `anon` and
