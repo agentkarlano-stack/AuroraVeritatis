@@ -11,3 +11,6 @@ alter default privileges in schema public grant all on tables to anon, authentic
 alter default privileges in schema public grant all on functions to anon, authenticated;
 create function auth.jwt() returns jsonb language sql stable as $$ select nullif(current_setting('request.jwt.claims', true), '')::jsonb $$;
 grant execute on function auth.jwt() to anon, authenticated;
+-- Sessions as Supabase Auth keeps them (one row per signed-in device; refresh tokens cascade with the session).
+create table auth.sessions (id uuid primary key, user_id uuid not null references auth.users (id) on delete cascade, created_at timestamptz not null default now(), updated_at timestamptz, refreshed_at timestamp, user_agent text, ip inet, not_after timestamptz, aal text);
+create table auth.refresh_tokens (id bigserial primary key, token text, user_id text, session_id uuid references auth.sessions (id) on delete cascade, revoked boolean default false);

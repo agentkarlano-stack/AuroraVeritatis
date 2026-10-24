@@ -252,6 +252,7 @@ export default function Admin() {
           </Panel>
         </div>
       </div>
+      <SessionPolicy />
       <SelfCheck
         onDone={() => {
           void load(q.trim());
@@ -420,6 +421,47 @@ function SelfCheck({ onDone }: { onDone: () => void }) {
           </button>
         </div>
       )}
+    </Panel>
+  );
+}
+
+/** One active device per paid individual account (server: admin_set_session_policy, audited). Off by default. */
+function SessionPolicy() {
+  const { client } = useAuth();
+  const [on, setOn] = useState<boolean | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!client) return;
+    void client.rpc('session_status').then(({ data, error }) => {
+      if (!alive) return;
+      if (error) setMsg('Session management becomes available after the pending database update.');
+      else setOn(!!(data as { single_session_paid?: boolean }).single_session_paid);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [client]);
+  const change = async (next: boolean) => {
+    if (!client) return;
+    const { error } = await client.rpc('admin_set_session_policy', { single_session: next });
+    if (error) return setMsg(error.message);
+    setOn(next);
+    setMsg(next ? 'On: a new sign-in on a paid individual plan signs out that account\'s other devices.' : 'Off: paid accounts may stay signed in on several devices.');
+  };
+  return (
+    <Panel className="mt-4" title="Account sharing" eyebrow="Sessions">
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={!!on} disabled={on === null} onChange={(e) => void change(e.target.checked)} />
+        <span>
+          One active device per paid individual account
+          <span className="block text-xs text-slate-dim">
+            The newest sign-in takes over and the other devices are told why. Tabs of one browser count as one device; Free accounts and organisation seats
+            are not affected. Every change is audited.
+          </span>
+        </span>
+      </label>
+      {msg && <p className="mt-2 text-xs text-mist" role="status">{msg}</p>}
     </Panel>
   );
 }

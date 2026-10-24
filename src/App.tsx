@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { PrefsSync } from './auth/PrefsSync';
 import { EntitlementsSync } from './auth/EntitlementsSync';
+import { SessionGuard } from './auth/SessionGuard';
 import { IntroSplash } from './components/IntroSplash';
 import { Layout } from './components/Layout';
 import { AppLoading } from './components/ui';
@@ -44,6 +45,7 @@ export function App() {
     <AuthProvider>
       <PrefsSync />
       <EntitlementsSync />
+      <SessionGuard />
       <IntroSplash />
       <BrowserRouter>
         <Routes>
