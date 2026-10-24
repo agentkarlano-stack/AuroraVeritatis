@@ -20,6 +20,11 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 45 (2026-10-24) — Homepage direct links, recognisable module buttons
+- **Homepage:** under the two main actions, a compact "Go directly to" row (Map Explorer, Country Dossiers, Market Terminal, Commodities, Market Impact, Portfolio risk, World Briefing, Brain). Module cards updated to what each module does today.
+- **`ModuleLink`** (`components/ui.tsx`): links to another module are now small bordered buttons with an arrow. Used in the Radar event drawer and the impact chain; plain inline links stay only inside sentences.
+- **Tests:** browser at 320, 390 and 1280 px: 8 direct links, none under 24 px, no overflow, no errors.
+
 ### Run 44 (2026-10-24) — Market Terminal: one range control, distinct interval, favourites, Fibonacci
 - **Toolbar:**
   - The candle interval is one clearly labelled control (candle icon and full name, e.g. "1 day"), so it is no longer confused with the "1D … All" history-range chips.
