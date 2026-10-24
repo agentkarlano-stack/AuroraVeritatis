@@ -66,6 +66,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   scored with proper scoring rules in `lib/forecasting.ts` (Brier, log, calibration bins, by category); stored in this browser
   (`store/forecasts.ts`, JSON export/import). Market-implied probabilities are not shown: Polymarket/Kalshi/Manifold terms
   restrict commercial display (written permission or a data licence needed).
+- Organisations (`supabase/migrations/20261024000200_organisations.sql`, `lib/orgs.ts`, `components/admin/OrganisationsAdmin.tsx`,
+  `components/account/OrganisationCard.tsx`): named seats (one organisation per account), plan from an active contract
+  (`tier_of` = highest of grant, subscription, organisation), monthly AI budget with hard cap (`ai_allowance`,
+  `record_ai_usage`: service role only, for the future AI gateway). Created by Aurora admins after a private quote.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

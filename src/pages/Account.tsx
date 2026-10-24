@@ -14,6 +14,7 @@ import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEdi
 import { SecuritySettings } from '../components/account/SecuritySettings';
 import { DevicesPanel } from '../components/account/DevicesPanel';
 import { SubscriptionPanel } from '../components/account/SubscriptionPanel';
+import { OrganisationCard } from '../components/account/OrganisationCard';
 import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
 import { INTRO_EXPERIENCES, resolveIntroExperience } from '../lib/intro';
 
@@ -200,6 +201,7 @@ export default function Account() {
         </Panel>
 
         {status === 'signed-in' && <SubscriptionPanel />}
+        {status === 'signed-in' && <OrganisationCard />}
 
         <IntroPreferences />
 

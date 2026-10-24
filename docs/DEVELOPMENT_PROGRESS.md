@@ -20,6 +20,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 39 (2026-10-24) — Organisations, named seats and AI budgets
+- **Migration `20261024000200_organisations.sql`** (owner applies, after the sessions and subscriptions migrations):
+  - `organizations` (plan, seats, contract dates, status, monthly AI budget in euro cents, hard cap on by default, 80% alert), `org_members` (one organisation per account; `member` | `org_admin`), `ai_usage`.
+  - Effective plan = highest of grant, subscription and an active organisation seat (`tier_of`).
+  - `ai_allowance(uid)` and `record_ai_usage` are server-only (service role), for the future AI gateway. No AI feature is switched on.
+  - Aurora administrators create organisations, edit contracts, add and remove named seats (confirmed accounts only, never past the seat count); all audited. No public prices.
+  - The optional one-device rule now applies to paid individual accounts only, not to organisation seats.
+- **UI:** Admin → Organisations (create, contract editor, seats, AI spend vs budget); Account → organisation card (members see plan and contract end; organisation administrators also see seats, members and AI spend). Both explain the pending database update until the migration is applied.
+- **Tests:** `supabase/tests/organisations.sql` (CI job `migrations`), `lib/orgs.test.ts`, browser 23/23 with mocked Supabase (360 and 1280 px).
+
 ### Run 38 (2026-10-24) — Prediction Research
 - **Feature:** `/lab/forecasts` lets users write forecasts with resolution criteria, revise them (history with notes), resolve yes/no/void, and see Brier and log scores against the 50% baseline, a calibration diagram and scores by category. CSV and JSON export, JSON import, Add to Brain, and links from Quant Research and Radar events.
 - **Sources checked:**
