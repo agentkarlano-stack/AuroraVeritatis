@@ -8,7 +8,7 @@ import { CATEGORY_LABEL, useEvents } from '../../lib/events';
 import { locateCountry } from '../../lib/geo/locate';
 import { EXPOSURE_INDICATORS, EXPOSURE_RULES, beforeAfter, exposuresFor, linkedCommodities, type IndicatorValue } from '../../lib/impactChain';
 import { AddToBrain } from '../AddToBrain';
-import { ErrorState, Loading, Panel, ProvenanceBadge } from '../ui';
+import { ErrorState, Loading, ModuleLink, Panel, ProvenanceBadge } from '../ui';
 
 type Profiles = { status: 'loading' } | { status: 'error'; error: string } | { status: 'ready'; byIndicator: Record<string, LatestValues> };
 
@@ -205,17 +205,10 @@ export function EventChain() {
                 sources: event.source.url.startsWith('http') ? [{ title: event.source.name, url: event.source.url, date: event.time.slice(0, 10) }] : [],
               }}
             />
-            {country && (
-              <Link className="text-gold hover:underline" to={`/countries/${country.iso3}`}>
-                {country.name} dossier
-              </Link>
-            )}
-            <Link className="text-gold hover:underline" to={`/lab/forecasts?event=${encodeURIComponent(event.id)}&q=${encodeURIComponent(`Will ${event.title} …`)}`}>
-              Make a forecast
-            </Link>
-            <Link className="text-gold hover:underline" to="/strategy">
-              Stress-test a portfolio in Strategy Lab
-            </Link>
+            {country && <ModuleLink to={`/countries/${country.iso3}`}>{country.name} dossier</ModuleLink>}
+            <ModuleLink to={`/lab/forecasts?event=${encodeURIComponent(event.id)}&q=${encodeURIComponent(`Will ${event.title} …`)}`}>Make a forecast</ModuleLink>
+            <ModuleLink to="/lab?tool=risk">Portfolio risk</ModuleLink>
+            <ModuleLink to="/strategy">Strategy Lab scenario</ModuleLink>
           </div>
         )}
       </div>

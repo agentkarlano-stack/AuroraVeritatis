@@ -1,4 +1,5 @@
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Loader2 } from 'lucide-react';
+import { Link } from 'react-router';
 import type { ReactNode } from 'react';
 import { PROVENANCE } from '../../shared/copy';
 import type { Provenance } from '../../shared/types';
@@ -151,5 +152,21 @@ export function LimitNotice({ what, limit }: { what: string; limit: number }) {
         </>
       )}
     </p>
+  );
+}
+
+/**
+ * A link to another Aurora module, styled as a small button with an arrow so it is recognisable as navigation
+ * (directive §15). Use plain inline links only inside sentences.
+ */
+export function ModuleLink({ to, children, className = '' }: { to: string; children: ReactNode; className?: string }) {
+  return (
+    <Link
+      to={to}
+      className={`inline-flex min-h-8 items-center gap-1 rounded-md border border-gold-dim/50 bg-gold/5 px-2.5 py-1 text-xs text-gold-soft transition-colors hover:border-gold hover:bg-gold/10 ${className}`}
+    >
+      {children}
+      <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+    </Link>
   );
 }

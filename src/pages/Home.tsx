@@ -6,12 +6,24 @@ import { ProvenanceBadge } from '../components/ui';
 
 /** Platform map (owner's planned structure, Oct 2026). Order matches the two-column layout. */
 const MODULES = [
-  { to: '/radar', icon: Globe2, title: 'Global Radar', text: 'A world map of earthquakes, disaster alerts and simulated geopolitical scenarios. Filter by type, severity, region and date.', tags: 'Map · Layers · Timeline', state: 'Live hazard data' },
-  { to: '/markets', icon: BarChart3, title: 'Market Terminal', text: 'Charts and indicators, ECB interest and exchange rates, CFTC futures positioning and the Market Impact Radar.', tags: 'Charts · Macro · Positioning', state: 'Official data, simulated prices' },
+  { to: '/radar', icon: Globe2, title: 'Global Radar', text: 'A 2D map or 3D globe of earthquakes, disaster alerts and simulated geopolitical scenarios, with economic map layers and day/night shading. Filter by type, severity, region and date.', tags: '2D · 3D · Layers · Timeline', state: 'Live hazard data' },
+  { to: '/markets', icon: BarChart3, title: 'Market Terminal', text: 'A chart editor with favourites, ECB interest and exchange rates, World Bank commodity prices, CFTC futures positioning and the Market Impact chain.', tags: 'Charts · Commodities · Macro · Impact', state: 'Official data, simulated prices' },
   { to: '/countries', icon: Landmark, title: 'Country Dossiers', text: 'World Bank indicators for every economy, with history charts and country comparisons.', tags: 'Indicators · Compare · History', state: 'Official data' },
-  { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Monte Carlo risk simulation, strategy backtests and a Strategy Lab for event scenarios.', tags: 'Simulation · Backtests · Scenarios', state: 'Working' },
+  { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Portfolio risk with value at risk and expected shortfall, Monte Carlo simulation, strategy backtests, your own forecasts with calibration, and a Strategy Lab for event scenarios.', tags: 'Risk · Backtests · Forecasts · Scenarios', state: 'Working' },
   { to: '/status', icon: BrainCircuit, title: 'AI Intelligence', text: 'Research assistants and sourced reports. Not available yet.', tags: 'EVE · KNOX · Reports', state: 'Planned' },
   { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'Your workspace: widgets, watchlists, favourite countries, alerts and your Personal Intelligence Brain.', tags: 'Workspace · Brain', state: 'Saved in your browser' },
+] as const;
+
+/** Smaller direct links under the main actions (directive §15): the most used modules, one click from the homepage. */
+const QUICK = [
+  ['/geo', 'Map Explorer'],
+  ['/countries', 'Country Dossiers'],
+  ['/markets', 'Market Terminal'],
+  ['/markets/commodities', 'Commodities'],
+  ['/impact', 'Market Impact'],
+  ['/lab?tool=risk', 'Portfolio risk'],
+  ['/briefing', 'World Briefing'],
+  ['/brain', 'Brain'],
 ] as const;
 
 export default function Home() {
@@ -36,6 +48,14 @@ export default function Home() {
                 {HOME.secondaryCta}
               </Link>
             </div>
+            <nav aria-label="Go directly to" className="mt-6 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[11px] uppercase tracking-wider text-slate-dim">Go directly to</span>
+              {QUICK.map(([to, label]) => (
+                <Link key={to} to={to} className="chip min-h-8 px-2.5 text-xs hover:border-gold-dim hover:text-gold-soft">
+                  {label}
+                </Link>
+              ))}
+            </nav>
             <p className="mt-6 text-xs text-slate-dim">{HOME.earlyAccess}</p>
           </div>
           <div className="hidden justify-center lg:flex">

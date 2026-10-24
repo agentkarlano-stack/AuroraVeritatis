@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import type { EventCategory, GeoEvent } from '../../shared/types';
 import { AddToBrain } from '../components/AddToBrain';
 import { EventTimeline } from '../components/EventTimeline';
-import { DemoNotice, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
+import { DemoNotice, ModuleLink, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
 import { WorldMap, type WorldMapHandle } from '../components/WorldMap';
 import type { GeoMapHandle } from '../components/geo/GeoMap';
 import { useChoropleths } from '../components/geo/useChoropleths';
@@ -534,14 +534,10 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
         }}
       />
       {e.provenance !== 'simulated' && (
-        <Link className="mt-2 inline-flex min-h-6 items-center text-xs text-gold hover:underline" to={`/lab/forecasts?event=${encodeURIComponent(e.id)}&q=${encodeURIComponent(`Will ${e.title} …`)}`}>
-          Make a forecast about this event
-        </Link>
-      )}
-      {e.provenance !== 'simulated' && (
-        <Link className="mt-1 inline-flex min-h-6 items-center text-xs text-gold hover:underline" to={`/impact?event=${encodeURIComponent(e.id)}`}>
-          Commodity exposure of the affected country
-        </Link>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <ModuleLink to={`/lab/forecasts?event=${encodeURIComponent(e.id)}&q=${encodeURIComponent(`Will ${e.title} …`)}`}>Make a forecast</ModuleLink>
+          <ModuleLink to={`/impact?event=${encodeURIComponent(e.id)}`}>Commodity exposure</ModuleLink>
+        </div>
       )}
       {e.marketLinks && e.marketLinks.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
