@@ -2,14 +2,16 @@ import { Eye, EyeOff, Plus, Search, Star, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CATEGORIES, INDICATORS, INDICATOR_MAP, defaultParams, indicatorBlocker, indicatorLabel, type Category } from '../../lib/chart/indicators';
 import { newUid, type IndicatorInstance } from '../../lib/chart/workspace';
-import { useChartLibrary } from '../../store/chartLibrary';
+import { useChartFavourites } from '../../store/chartFavourites';
 
 type Tab = 'Favourites' | Category | 'All';
 const TABS: Tab[] = ['Favourites', ...CATEGORIES, 'All'];
 
 /** Searchable indicator library: categories, favourites, add several in a row. */
 export function IndicatorLibrary({ data, onAdd, count }: { data: { hasOhlc: boolean; hasVolume: boolean }; onAdd: (inst: IndicatorInstance) => void; count: number }) {
-  const { favourites, toggleFavourite } = useChartLibrary();
+  const { favs, toggle } = useChartFavourites();
+  const favourites = favs.indicators;
+  const toggleFavourite = (id: string) => toggle('indicators', id);
   const [q, setQ] = useState('');
   const [tab, setTab] = useState<Tab>('All');
   const [added, setAdded] = useState<string | null>(null);

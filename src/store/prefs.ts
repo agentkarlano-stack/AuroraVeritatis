@@ -59,6 +59,9 @@ interface PrefsState {
   /** Brain canvas display (this device only). */
   brainCanvas: { background: BrainBackground; colorMode: BrainColorMode };
   setBrainCanvas: (patch: Partial<PrefsState['brainCanvas']>) => void;
+  /** Chart favourites (ranges, intervals, types, indicators, drawing tools, templates); read via useChartFavourites. */
+  chartFavs?: unknown;
+  setChartFavs: (favs: unknown) => void;
   /** Chart editor settings (normalised on read: older or synced copies may have an earlier shape). */
   chart: ChartSettings;
   drawings: Record<string, Drawing[]>;
@@ -118,6 +121,7 @@ export const usePrefs = create<PrefsState>()(
       commodityWatch: ['brent', 'gas-eu', 'gold', 'copper', 'wheat'],
       toggleCommodity: (id) => set((s) => ({ commodityWatch: s.commodityWatch.includes(id) ? s.commodityWatch.filter((x) => x !== id) : [...s.commodityWatch, id].slice(-30) })),
       briefing: DEFAULT_BRIEFING_PREFS,
+      setChartFavs: (chartFavs) => set({ chartFavs }),
       setBriefing: (patch) => set((s) => ({ briefing: normalizeBriefingPrefs({ ...normalizeBriefingPrefs(s.briefing), ...patch }) })),
       brainCanvas: { background: 'dots', colorMode: 'type' },
       setBrainCanvas: (patch) => set((s) => ({ brainCanvas: { ...s.brainCanvas, ...patch } })),

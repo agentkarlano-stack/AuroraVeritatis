@@ -19,7 +19,7 @@ import {
   type Time,
 } from 'lightweight-charts';
 import { useEffect, useRef, type RefObject } from 'react';
-import { timeToString, trendPoints, type ChartPoint, type Drawing } from '../../lib/chart';
+import { fibLevels, timeToString, trendPoints, type ChartPoint, type Drawing } from '../../lib/chart';
 import { heikinAshi } from '../../lib/chart/chartTypes';
 import { INDICATOR_MAP, indicatorBlocker, indicatorLabel } from '../../lib/chart/indicators';
 import { periodsPerYear, rangeWindow } from '../../lib/chart/intervals';
@@ -215,6 +215,26 @@ export function ChartCanvas({ bars, settings, hasOhlc, hasVolume, decimals, draw
     for (const d of drawings) {
       if (d.kind === 'hline') {
         main.createPriceLine({ price: d.price, color: GOLD, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '' });
+      } else if (d.kind === 'fib') {
+        const pts = trendPoints(d);
+        const last = bars.at(-1)?.time;
+        if (!pts || !last || pts[0].time >= last) continue;
+        for (const { ratio, price } of fibLevels(d)) {
+          chart
+            .addSeries(LineSeries, {
+              color: ratio === 0 || ratio === 1 ? '#ddbf84' : 'rgba(221,191,132,0.55)',
+              lineWidth: 1,
+              lineStyle: ratio === 0.5 ? LineStyle.Dashed : LineStyle.Solid,
+              lastValueVisible: true,
+              priceLineVisible: false,
+              crosshairMarkerVisible: false,
+              title: `${+(ratio * 100).toFixed(1)}%`,
+            })
+            .setData([
+              { time: pts[0].time as Time, value: price },
+              { time: last as Time, value: price },
+            ]);
+        }
       } else {
         const pts = trendPoints(d);
         if (!pts) continue;
