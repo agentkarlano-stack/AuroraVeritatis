@@ -90,7 +90,16 @@ print("email sign-up " + signup + ", email confirmation " + confirm)' 2>/dev/nul
   ent=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}' "$url/rest/v1/rpc/my_entitlements" 2>/dev/null || echo 000)
   local plans="plans and admin functions missing (migration 20261023 not applied, HTTP $ent)"
   [[ "$ent" == "401" || "$ent" == "403" ]] && plans="plans and admin functions present (guests refused)"
-  echo "configured ($(printf '%s' "$url" | sed -E 's#https?://([^.]+)\..*#\1#')…); $schema; $plans; $settings"
+  # Later migrations, same test: each adds a function that guests may not call.
+  local m fn code2 applied="" missing=""
+  for m in sessions:my_sessions subscriptions:my_subscription organisations:my_organization; do
+    fn=${m#*:}
+    code2=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}' "$url/rest/v1/rpc/$fn" 2>/dev/null || echo 000)
+    if [[ "$code2" == "401" || "$code2" == "403" ]]; then applied+="${m%%:*} "; else missing+="${m%%:*}($code2) "; fi
+  done
+  local later="2026-10-24 migrations applied: ${applied:-none}"
+  [[ -n "$missing" ]] && later+="; not applied: ${missing% }"
+  echo "configured ($(printf '%s' "$url" | sed -E 's#https?://([^.]+)\..*#\1#')…); $schema; $plans; ${later% }; $settings"
 }
 auth="Auth: $(auth_status)"
 echo "$auth"

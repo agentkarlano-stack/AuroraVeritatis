@@ -45,6 +45,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/tension': { title: 'World Tension Index', description: 'One transparent number for geopolitical, humanitarian and financial stress, with its formula, weights and a robustness check.' },
   '/pricing': { title: 'Plans', description: 'Proposed Aurora Veritatis plans. Everything is free during early access.' },
   '/business': { title: 'Business & Institutional Solutions', description: 'Request a private quote for teams, companies, universities and institutions: seats, features and AI usage sized to your organisation.' },
+  '/about': { title: 'About Aurora Veritatis', description: 'An independent intelligence and research platform bringing global events, geopolitics, economic information and financial market analysis together.' },
   '/status': { title: 'Platform status and data sources', description: 'What works today, what uses simulated data, and the licence of every data source.' },
   '/signin': { title: 'Sign in', description: 'Sign in to Aurora Veritatis.', noindex: true },
   '/account': { title: 'Account', description: 'Your Aurora Veritatis account.', noindex: true },

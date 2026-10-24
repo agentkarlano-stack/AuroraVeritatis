@@ -12,7 +12,7 @@ import { writeFileSync } from 'node:fs';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
 const BASE = (process.env.BASE_URL ?? 'https://aurorav.app').replace(/\/$/, '');
-const ROUTES = ['/', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/legal/terms', '/legal/privacy'];
+const ROUTES = ['/', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
 const WIDTHS = [320, 360, 375, 390, 414, 768, 1024, 1440, 1920];
 const SLOW = new Set(['/geo', '/markets', '/briefing', '/radar']);
 

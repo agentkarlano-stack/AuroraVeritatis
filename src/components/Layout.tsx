@@ -200,6 +200,11 @@ export function Layout() {
                 </Link>
               </li>
               <li>
+                <Link className="text-mist hover:text-platinum" to="/about">
+                  About us
+                </Link>
+              </li>
+              <li>
                 <Link className="text-mist hover:text-platinum" to="/status">
                   Platform status &amp; data sources
                 </Link>
