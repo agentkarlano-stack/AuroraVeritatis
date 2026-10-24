@@ -76,6 +76,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Profile backgrounds (`lib/profileBackground.ts`, `data/landmarks.ts`, `components/profile/`): optional country landmark
   photos (Wikimedia Commons featured pictures, free licences, credit always shown; `docs/LANDMARKS.md`) in synced
   `prefs.profileBackground`; suggestion only from `prefs.lastCountry` (last dossier opened).
+- News verification (`pages/News.tsx`, `/news`): GDELT DOC 2.0 via `worker/gdelt.ts` (`GET /api/news`, cached 15 min);
+  registry, story grouping and statuses (confirmed | corroborated | unverified; disputed never automatic) in `shared/news.ts`.
+  Headlines and links only, never article text.
 - Aurora AI (`docs/AI.md`): EVE/KNOX gateway in `worker/ai/` (`providers.ts` router: OpenAI key or Workers AI binding `AI`,
   failover; `grounding.ts` numbered sources + citation check; `handler.ts` `POST /api/ai/ask`, `GET /api/ai/status`).
   Usage control in the database with the user's own token (`ai_begin`/`ai_finish`, migration `20261025000000_ai_gateway.sql`,

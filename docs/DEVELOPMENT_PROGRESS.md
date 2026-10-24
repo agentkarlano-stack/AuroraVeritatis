@@ -20,6 +20,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 50 (2026-10-24) — News ingestion and coverage verification
+- **Sources:** GDELT DOC 2.0 (free, attribution, no key; throttles bursts, so 25 s timeout and 30-minute cache) plus the UN News RSS feed (official; also the fallback when GDELT does not respond, with a visible note). Shared logic in `shared/news.ts`:
+  - source registry (publisher identity, type: official, wire, broadcaster, newspaper, magazine; unknown domains "unrated");
+  - story grouping by headline similarity;
+  - statuses: **confirmed** (an official source published it), **corroborated** (2+ independent publishers with their own headlines), **unverified** (one publisher, or only syndicated copies of the same headline). **Disputed** needs a reading of the content and is never automatic.
+- **Worker:** `GET /api/news?q=&t=24h|3d|7d` (`worker/gdelt.ts`), plain-word queries only, cached 15 min with the stale fallback; headlines and links only.
+- **Client:** `/news` (search, time window, story cards with status, independent/syndicated counts, official sources, publisher type, links to the source); "Recent coverage" button on country dossiers. Smoke prints an informational News line.
+- **Tests:** unit tests for registry, grouping, syndication and GDELT mapping; browser 12/12 at 1280 and 360 px.
+- **Known limitation (seen on the PR preview):** GDELT is intermittent from Cloudflare's network: one preview run timed out after 25 s, the next returned 100 articles in 40 stories; bursts get HTTP 429. The 30-minute cache, the 7-day saved copy and the UN News fallback (with a visible note) cover the gaps. Options: a scheduled fetch into Workers KV (free tier; needs a KV namespace, owner action), or a news API with a commercial licence (GNews or Mediastack, paid; owner decision).
+- **Prepared, not active:** Mediastack and GNews (paid).
 ### Run 49 (2026-10-24) — Aurora AI gateway (EVE, KNOX)
 - **Worker** `worker/ai/`: provider router (OpenAI with `OPENAI_API_KEY`, Cloudflare Workers AI binding `AI`; order `AI_PROVIDERS`, timeout and failover), source grounding (World Bank country data, USGS/GDACS events, opt-in Brain notes marked unverified), citation check, `POST /api/ai/ask` and `GET /api/ai/status`.
 - **Migration `20261025000000_ai_gateway.sql`** (owner applies): AI off by default; global monthly budget (€30) and daily requests per plan (5/30/100/300); reservations through `ai_begin`/`ai_finish` with the user's own token (no service key in the Worker); organisation AI budgets respected; admin overview and settings, audited.

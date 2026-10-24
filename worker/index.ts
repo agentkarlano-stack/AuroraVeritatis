@@ -7,6 +7,7 @@ import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
+import { TIMESPANS, cleanQuery, newsSearch, type Timespan } from './gdelt';
 import { quoteEmail, validateQuote } from '../shared/businessQuote';
 import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, sendQuoteRequest, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
@@ -135,6 +136,20 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
         return json({ events: await earthquakes() }, { maxAge: 600 });
       } catch (e) {
         return error(502, 'Earthquake feed unavailable', (e as Error).message);
+      }
+    });
+  }
+
+  // News coverage comparison (GDELT): headlines and links grouped into stories with a support status.
+  if (path === '/api/news') {
+    const q = cleanQuery(url.searchParams.get('q'));
+    if (!q) return error(400, 'Use plain search words (up to 100 characters).');
+    const t = (TIMESPANS as readonly string[]).includes(url.searchParams.get('t') ?? '') ? (url.searchParams.get('t') as Timespan) : '24h';
+    return cached(request, ctx, async () => {
+      try {
+        return json(await newsSearch(q, t), { maxAge: 1800 });
+      } catch (e) {
+        return error(502, 'News source unavailable', (e as Error).message);
       }
     });
   }
