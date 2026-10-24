@@ -57,6 +57,11 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   `session_active()` gates entitlements/admin (JWT window documented in docs/SECURITY.md), optional one-device rule for
   paid plans (admin switch, off by default). Test locally: Postgres 16 at /usr/lib/postgresql/16/bin (initdb as user
   `postgres` in /var/tmp), then `PGHOST=/var/tmp PGPORT=5433 PGUSER=postgres bash scripts/test-migrations.sh`.
+- Subscriptions (`supabase/migrations/20261024000100_subscriptions.sql`, `lib/billing.ts`, `components/account/SubscriptionPanel.tsx`):
+  1/3/6/12-month periods (provisional 0/5/10/15% discounts, upfront + monthly equivalent + savings on /pricing);
+  `aurora_private.subscriptions` (trial | complimentary | paid; only admins create trial/complimentary while payments
+  are off); effective plan = highest of grant and subscription (`tier_of`); cancel at period end, resume, renewal
+  preference; `admin_expiring`. No payments, no automatic renewal until the owner approves.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

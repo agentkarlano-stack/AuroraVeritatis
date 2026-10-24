@@ -20,6 +20,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 37 (2026-10-24) — Subscription periods (1, 3, 6, 12 months)
+- **Plans page:** period selector with the upfront total, monthly equivalent and savings; provisional discounts disclosed.
+- **Migration `20261024000100_subscriptions.sql`** (owner applies):
+  - subscriptions table; the effective plan is the highest of grant and subscription;
+  - my_subscription, renewal preference, cancel at period end, resume;
+  - admin start (trial or complimentary only), change, end, and the expiring list.
+- **UI:** Account → Subscription (expiry warning 14 days before the end). Admin → period form and "Ending within 14 days".
+- **Tests:** the SQL suite with all migrations, unit tests, browser 10/10.
+
 ### Run 36 (2026-10-24) — Device management and account-sharing protection
 - **Migration `20261024000000_sessions.sql`** (owner applies):
   - device list (`my_sessions`, no IPs); revoke one device; claim on sign-in; session status;
