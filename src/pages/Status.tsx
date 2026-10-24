@@ -51,6 +51,7 @@ const SOURCES = [
   { name: 'Natural Earth via world-atlas', url: 'https://www.naturalearthdata.com/', license: 'Public domain', use: 'Map boundaries' },
   { name: 'NASA Earth Observatory, Black Marble 2016', url: 'https://earthobservatory.nasa.gov/images/144898/earth-at-night-2016', license: 'Public domain (NASA imagery)', use: 'Globe in the cinematic introduction' },
   { name: 'Wikimedia Commons featured pictures', url: 'https://commons.wikimedia.org/', license: 'CC0, public domain, CC BY or CC BY-SA (author and licence shown with each photo)', use: 'Optional profile backgrounds' },
+  { name: 'Intro footage from Wikimedia Commons', url: 'https://commons.wikimedia.org/wiki/File:BUDAPEST_HYPERLAPSE.webm', license: 'CC BY 3.0 / 4.0: Gabor Liktor (Budapest hyperlapse), Kremlin.ru press office (Kremlin clock), jazzcool (Budapest tram), trolleway (Moscow tram parade); trimmed, cropped and graded', use: 'Second cinematic introduction edit' },
   { name: 'Mixkit stock video', url: 'https://mixkit.co/license/', license: 'Mixkit Stock Video Free License (commercial use, no attribution required)', use: 'City footage in the cinematic introduction' },
   { name: 'TradingView Lightweight Charts', url: 'https://github.com/tradingview/lightweight-charts', license: 'Apache 2.0 (attribution)', use: 'Financial charts' },
 ];
