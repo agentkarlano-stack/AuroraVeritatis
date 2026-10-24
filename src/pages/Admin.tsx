@@ -6,6 +6,8 @@ import { TIERS, type TierId } from '../data/tiers';
 import { Loading, PageHeader, Panel } from '../components/ui';
 import { refreshEntitlements, useEntitlements } from '../store/entitlements';
 import { runAdminSelfCheck, summarize, type StepResult } from '../lib/adminSelfCheck';
+import { PERIODS, type PeriodMonths } from '../lib/billing';
+import { isMissingFunction } from '../lib/sessions';
 
 interface Stats {
   users: number;
@@ -252,6 +254,7 @@ export default function Admin() {
           </Panel>
         </div>
       </div>
+      <ExpiringPanel />
       <SessionPolicy />
       <SelfCheck
         onDone={() => {
@@ -333,6 +336,7 @@ function GrantForm({ user, history, onDone }: { user: UserRow; history: GrantRow
           </p>
         )}
       </form>
+      <PeriodForm user={user} onDone={onDone} />
       <div className="mt-4">
         <div className="eyebrow mb-1">History</div>
         {!history.length && <p className="text-xs text-slate-dim">No grants yet.</p>}
@@ -462,6 +466,94 @@ function SessionPolicy() {
         </span>
       </label>
       {msg && <p className="mt-2 text-xs text-mist" role="status">{msg}</p>}
+    </Panel>
+  );
+}
+
+/** Trial or complimentary period of 1, 3, 6 or 12 months (server: admin_start_subscription; paid periods are off). */
+function PeriodForm({ user, onDone }: { user: UserRow; onDone: () => void }) {
+  const { client } = useAuth();
+  const [tier, setTier] = useState<TierId>('premium');
+  const [months, setMonths] = useState<PeriodMonths>(1);
+  const [kind, setKind] = useState<'trial' | 'complimentary'>('trial');
+  const [reason, setReason] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const start = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client) return;
+    if (reason.trim().length < 3) return setMsg({ ok: false, text: 'Give a reason (at least 3 characters).' });
+    const { error } = await client.rpc('admin_start_subscription', { target: user.id, new_tier: tier, months, sub_kind: kind, why: reason.trim() });
+    if (error) return setMsg({ ok: false, text: isMissingFunction(error) ? 'Subscription periods become available after the pending database update.' : error.message });
+    setMsg({ ok: true, text: `${kind === 'trial' ? 'Trial' : 'Complimentary period'} started: ${TIERS.find((t) => t.id === tier)?.name}, ${months} ${months === 1 ? 'month' : 'months'}.` });
+    setReason('');
+    onDone();
+  };
+  return (
+    <form className="mt-4 space-y-2 border-t border-line pt-3 text-sm" onSubmit={(e) => void start(e)}>
+      <div className="eyebrow">Subscription period (no payment)</div>
+      <div className="grid grid-cols-3 gap-2">
+        <select className="input" value={tier} onChange={(e) => setTier(e.target.value as TierId)} aria-label="Plan for the period">
+          {TIERS.filter((t) => t.id !== 'free').map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+        <select className="input" value={months} onChange={(e) => setMonths(Number(e.target.value) as PeriodMonths)} aria-label="Period length">
+          {PERIODS.map((p) => (
+            <option key={p.months} value={p.months}>
+              {p.months} {p.months === 1 ? 'month' : 'months'}
+            </option>
+          ))}
+        </select>
+        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as 'trial' | 'complimentary')} aria-label="Kind of period">
+          <option value="trial">Trial</option>
+          <option value="complimentary">Complimentary</option>
+        </select>
+      </div>
+      <input className="input" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="Reason (recorded in the audit log)" aria-label="Reason for the period" />
+      <button className="btn-ghost text-xs">Start period</button>
+      <p className="text-[11px] text-slate-dim">Replaces the user's current period. The user can cancel or resume it; it ends automatically and nothing is charged.</p>
+      {msg && (
+        <p role={msg.ok ? 'status' : 'alert'} className={`text-xs ${msg.ok ? 'text-up' : 'text-down'}`}>
+          {msg.text}
+        </p>
+      )}
+    </form>
+  );
+}
+
+/** Subscriptions and grants ending within 14 days (server: admin_expiring), for reminders. */
+function ExpiringPanel() {
+  const { client } = useAuth();
+  const [rows, setRows] = useState<{ source: string; email: string; tier: string; kind: string; ends: string; cancelling: boolean }[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!client) return;
+    void client.rpc('admin_expiring', { days: 14 }).then(({ data, error }) => alive && setRows(error ? null : ((data as typeof rows) ?? [])));
+    return () => {
+      alive = false;
+    };
+  }, [client]);
+  if (!rows) return null;
+  return (
+    <Panel className="mt-4" title="Ending within 14 days" eyebrow="Plans">
+      {rows.length ? (
+        <ul className="space-y-1 text-xs">
+          {rows.map((r) => (
+            <li key={`${r.source}-${r.email}-${r.ends}`} className="flex flex-wrap justify-between gap-2">
+              <span className="text-platinum">{r.email}</span>
+              <span className="text-slate-dim">
+                {TIERS.find((t) => t.id === r.tier)?.name} {r.kind} · ends {fmt(r.ends)}
+                {r.cancelling ? ' · cancelled by the user' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-slate-dim">Nothing ends in the next 14 days.</p>
+      )}
+      <p className="mt-2 text-[11px] text-slate-dim">Email reminders are planned; until then users see an in-app warning on their Account page 14 days before the end.</p>
     </Panel>
   );
 }

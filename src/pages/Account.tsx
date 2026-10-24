@@ -13,6 +13,7 @@ import { Avatar } from '../components/Avatar';
 import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEditor';
 import { SecuritySettings } from '../components/account/SecuritySettings';
 import { DevicesPanel } from '../components/account/DevicesPanel';
+import { SubscriptionPanel } from '../components/account/SubscriptionPanel';
 import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
 import { INTRO_EXPERIENCES, resolveIntroExperience } from '../lib/intro';
 
@@ -197,6 +198,8 @@ export default function Account() {
             <Unavailable phase="planned">Payments are switched off. Billing history, invoices and self-service plan changes will appear here once paid plans launch.</Unavailable>
           </div>
         </Panel>
+
+        {status === 'signed-in' && <SubscriptionPanel />}
 
         <IntroPreferences />
 

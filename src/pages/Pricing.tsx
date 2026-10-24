@@ -1,4 +1,6 @@
 import { Building2, Check, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { PERIODS, periodPrice, type PeriodMonths } from '../lib/billing';
 import { Link } from 'react-router';
 import { DemoNotice, PageHeader } from '../components/ui';
 import { TIERS } from '../data/tiers';
@@ -6,6 +8,7 @@ import { useTier } from '../lib/entitlements';
 
 export default function Pricing() {
   const tierId = useTier();
+  const [months, setMonths] = useState<PeriodMonths>(1);
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader eyebrow="Plans" title="Plans">
@@ -16,14 +19,45 @@ export default function Pricing() {
         Prices are <strong>proposals, not offers</strong>. Paid plans cannot be bought yet and no payments are taken. Final terms will
         be published before launch. Items marked “Planned” do not exist yet, whatever the plan.
       </DemoNotice>
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Billing period">
+          {PERIODS.map((p) => (
+            <button key={p.months} className="chip" aria-pressed={months === p.months} onClick={() => setMonths(p.months)}>
+              {p.label}
+              {p.discount > 0 && <span className="text-[10px] text-gold">save {Math.round(p.discount * 100)}%</span>}
+            </button>
+          ))}
+        </div>
+        <p className="max-w-2xl text-xs text-slate-dim">
+          Longer periods are paid upfront for the whole period; discounts are provisional. There is no refund schedule or renewal policy yet: both will be
+          published before paid plans launch, and renewal will be your choice.
+        </p>
+      </div>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {TIERS.map((t) => (
           <div key={t.id} className={`panel flex flex-col p-5 ${t.id === 'prime' ? 'border-gold-dim' : ''}`}>
             <div className="eyebrow">{t.name}</div>
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="num font-display text-3xl font-bold">€{t.priceEur.toFixed(2)}</span>
-              <span className="text-sm text-slate-dim">/ month</span>
-            </div>
+            {(() => {
+              const pr = periodPrice(t.priceEur, months);
+              return t.priceEur === 0 ? (
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="num font-display text-3xl font-bold">€0</span>
+                  <span className="text-sm text-slate-dim">forever</span>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <div className="flex items-baseline gap-1">
+                    <span className="num font-display text-3xl font-bold">€{pr.upfront.toFixed(2)}</span>
+                    <span className="text-sm text-slate-dim">{months === 1 ? '/ month' : `for ${months} months`}</span>
+                  </div>
+                  {months > 1 && (
+                    <p className="num mt-0.5 text-xs text-mist">
+                      €{pr.perMonth.toFixed(2)} a month equivalent · you save €{pr.savings.toFixed(2)} compared with {months} monthly payments
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             <p className="mt-1 text-sm text-mist">{t.tagline}</p>
             <ul className="mt-5 flex-1 space-y-2 text-sm">
               {t.features.map((f) => (
