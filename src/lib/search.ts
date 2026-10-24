@@ -18,6 +18,7 @@ export const PAGES: SearchItem[] = [
   ['/markets', 'Market Terminal', 'Charts and indicators'],
   ['/geo', 'Map Explorer', '2D map and 3D globe with satellite, environmental, economic and hazard layers'],
   ['/briefing', 'World Briefing', 'Guided tour of recent events with sources and reliability'],
+  ['/assistant', 'EVE and KNOX AI assistants', 'Ask about countries, events, markets and methods, with sources'],
   ['/brain', 'Personal Intelligence Brain', 'Your own graph of events, countries, markets and hypotheses'],
   ['/macro', 'Macro & FX', 'ECB rates, euro-area inflation, yields and reference exchange rates'],
   ['/currency', 'Currency and purchasing power', 'Inflation calculator, purchasing power, PPP, currency converter and historical exchange rates'],

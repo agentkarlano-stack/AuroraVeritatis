@@ -10,7 +10,7 @@ const MODULES = [
   { to: '/markets', icon: BarChart3, title: 'Market Terminal', text: 'A chart editor with favourites, ECB interest and exchange rates, World Bank commodity prices, CFTC futures positioning and the Market Impact chain.', tags: 'Charts · Commodities · Macro · Impact', state: 'Official data, simulated prices' },
   { to: '/countries', icon: Landmark, title: 'Country Dossiers', text: 'World Bank indicators for every economy, with history charts and country comparisons.', tags: 'Indicators · Compare · History', state: 'Official data' },
   { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Portfolio risk with value at risk and expected shortfall, Monte Carlo simulation, strategy backtests, your own forecasts with calibration, and a Strategy Lab for event scenarios.', tags: 'Risk · Backtests · Forecasts · Scenarios', state: 'Working' },
-  { to: '/status', icon: BrainCircuit, title: 'AI Intelligence', text: 'Research assistants and sourced reports. Not available yet.', tags: 'EVE · KNOX · Reports', state: 'Planned' },
+  { to: '/assistant', icon: BrainCircuit, title: 'AI Intelligence', text: 'EVE and KNOX answer questions from listed sources (official statistics, live hazard data, your own notes), with citations and daily allowances.', tags: 'EVE · KNOX · Sources', state: 'Activation pending' },
   { to: '/hq', icon: LayoutDashboard, title: 'Headquarters', text: 'Your workspace: widgets, watchlists, favourite countries, alerts and your Personal Intelligence Brain.', tags: 'Workspace · Brain', state: 'Saved in your browser' },
 ] as const;
 
@@ -71,7 +71,7 @@ export default function Home() {
         <h2 className="text-2xl font-semibold">Six modules, one workflow</h2>
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {MODULES.map((m) => {
-            const planned = m.state === 'Planned';
+            const planned = (m.state as string) === 'Planned' || m.state === 'Activation pending';
             return (
               <Link
                 key={m.title}

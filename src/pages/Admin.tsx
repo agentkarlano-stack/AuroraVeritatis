@@ -9,6 +9,7 @@ import { runAdminSelfCheck, summarize, type StepResult } from '../lib/adminSelfC
 import { PERIODS, type PeriodMonths } from '../lib/billing';
 import { isMissingFunction } from '../lib/sessions';
 import { OrganisationsAdmin } from '../components/admin/OrganisationsAdmin';
+import { AiAdmin } from '../components/admin/AiAdmin';
 
 interface Stats {
   users: number;
@@ -257,6 +258,7 @@ export default function Admin() {
       </div>
       <ExpiringPanel />
       <OrganisationsAdmin />
+      <AiAdmin />
       <SessionPolicy />
       <SelfCheck
         onDone={() => {
