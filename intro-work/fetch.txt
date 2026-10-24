@@ -1,3 +1,11 @@
-wbcmo/monthly-2026.xlsx https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx
-wbcmo/catalog.html https://datacatalog.worldbank.org/search/dataset/0037798
-wbcmo/catalog-api.json https://datacatalogapi.worldbank.org/ddhxext/DatasetView?dataset_unique_id=0037798
+pm/polymarket-tos.html https://polymarket.com/tos
+pm/polymarket-docs.html https://docs.polymarket.com/
+pm/polymarket-gamma.json https://gamma-api.polymarket.com/markets?limit=5&active=true&closed=false&order=volume&ascending=false
+pm/polymarket-gamma-closed.json https://gamma-api.polymarket.com/markets?limit=5&closed=true
+pm/kalshi-markets.json https://api.elections.kalshi.com/trade-api/v2/markets?limit=5&status=open
+pm/kalshi-terms.html https://kalshi.com/regulatory/terms-of-service
+pm/kalshi-data-terms.html https://kalshi.com/docs/kalshi-data-terms
+pm/manifold-markets.json https://api.manifold.markets/v0/markets?limit=5
+pm/manifold-terms.html https://manifold.markets/terms
+pm/metaculus-terms.html https://www.metaculus.com/terms-of-use/
+pm/metaculus-api.json https://www.metaculus.com/api/posts/?limit=3
