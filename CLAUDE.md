@@ -132,7 +132,11 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   unit tests run in Node and cannot catch Workers-runtime failures.
 - Never compute time-dependent values at Worker module scope (`new Date()`, `Date.now()`): during global
   initialisation the Workers clock reads as the Unix epoch. (This made `/api/compare/:year` reject every year.)
-- `e2e/ui-audit.ts` (workflow `ui-audit.yml`, after each merge and on demand) is the read-only production browser audit:
+- CI economy (2026-10-24): `ci.yml` runs once per PR (one job incl. migrations; superseded runs cancelled; docs-only
+  changes skipped). After a merge, `post-deploy.yml` waits for the deployed commit (`scripts/wait-for-deploy.sh` polls
+  `/api/health` → `commit`, built from `WORKERS_CI_COMMIT_SHA`), runs the smoke test and a quick UI audit (`QUICK=1`).
+  The full UI audit runs nightly only when main changed, and on demand. No fixed sleeps except the 180 s fallback.
+- `e2e/ui-audit.ts` (workflow `ui-audit.yml`, nightly when main changed and on demand; quick mode after merges) is the read-only production browser audit:
   26 routes × 9 widths (overflow, errors, unnamed controls, WCAG touch targets), interaction checks and security
   headers. Read its annotations ("UI audit", "UI audit checks"). Run locally with `BASE_URL=http://localhost:4173
   CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome node e2e/ui-audit.ts`.

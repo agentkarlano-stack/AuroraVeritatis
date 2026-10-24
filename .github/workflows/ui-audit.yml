@@ -1,15 +1,16 @@
 name: UI audit
 
-# Read-only browser audit of a deployed site: every route at 320–1920 px, interaction checks and security headers.
-# No accounts and no emails. Runs after each merge to main (once the deployment has had time to roll out) and on demand.
+# Full read-only browser audit of a deployed site: every route at 9 widths (320–1920 px), interaction checks and
+# security headers. No accounts and no emails. Runs nightly when main changed in the last day, and on demand. After each
+# merge, post-deploy.yml runs the quick version (QUICK=1).
 on:
   workflow_dispatch:
     inputs:
       url:
         description: Base URL to audit
         default: https://aurorav.app
-  push:
-    branches: [main]
+  schedule:
+    - cron: '41 2 * * *' # 02:41 UTC
 
 permissions:
   contents: read
@@ -24,20 +25,26 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 30
+      - name: Skip the nightly run when main did not change in the last 26 hours
+        id: recent
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ] || [ -n "$(git log -1 --since='26 hours ago' --format=%H)" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "::notice::No changes on main since the last nightly audit; skipped."; fi
       - uses: actions/setup-node@v4
+        if: steps.recent.outputs.run == 'true'
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Wait for the Workers Builds deployment
-        if: github.event_name == 'push'
-        run: sleep 200
+      - if: steps.recent.outputs.run == 'true'
+        run: npm ci
       - name: UI audit
+        if: steps.recent.outputs.run == 'true'
         run: node e2e/ui-audit.ts
         env:
           BASE_URL: ${{ inputs.url || 'https://aurorav.app' }}
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.recent.outputs.run == 'true'
         with:
           name: ui-audit-results
           path: ui-audit-results.json

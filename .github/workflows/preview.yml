@@ -9,6 +9,8 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled]
+    # Documentation-only changes do not change the site: no preview upload.
+    paths-ignore: ['docs/**', '**/*.md']
 
 permissions:
   contents: read
@@ -20,6 +22,8 @@ concurrency:
 
 jobs:
   preview:
+    # Labels other than "live-auth" do not need a new preview.
+    if: github.event.action != 'labeled' || github.event.label.name == 'live-auth'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
