@@ -83,3 +83,13 @@ export function decideIntro(o: {
 export const BRAND_INTRO_MS = 4200;
 /** If the film has not started playing by then (slow network, autoplay blocked), the brand intro plays instead. */
 export const CINEMATIC_START_TIMEOUT_MS = 3500;
+
+/** Cinematic edits in rotation (public/media/intro/*-<edit>.*): v1 London, New York, Tokyo; v2 Budapest, Moscow and more. */
+export const FILM_EDITS = ['v1', 'v2'] as const;
+export type FilmEdit = (typeof FILM_EDITS)[number];
+
+/** The edit to play next: the one after the last played (stored per browser), starting with the first. */
+export function nextFilmEdit(last: string | null): FilmEdit {
+  const i = FILM_EDITS.indexOf(last as FilmEdit);
+  return FILM_EDITS[(i + 1) % FILM_EDITS.length]!;
+}
