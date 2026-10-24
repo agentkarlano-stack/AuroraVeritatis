@@ -38,7 +38,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Devices, subscription periods and organisations', to: '/account', state: 'prototype', note: 'Built and tested; they switch on when the pending database updates are applied. No payments are taken.' },
   { name: 'Accounts and sync', to: '/signin', state: 'prototype', note: 'Switched on in early access: email sign-up with confirmation, password reset, cross-device sync of preferences and notes, data export and account deletion. Everything still works without an account.' },
   { name: 'Plan limits', to: '/account', state: 'working', note: 'Free-plan limits for watchlists and alerts apply. All features are open during early access.' },
-  { name: 'AI research assistants', state: 'planned', note: 'Not available yet.' },
+  { name: 'AI research assistants (EVE, KNOX)', to: '/assistant', state: 'prototype', note: 'Built: provider-independent gateway (OpenAI or Cloudflare Workers AI), source-grounded answers with checked citations, daily allowances and a global budget. Switched on once the database update is applied and an administrator enables it.' },
   { name: 'Paid plans', to: '/pricing', state: 'planned', note: 'Not available yet. No payments are taken.' },
 ];
 

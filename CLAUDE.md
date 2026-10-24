@@ -76,6 +76,12 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Profile backgrounds (`lib/profileBackground.ts`, `data/landmarks.ts`, `components/profile/`): optional country landmark
   photos (Wikimedia Commons featured pictures, free licences, credit always shown; `docs/LANDMARKS.md`) in synced
   `prefs.profileBackground`; suggestion only from `prefs.lastCountry` (last dossier opened).
+- Aurora AI (`docs/AI.md`): EVE/KNOX gateway in `worker/ai/` (`providers.ts` router: OpenAI key or Workers AI binding `AI`,
+  failover; `grounding.ts` numbered sources + citation check; `handler.ts` `POST /api/ai/ask`, `GET /api/ai/status`).
+  Usage control in the database with the user's own token (`ai_begin`/`ai_finish`, migration `20261025000000_ai_gateway.sql`,
+  off by default, global monthly budget + daily requests per plan; admin panel `components/admin/AiAdmin.tsx`).
+  Client `/assistant` (`pages/Assistant.tsx`, `lib/assistant.ts`); read-aloud via browser speech synthesis. Local
+  preview runs with `remoteBindings: false` (no Workers AI locally).
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
