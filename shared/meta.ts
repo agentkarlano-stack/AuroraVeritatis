@@ -29,6 +29,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/countries/vs': { title: 'Side-by-side country comparison', description: 'Compare up to four countries across World Bank indicators, each value with its reference year.' },
   '/markets': { title: 'Market Terminal', description: 'Chart editor with separate candle interval and history range, 12 chart types, 57 tested indicators, drawings, templates, saved charts and image export. Official ECB reference rates and clearly labelled simulated instruments.' },
   '/markets/commodities': { title: 'Commodity & Energy Monitor', description: 'Oil, gas, coal, gold, copper, iron ore, grains and fertilisers: official World Bank monthly prices with changes, volatility, long-run position, comparisons and exposure maps.' },
+  '/lab/forecasts': { title: 'Prediction Research', description: 'Write forecasts with resolution criteria, revise them, resolve them and measure calibration with Brier and log scores. Your own estimates, not market data.' },
   '/impact': { title: 'Market Impact Radar', description: 'How geopolitical events can reach markets: mechanisms, correlations and hypotheses, each labelled by strength of evidence.' },
   '/lab': { title: 'Quant Research', description: 'Monte Carlo risk simulation and rule-based backtesting with transparent, reproducible methods.' },
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },

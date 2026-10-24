@@ -110,7 +110,15 @@ export default function Lab() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader eyebrow="Quantitative Research Lab" title={tool === 'backtest' ? 'Strategy backtesting' : 'Monte Carlo risk simulation'}>
+      <PageHeader
+        eyebrow="Quantitative Research Lab"
+        title={tool === 'backtest' ? 'Strategy backtesting' : 'Monte Carlo risk simulation'}
+        actions={
+          <Link to="/lab/forecasts" className="btn-ghost text-xs">
+            Prediction Research
+          </Link>
+        }
+      >
         {tool === 'backtest'
           ? 'Test simple, transparent trading rules against buy-and-hold, after costs and without look-ahead bias.'
           : 'Simulate the range of future values under geometric Brownian motion. Results are model outputs that you can reproduce with the same seed. They are not forecasts or observed outcomes.'}

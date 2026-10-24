@@ -533,6 +533,11 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
           sources: e.source.url.startsWith('http') ? [{ title: e.source.name, url: e.source.url, date: e.time.slice(0, 10) }] : [],
         }}
       />
+      {e.provenance !== 'simulated' && (
+        <Link className="mt-2 inline-flex min-h-6 items-center text-xs text-gold hover:underline" to={`/lab/forecasts?event=${encodeURIComponent(e.id)}&q=${encodeURIComponent(`Will ${e.title} …`)}`}>
+          Make a forecast about this event
+        </Link>
+      )}
       {e.marketLinks && e.marketLinks.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
           <div className="eyebrow mb-1">Potential market exposure</div>
