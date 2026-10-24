@@ -20,6 +20,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 48 (2026-10-24) — GitHub Actions optimisation
+- **Measured (20–24 Oct, 343 runs):** about 950 billable job-minutes in 4 days. Breakdown: CI 286, UI audit 255 (11 runs cancelled after their 200 s sleep), production smoke 203 (180 s sleep), preview 146, intro fetch 35, live auth 25.
+- **Changes:**
+  - CI: pull requests only; one job instead of two (migrations included); superseded runs cancelled; docs-only changes skipped.
+  - Preview: docs-only changes and unrelated label events skipped.
+  - `post-deploy.yml` replaces the post-merge smoke and UI-audit runs and their two fixed sleeps. It waits for the exact deployed commit (`/api/health` now reports `commit`; fallback 180 s), runs the smoke test, then a quick UI audit (12 routes × 3 widths + all interaction checks) only when site files changed.
+  - Full UI audit: nightly, only if main changed in the last 26 h, and on demand.
+- **Note:** this repository is public, so standard GitHub-hosted runners are free for it. The included-minutes shortfall must come from private repositories on the account.
+
 ### Run 46 (2026-10-24) — Country profile backgrounds
 - **Picker (Account → Profile background):** country, landmark grid with previews, live preview banner, reset to neutral; the suggestion comes only from the country last opened in a dossier on this device, and a manual choice is never replaced.
 - **Storage:** choice in synced `prefs.profileBackground`.

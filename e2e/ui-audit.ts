@@ -6,14 +6,19 @@
  * (brand intro, mobile menu, chart menus, map explorer, briefing) and the security headers.
  *
  * Usage: BASE_URL=https://aurorav.app node e2e/ui-audit.ts      (Node 22.18+; CHROMIUM_PATH optional)
+ * QUICK=1 runs the post-merge subset: key routes at a phone, a tablet and a desktop width, plus every interaction
+ * check and the headers. The full sweep (all routes × 9 widths) runs nightly when main changed, and on demand.
  * Prints GitHub annotations and writes ui-audit-results.json.
  */
 import { writeFileSync } from 'node:fs';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
 const BASE = (process.env.BASE_URL ?? 'https://aurorav.app').replace(/\/$/, '');
-const ROUTES = ['/', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
-const WIDTHS = [320, 360, 375, 390, 414, 768, 1024, 1440, 1920];
+const ALL_ROUTES = ['/', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
+const QUICK = process.env.QUICK === '1';
+const QUICK_ROUTES = ['/', '/hq', '/radar', '/geo', '/countries/DEU', '/markets', '/lab', '/impact', '/brain', '/account', '/pricing', '/about'];
+const ROUTES = QUICK ? QUICK_ROUTES : ALL_ROUTES;
+const WIDTHS = QUICK ? [360, 768, 1440] : [320, 360, 375, 390, 414, 768, 1024, 1440, 1920];
 const SLOW = new Set(['/geo', '/markets', '/briefing', '/radar']);
 
 interface Issue {

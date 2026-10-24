@@ -1,12 +1,10 @@
 name: Production smoke test
 
-# Read-only HTTP checks of the live site (scripts/smoke.sh). Deploys nothing and uses no secrets.
-# After a merge to main it waits for Cloudflare Workers Builds to deploy, then checks aurorav.app.
-# PR code is smoke-tested on its own preview deployment (preview.yml), not here.
+# Read-only HTTP checks of a live site (scripts/smoke.sh), on demand. Deploys nothing and uses no secrets.
+# After merges, post-deploy.yml runs the same checks once the new deployment is live; PR code is smoke-tested on its
+# own preview deployment (preview.yml).
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       url:
@@ -22,8 +20,5 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Wait for the Workers Builds deployment
-        if: github.event_name == 'push'
-        run: sleep 180
       - name: Smoke test
         run: scripts/smoke.sh "${{ inputs.url || 'https://aurorav.app' }}"
