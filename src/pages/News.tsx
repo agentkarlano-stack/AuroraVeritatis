@@ -13,6 +13,7 @@ interface NewsResult {
   source: { name: string; url: string; license: string };
   fetchedAt: string;
   stale?: { since: string | null; reason: string };
+  partial?: string;
 }
 
 const STATUS: Record<CoverageStatus | 'disputed', { label: string; cls: string; help: string }> = {
@@ -98,6 +99,7 @@ export default function News() {
             <p className="text-xs text-slate-dim">
               {res.data.articles} articles in {res.data.stories.length} stories · {res.data.source.name} · {res.data.source.license}
               {res.data.stale && <span className="ml-1 text-warn">· saved copy: {res.data.stale.reason}</span>}
+              {res.data.partial && <span className="ml-1 text-warn">· {res.data.partial}</span>}
             </p>
             {res.data.stories.length === 0 && <p className="text-sm text-slate-dim">No articles found for this search and period.</p>}
             {res.data.stories.map((s) => (

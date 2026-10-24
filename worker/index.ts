@@ -141,7 +141,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     const t = (TIMESPANS as readonly string[]).includes(url.searchParams.get('t') ?? '') ? (url.searchParams.get('t') as Timespan) : '24h';
     return cached(request, ctx, async () => {
       try {
-        return json(await newsSearch(q, t), { maxAge: 900 });
+        return json(await newsSearch(q, t), { maxAge: 1800 });
       } catch (e) {
         return error(502, 'News source unavailable', (e as Error).message);
       }

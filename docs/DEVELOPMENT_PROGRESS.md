@@ -21,7 +21,7 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 
 ## Completed
 ### Run 50 (2026-10-24) — News ingestion and coverage verification
-- **Source:** GDELT DOC 2.0 (free, attribution, no key). Shared logic in `shared/news.ts`:
+- **Sources:** GDELT DOC 2.0 (free, attribution, no key; throttles bursts, so 25 s timeout and 30-minute cache) plus the UN News RSS feed (official; also the fallback when GDELT does not respond, with a visible note). Shared logic in `shared/news.ts`:
   - source registry (publisher identity, type: official, wire, broadcaster, newspaper, magazine; unknown domains "unrated");
   - story grouping by headline similarity;
   - statuses: **confirmed** (an official source published it), **corroborated** (2+ independent publishers with their own headlines), **unverified** (one publisher, or only syndicated copies of the same headline). **Disputed** needs a reading of the content and is never automatic.
