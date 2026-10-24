@@ -1,17 +1,33 @@
 name: CI
 
+# One job per pull request: lint, types, unit tests, production build and the Supabase migration/RLS tests on a
+# throwaway Postgres. Superseded runs of the same PR are cancelled. Documentation-only changes skip CI (the repository
+# has no required status checks, so nothing is left blocked). Merges to main are verified on the deployed site by
+# post-deploy.yml instead of re-running the same checks.
 on:
   pull_request:
-  push:
-    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,24 +39,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-
-  # Applies the Supabase migrations twice to a throwaway Postgres and runs the two-account RLS test (supabase/tests).
-  migrations:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    services:
-      postgres:
-        image: postgres:16
+      # Applies the Supabase migrations twice and runs the RLS, admin, session, subscription, organisation and AI tests.
+      - name: Migration and access-control tests
+        run: scripts/test-migrations.sh
         env:
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      PGHOST: localhost
-      PGPORT: 5432
-      PGUSER: postgres
-      PGPASSWORD: postgres
-    steps:
-      - uses: actions/checkout@v4
-      - run: scripts/test-migrations.sh
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres

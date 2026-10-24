@@ -30,7 +30,8 @@ About **4.2 s** (`BRAND_INTRO_MS`):
 
 ## Film
 - **Delivery:**
-  - Files: `public/media/intro/aurora-intro-{1920,1280,720x1280}-v1.{webm,mp4}` plus a poster `.jpg` per variant.
+  - Files: `public/media/intro/aurora-intro-{1920,1280,720x1280}-{v1,v2}.{webm,mp4}` plus a poster `.jpg` per variant.
+  - **Two edits rotate:** each time the cinematic intro plays, the browser plays the other edit next (`nextFilmEdit` in `src/lib/intro.ts`, key `av-intro-film`). The first-ever visit gets v1.
   - Muted, `playsInline`, served by Cloudflare static assets (not the Worker).
   - Requested only when the film is about to play, so visitors who skip it, choose another intro or get the brand intro never download it.
 - **Fallbacks:**
@@ -57,7 +58,34 @@ About **4.2 s** (`BRAND_INTRO_MS`):
 - **On screen:** no captions, city names or slogans. The grade is charcoal blacks, platinum mid-tones, warm gold highlights and low saturation.
 - **No market data:** the film contains no market chart, and no data is presented as real.
 
-### Sources and licences
+### Edit v2 (2026-10-24; landscape and portrait, 12.2 s at 30 fps; transitions 0.3 s; globe 2.4 s)
+A faster cut with Budapest and Moscow (owner directive 2026-10-24, §2). `build-intro.py … v2`, `encode.sh … v2`.
+
+| # | Shot | Source window | Transition in |
+|---|---|---|---|
+| 1 | Budapest, the Danube at blue hour with Buda Castle and the Chain Bridge lit | Commons "BUDAPEST HYPERLAPSE", 28.8–30.7 s | fade from black |
+| 2 | London, Tower Bridge at dusk | Mixkit 4457 | horizontal blur |
+| 3 | Moscow, the Kremlin's Spasskaya Tower at night (slow push-in) | Commons "Kremlin Clock chimes in 2025", 51–52.6 s | crossfade |
+| 4 | Budapest, a tram passing at night | Commons "Urbos 3 in Budapest", 93.8–95.2 s | horizontal blur |
+| 5 | New York, rain-wet street (portrait: avenue traffic, Mixkit 34562) | Mixkit 4331 | horizontal blur |
+| 6 | Moscow, a tram crossing a lit square at night | Commons "Tram parade in Moscow, 2018 (night)", 313–314.4 s | horizontal blur |
+| 7 | Budapest, the Danube embankment at night | Commons "BUDAPEST HYPERLAPSE", 31.8–33.6 s | crossfade |
+| 8 | Tokyo, Rainbow Bridge (portrait: avenue from above, Mixkit 49876) | Mixkit 4383 | horizontal blur |
+| 9 | Rotating night-lights globe | NASA Black Marble 2016 | crossfade, fade to black |
+
+**v2 Wikimedia Commons sources (credit required; shown here and on the Status page):**
+| Source | Author | Licence |
+|---|---|---|
+| [BUDAPEST HYPERLAPSE](https://commons.wikimedia.org/wiki/File:BUDAPEST_HYPERLAPSE.webm) | Gabor Liktor | CC BY 3.0 |
+| [Kremlin Clock chimes in 2025](https://commons.wikimedia.org/wiki/File:Kremlin_Clock_chimes_in_2025.webm) | Press and Information Office of the President of Russia (Kremlin.ru) | CC BY 4.0 |
+| [Urbos 3 in Budapest](https://commons.wikimedia.org/wiki/File:Urbos_3_in_Budapest.webm) | jazzcool | CC BY 3.0 |
+| [Tram parade in Moscow, 2018 (night)](https://commons.wikimedia.org/wiki/File:Tram_parade_in_Moscow,_2018_(night).webm) | trolleway | CC BY 3.0 |
+
+- **Licence choice:** only CC BY, CC0 or public-domain clips are used. CC BY-SA clips (for example the Hungarian Parliament light show) were excluded: share-alike would apply to the whole edit and conflict with the Mixkit licence of the other shots. The edit trims, crops, grades and re-times the clips; credits note this.
+- **Not yet included:** Saint Petersburg and Vienna. The Commons candidates were unsuitable (construction aerials, a bus depot) and Mixkit has no Free-licence clips. A free Pexels API key (owner action) would allow a third edit.
+- **Fetching:** the work-branch workflow gained a contact-sheet mode (`<out.jpg> <url> sheet`) to review footage before trimming.
+
+### Sources and licences (v1)
 | Source | Title | Licence | Restrictions |
 |---|---|---|---|
 | [Mixkit 42343](https://mixkit.co/free-stock-video/movement-in-a-city-at-night-in-an-aerial-shot-42343/) | Movement in a city at night in an aerial shot | Mixkit Stock Video **Free** License | Commercial use allowed, no attribution required; no resale or redistribution of the clip on its own |

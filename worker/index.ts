@@ -25,6 +25,10 @@ export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv {
   BUSINESS_QUOTE_TO?: string;
 }
 
+/** Git commit of this build: Workers Builds sets WORKERS_CI_COMMIT_SHA (vite.config.ts `define`). Empty when unknown. */
+declare const __BUILD_COMMIT__: string;
+const BUILD_COMMIT = typeof __BUILD_COMMIT__ === 'string' ? __BUILD_COMMIT__ : '';
+
 const limiter = new RateLimiter(60, 1); // 60-request burst, 1 req/s sustained per client IP.
 const DAY = 86_400;
 
@@ -115,7 +119,8 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   if (!limiter.allow(ip)) return error(429, 'Too many requests');
 
   if (path === '/api/health') {
-    return json({ status: 'ok', service: 'aurora-veritatis', time: new Date().toISOString() });
+    // `commit` lets post-merge checks wait for this exact deployment (set at build time by Workers Builds).
+    return json({ status: 'ok', service: 'aurora-veritatis', time: new Date().toISOString(), commit: BUILD_COMMIT || null, version: env.CF_VERSION_METADATA?.id ?? null });
   }
 
   if (path === '/api/ai/status') return aiStatus(env);
