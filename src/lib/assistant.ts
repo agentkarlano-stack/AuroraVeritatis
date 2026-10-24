@@ -62,6 +62,7 @@ export function speakableSentences(text: string): string[] {
     .replace(/\[(S\d{1,2}(?:\s*,\s*S\d{1,2})*)\]/g, '')
     .replace(/[#*_`>]+/g, '')
     .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
     .trim();
   return clean ? clean.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean) : [];
 }
