@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown, LineChart as LineIcon, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { INDICATORS, type IndicatorDef } from '../../shared/indicators';
 import type { CountryProfile, IndicatorSeries, IndicatorValue } from '../../shared/types';
@@ -30,6 +30,11 @@ export default function CountryDossier() {
   const valid = /^[A-Z]{3}$/.test(code);
   const profile = useApi<CountryProfile>(valid ? `/api/countries/${code}` : null);
   const { favorites, toggleFavorite } = usePrefs();
+  const setLastCountry = usePrefs((s) => s.setLastCountry);
+  // Remember the country being researched (only to suggest a profile background later).
+  useEffect(() => {
+    if (ref) setLastCountry(ref.iso3);
+  }, [ref, setLastCountry]);
   const fav = favorites.includes(code);
   const [open, setOpen] = useState<Set<string>>(new Set(['general', 'economy']));
 

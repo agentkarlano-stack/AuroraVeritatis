@@ -73,6 +73,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   `components/account/OrganisationCard.tsx`): named seats (one organisation per account), plan from an active contract
   (`tier_of` = highest of grant, subscription, organisation), monthly AI budget with hard cap (`ai_allowance`,
   `record_ai_usage`: service role only, for the future AI gateway). Created by Aurora admins after a private quote.
+- Profile backgrounds (`lib/profileBackground.ts`, `data/landmarks.ts`, `components/profile/`): optional country landmark
+  photos (Wikimedia Commons featured pictures, free licences, credit always shown; `docs/LANDMARKS.md`) in synced
+  `prefs.profileBackground`; suggestion only from `prefs.lastCountry` (last dossier opened).
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
