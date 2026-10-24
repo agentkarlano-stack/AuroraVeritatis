@@ -28,7 +28,8 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 - **Worker:** `GET /api/news?q=&t=24h|3d|7d` (`worker/gdelt.ts`), plain-word queries only, cached 15 min with the stale fallback; headlines and links only.
 - **Client:** `/news` (search, time window, story cards with status, independent/syndicated counts, official sources, publisher type, links to the source); "Recent coverage" button on country dossiers. Smoke prints an informational News line.
 - **Tests:** unit tests for registry, grouping, syndication and GDELT mapping; browser 12/12 at 1280 and 360 px.
-- **Prepared, not active:** Mediastack and GNews (paid; not needed while GDELT works).
+- **Known limitation (verified on the PR preview):** GDELT did not answer requests from Cloudflare's network within 25 s, while single requests from a GitHub runner succeed (bursts get HTTP 429). Until this is solved, the page shows UN News with a visible note. Options: a scheduled fetch into Workers KV (free tier; needs a KV namespace, owner action), or a news API with a commercial licence (GNews or Mediastack, paid; owner decision).
+- **Prepared, not active:** Mediastack and GNews (paid).
 ### Run 49 (2026-10-24) — Aurora AI gateway (EVE, KNOX)
 - **Worker** `worker/ai/`: provider router (OpenAI with `OPENAI_API_KEY`, Cloudflare Workers AI binding `AI`; order `AI_PROVIDERS`, timeout and failover), source grounding (World Bank country data, USGS/GDACS events, opt-in Brain notes marked unverified), citation check, `POST /api/ai/ask` and `GET /api/ai/status`.
 - **Migration `20261025000000_ai_gateway.sql`** (owner applies): AI off by default; global monthly budget (€30) and daily requests per plan (5/30/100/300); reservations through `ai_begin`/`ai_finish` with the user's own token (no service key in the Worker); organisation AI budgets respected; admin overview and settings, audited.

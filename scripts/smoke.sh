@@ -110,7 +110,7 @@ integ=$(curl -sS -m 20 "$base/api/integrations" 2>/dev/null | tr -d '\n' || true
 check_out=$(curl -sS -m 90 "$base/api/integrations/check" 2>/dev/null | tr -d '\n' | head -c 6000 || true)
 # News (GDELT): informational, because GDELT rate-limits shared IPs; the endpoint serves its last good copy when it can.
 news_raw=$(curl -sS -m 40 -w '\nHTTP %{http_code} in %{time_total}s' "$base/api/news?t=24h" 2>&1 || true)
-news=$(printf '%s' "$news_raw" | sed '$d' | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"{d.get(\"articles\",0)} articles in {len(d.get(\"stories\",[]))} stories" + (" (saved copy)" if d.get("stale") else ""))' 2>/dev/null || echo "unavailable: $(printf '%s' "$news_raw" | tail -c 300 | tr '\n' ' ')")
+news=$(printf '%s' "$news_raw" | sed '$d' | python3 -c 'import json,sys; d=json.load(sys.stdin); print(str(d.get("articles", 0)) + " articles in " + str(len(d.get("stories", []))) + " stories" + (" (saved copy)" if d.get("stale") else "") + (" | " + d["partial"] if d.get("partial") else ""))' 2>/dev/null || echo "unavailable: $(printf '%s' "$news_raw" | tail -c 300 | tr '\n' ' ')")
 echo "News: $news"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=News (GDELT)::$news"
 echo "Integrations: ${integ:-unavailable}"
