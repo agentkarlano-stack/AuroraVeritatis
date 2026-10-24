@@ -27,6 +27,19 @@ jobs:
           while read -r out url start dur; do
             [ -z "${out:-}" ] && continue
             case "$out" in \#*) continue;; esac
+            if [ "${start:-}" = "sheet" ]; then
+              # "<out.jpg> <url> sheet": a 4x4 contact sheet (one frame per 1/16 of the clip) to review footage cheaply.
+              mkdir -p "intro-work/$(dirname "$out")"
+              curl -sL --max-time 600 -A "AuroraVeritatisMediaFetch/1.0 (https://aurorav.app; auroraveritatissup@gmail.com)" -o /tmp/src.bin "$url"
+              d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 /tmp/src.bin < /dev/null | cut -d. -f1)
+              if ffmpeg -nostdin -hide_banner -loglevel error -y -i /tmp/src.bin -vf "fps=16/${d:-16},scale=360:-2,tile=4x4" -frames:v 1 -q:v 4 "intro-work/$out"; then
+                echo "200 $(stat -c %s "intro-work/$out") $out $url sheet ${d}s $(ffprobe -v error -select_streams v -show_entries stream=width,height,r_frame_rate -of csv=p=0 /tmp/src.bin < /dev/null)" >> intro-work/fetch-log.txt; ok=$((ok+1))
+              else
+                echo "ERR 0 $out $url" >> intro-work/fetch-log.txt; bad=$((bad+1))
+              fi
+              sleep 2
+              continue
+            fi
             if [ -n "${dur:-}" ]; then
               # "<out> <url> <start s> <duration s>": trim a window, keep 1920 px, near-lossless, no audio.
               mkdir -p "intro-work/$(dirname "$out")"
