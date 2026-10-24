@@ -11,7 +11,7 @@ _Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, int
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | Market Impact Intelligence (event → countries → exposed commodities/markets → before/after comparison → Quant scenario → Brain), then multi-window workspaces and further Quant models (owner directive "Institutional market intelligence", priorities 3–5) |
+| Next recommended action | After the owner applies the three 2026-10-24 migrations: production live-auth run and checks of devices, subscriptions and organisations. Development: multi-window workspaces, Quant VaR/CVaR (market directive priorities 4–5), advanced visualisation and performance |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,17 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 41 (2026-10-24) — Market Impact chain on real data
+- **Impact page, new top panel "Event → country → commodity exposure":**
+  - A live USGS/GDACS event is placed in a country: the GDACS country name, else the Natural Earth borders, else the nearest country within 400 km for offshore events. The user can override the country.
+  - The country's commodity exposure comes from 8 World Bank indicators with fixed, documented thresholds (`lib/impactChain.ts` `EXPOSURE_RULES`).
+  - Linked World Bank Pink Sheet prices are shown for the month before the event, the event month and the two following months, with z-scores. Months not yet published are labelled.
+  - Actions: Add to Brain, country dossier, forecast, Strategy Lab. Radar events link here.
+  - Wording keeps exposure, timing and causation apart.
+- **Tests:**
+  - Unit: `lib/impactChain.test.ts`, `lib/geo/locate.test.ts`.
+  - Browser: 19/19 at 1280 and 360 px with mocked feeds.
+
 ### Run 40 (2026-10-24) — Fair use, subscription terms, account recovery
 - **Legal drafts:** new `/legal/fairuse` (one person per personal account, no scraping, AI allowance never unlimited, organisation AI budgets, graduated response without IP-only limits or fingerprinting); `/legal/subscriptions` updated for 1/3/6/12-month periods, trials, renewal, cancellation at period end and named organisation seats. Linked from Plans and the footer.
 - **Support procedure:** `docs/ACCOUNT-RECOVERY.md` (forgotten password, compromised account, lost mailbox, missing emails, displaced device, audit trail).

@@ -538,6 +538,11 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
           Make a forecast about this event
         </Link>
       )}
+      {e.provenance !== 'simulated' && (
+        <Link className="mt-1 inline-flex min-h-6 items-center text-xs text-gold hover:underline" to={`/impact?event=${encodeURIComponent(e.id)}`}>
+          Commodity exposure of the affected country
+        </Link>
+      )}
       {e.marketLinks && e.marketLinks.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
           <div className="eyebrow mb-1">Potential market exposure</div>

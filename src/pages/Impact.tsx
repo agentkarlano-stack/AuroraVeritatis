@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { EventChain } from '../components/impact/EventChain';
 import { DemoNotice, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
 import { IMPACT_CHANNELS, type EvidenceClass } from '../data/impactChannels';
 import { DEMO_EVENTS } from '../data/demoEvents';
@@ -48,6 +49,11 @@ export default function Impact() {
         mechanisms, measured correlations, hypotheses and model scenarios are never confused with one another.
       </PageHeader>
 
+      <div className="mb-6">
+        <EventChain />
+      </div>
+
+      <h2 className="mb-2 text-lg font-semibold text-platinum">Transmission channels</h2>
       <div className="mb-4 flex flex-wrap gap-2 text-xs text-mist">
         {(Object.keys(EVIDENCE) as EvidenceClass[]).map((k) => (
           <span key={k} className="flex items-center gap-1.5">
