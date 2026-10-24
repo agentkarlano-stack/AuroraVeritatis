@@ -39,7 +39,10 @@ jobs:
               continue
             fi
             mkdir -p "intro-work/$(dirname "$out")"
-            code=$(curl -sL --max-time 120 -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36" -H "Accept-Language: en" -o "intro-work/$out" -w "%{http_code}" "$url" || echo 000)
+            ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            # Wikimedia asks for a descriptive User-Agent and polite request rates.
+            case "$url" in *wikimedia.org*) ua="AuroraVeritatisMediaFetch/1.0 (https://aurorav.app; auroraveritatissup@gmail.com)"; sleep 2;; esac
+            code=$(curl -sL --max-time 120 -A "$ua" -H "Accept-Language: en" -o "intro-work/$out" -w "%{http_code}" "$url" || echo 000)
             size=$(stat -c %s "intro-work/$out" 2>/dev/null || echo 0)
             echo "$code $size $out $url" >> intro-work/fetch-log.txt
             if [ "$code" = "200" ]; then ok=$((ok+1)); else bad=$((bad+1)); rm -f "intro-work/$out"; fi
