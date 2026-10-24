@@ -65,6 +65,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   (`latest` layers: most recent value per country with its year; allow-list `MAP_INDICATOR_IDS`), USGS/GDACS events, planned layers
   with their needs); shareable URL state in `lib/geo/state.ts`. `scripts/check-gibs.mjs` (preview workflow) verifies
   every GIBS layer from a GitHub runner, since cloud sessions cannot reach NASA. No WebGL2 → `WorldMap` SVG fallback.
+  Global Radar (`pages/Radar.tsx`) has a 2D Map | 3D Globe switch: 2D is `WorldMap` (with `focusCountry`), 3D reuses `GeoMap`
+  (lazy) with Radar's filtered events, one overlay from the layer catalogue, optional day/night shading (`lib/geo/terminator.ts`)
+  and shared selection/filters; URL `?view=&style=&overlay=&night=&k=`. Choropleth loading is shared (`components/geo/useChoropleths.ts`).
 - Commodity & Energy Monitor (`pages/Commodities.tsx`, `/markets/commodities`): World Bank Pink Sheet monthly averages
   (CC BY 4.0) in the static `public/data/commodities.json` (bypasses the Worker; too large to parse within Workers CPU
   limits), built by `scripts/commodities/convert.py` and refreshed monthly by `commodities.yml` as a PR. Analytics in

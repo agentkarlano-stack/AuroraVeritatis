@@ -27,6 +27,7 @@ import {
   type GibsLayer,
 } from "../../lib/geo/layers";
 import type { MapState } from "../../lib/geo/state";
+import { nightPolygon } from "../../lib/geo/terminator";
 
 setWorkerUrl(workerUrl);
 
@@ -120,6 +121,10 @@ interface Props {
   onEvent: (e: GeoEvent) => void;
   onTileError: (layerId: string) => void;
   onHover?: (label: string | null) => void;
+  /** Shade the night side of the Earth for this moment (epoch ms); null or absent: no shading. */
+  nightAt?: number | null;
+  /** Event drawn with a highlighted outline. */
+  selectedEventId?: string | null;
 }
 
 /** MapLibre style for the current state. Rebuilt on every change and applied with `setStyle(…, { diff: true })`. */
@@ -128,6 +133,7 @@ function buildStyle(
   today: string,
   events: GeoEvent[],
   values: Props["values"],
+  extra: { nightAt?: number | null; selectedEventId?: string | null } = {},
 ): StyleSpecification {
   const sources: Record<string, SourceSpecification> = {};
   const layers: LayerSpecification[] = [];
@@ -277,6 +283,11 @@ function buildStyle(
     filter: ["==", ["get", "iso3"], s.country ?? ""],
     paint: { "line-color": "#e3c98f", "line-width": 2 },
   });
+  // Night side (computed from the sun's position), under the borders' highlight and the events.
+  if (extra.nightAt) {
+    sources.night = { type: "geojson", data: nightPolygon(new Date(extra.nightAt)) };
+    layers.push({ id: "night", type: "fill", source: "night", paint: { "fill-color": "#05060a", "fill-opacity": 0.42 } });
+  }
   // Events on top.
   const feeds = new Set(
     s.layers
@@ -305,6 +316,7 @@ function buildStyle(
           severity: e.severity,
           color: CATEGORY_COLOR[e.category],
           simulated: e.provenance === "simulated" ? 1 : 0,
+          selected: e.id === extra.selectedEventId ? 1 : 0,
         },
       })),
     },
@@ -338,11 +350,13 @@ function buildStyle(
       ],
       "circle-stroke-color": [
         "case",
+        ["==", ["get", "selected"], 1],
+        "#f1f0ec",
         ["==", ["get", "simulated"], 1],
         "#c9a35a",
         "#0d0d0e",
       ],
-      "circle-stroke-width": 1.2,
+      "circle-stroke-width": ["case", ["==", ["get", "selected"], 1], 2.5, 1.2],
     },
   });
   return {
@@ -377,6 +391,8 @@ export default function GeoMap({
   onEvent,
   onTileError,
   onHover,
+  nightAt = null,
+  selectedEventId = null,
 }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -404,7 +420,7 @@ export default function GeoMap({
     if (!box.current) return;
     const map = new MlMap({
       container: box.current,
-      style: buildStyle(state, today, events, values),
+      style: buildStyle(state, today, events, values, { nightAt, selectedEventId }),
       center: state.center,
       zoom: state.zoom,
       maxZoom: 9,
@@ -478,8 +494,8 @@ export default function GeoMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(buildStyle(styleState.current, today, events, values), { diff: true });
-  }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values]);
+    map.setStyle(buildStyle(styleState.current, today, events, values, { nightAt, selectedEventId }), { diff: true });
+  }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values, nightAt, selectedEventId]);
 
   // Follow camera changes that come from outside (shared links, search, saved views).
   useEffect(() => {
