@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** Preference keys synced in the `user_preferences` row. Notes sync separately via `research_notes` (size limit). */
-export const SYNCED_KEYS = ['layout', 'hidden', 'watchlist', 'favorites', 'alerts', 'chart', 'drawings', 'introMode', 'introChoice', 'intro', 'commodityWatch', 'briefing'] as const;
+export const SYNCED_KEYS = ['layout', 'hidden', 'watchlist', 'favorites', 'alerts', 'chart', 'drawings', 'introMode', 'introChoice', 'intro', 'commodityWatch', 'briefing', 'chartFavs'] as const;
 export type SyncedKey = (typeof SYNCED_KEYS)[number];
 export type SyncedPrefs = Partial<Record<SyncedKey, unknown>>;
 

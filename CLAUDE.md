@@ -102,8 +102,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   `intervals.ts` (interval ≠ range; exact aggregation, never finer than the source), `chartTypes.ts`, `indicators.ts`
   (catalogue; only tested, functional entries; `unavailable` explains data needs), `workspace.ts` (settings v2,
   migration, templates, layout JSON), `sources.ts` (simulated `.D` and close-only ECB datasets), `exportImage.ts`.
-  Settings live in `prefs.chart` (always read through `normalizeSettings`); favourites, templates and saved charts in
-  `store/chartLibrary.ts` (this browser).
+  Settings live in `prefs.chart` (always read through `normalizeSettings`); favourites (ranges, intervals, types, indicators,
+  drawing tools, templates; favourites bar) in synced `prefs.chartFavs` via `lib/chart/favourites.ts` + `store/chartFavourites.ts`;
+  templates and saved charts in `store/chartLibrary.ts` (this browser). Drawings: level, trend line, Fibonacci (`lib/chart.ts`).
 
 ## Conventions
 - TypeScript strict, `noUncheckedIndexedAccess`. React 19 + React Compiler lint rules (no setState in effects, no impure render).

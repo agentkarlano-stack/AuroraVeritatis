@@ -20,6 +20,18 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 44 (2026-10-24) — Market Terminal: one range control, distinct interval, favourites, Fibonacci
+- **Toolbar:**
+  - The candle interval is one clearly labelled control (candle icon and full name, e.g. "1 day"), so it is no longer confused with the "1D … All" history-range chips.
+  - The history range is one group: favourite range chips plus a range menu with every preset, stars and custom dates.
+  - On tablet and desktop the toolbar wraps instead of scrolling sideways.
+- **Favourites:**
+  - Star intervals, ranges, chart types, indicators, drawing tools and templates in their menus.
+  - Favourites appear in a compact favourites bar, which the star button in the toolbar shows or hides.
+  - Stored in `prefs.chartFavs` (synced key; logic in `lib/chart/favourites.ts`, hook `store/chartFavourites.ts`). Indicator stars from this browser carry over.
+- **Drawing:** a Draw menu with level, trend line and a new **Fibonacci retracement** (0–100% levels, `fibLevels` in `lib/chart.ts`).
+- **Tests:** unit tests for favourites and Fibonacci; browser 16/16 at 1280 and 390 px.
+
 ### Run 43 (2026-10-24) — Operator decision, About page, migration status in smoke
 - **Legal (owner option B):** operator is Tanner Karl, a private individual; no registered company or association is claimed. The legal notice no longer cites Austrian law or the Going address: which disclosure rules apply depends on the operator's current residence (to be confirmed); the postal address is marked "to be added". Privacy complaint wording follows GDPR Art. 77 (authority where the user lives or works).
 - **About page `/about`:** based on the owner's draft copy; principles, audience, vision, operator, contact and transparency links. No invented team, partners or credentials. Linked in the footer, sitemap and UI audit.

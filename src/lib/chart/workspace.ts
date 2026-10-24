@@ -170,6 +170,6 @@ export function isDrawing(d: unknown): d is Drawing {
   const x = d as Record<string, unknown> | null;
   if (!x || typeof x.id !== 'string') return false;
   if (x.kind === 'hline') return Number.isFinite(Number(x.price));
-  if (x.kind === 'trend') return isPoint(x.a) && isPoint(x.b);
+  if (x.kind === 'trend' || x.kind === 'fib') return isPoint(x.a) && isPoint(x.b);
   return false;
 }
