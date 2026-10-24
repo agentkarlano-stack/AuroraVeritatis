@@ -20,6 +20,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 50 (2026-10-24) — News ingestion and coverage verification
+- **Source:** GDELT DOC 2.0 (free, attribution, no key). Shared logic in `shared/news.ts`:
+  - source registry (publisher identity, type: official, wire, broadcaster, newspaper, magazine; unknown domains "unrated");
+  - story grouping by headline similarity;
+  - statuses: **confirmed** (an official source published it), **corroborated** (2+ independent publishers with their own headlines), **unverified** (one publisher, or only syndicated copies of the same headline). **Disputed** needs a reading of the content and is never automatic.
+- **Worker:** `GET /api/news?q=&t=24h|3d|7d` (`worker/gdelt.ts`), plain-word queries only, cached 15 min with the stale fallback; headlines and links only.
+- **Client:** `/news` (search, time window, story cards with status, independent/syndicated counts, official sources, publisher type, links to the source); "Recent coverage" button on country dossiers. Smoke prints an informational News line.
+- **Tests:** unit tests for registry, grouping, syndication and GDELT mapping; browser 12/12 at 1280 and 360 px.
+- **Prepared, not active:** Mediastack and GNews (paid; not needed while GDELT works).
+
 ### Run 48 (2026-10-24) — GitHub Actions optimisation
 - **Measured (20–24 Oct, 343 runs):** about 950 billable job-minutes in 4 days. Breakdown: CI 286, UI audit 255 (11 runs cancelled after their 200 s sleep), production smoke 203 (180 s sleep), preview 146, intro fetch 35, live auth 25.
 - **Changes:**

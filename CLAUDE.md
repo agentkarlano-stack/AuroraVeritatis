@@ -76,6 +76,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Profile backgrounds (`lib/profileBackground.ts`, `data/landmarks.ts`, `components/profile/`): optional country landmark
   photos (Wikimedia Commons featured pictures, free licences, credit always shown; `docs/LANDMARKS.md`) in synced
   `prefs.profileBackground`; suggestion only from `prefs.lastCountry` (last dossier opened).
+- News verification (`pages/News.tsx`, `/news`): GDELT DOC 2.0 via `worker/gdelt.ts` (`GET /api/news`, cached 15 min);
+  registry, story grouping and statuses (confirmed | corroborated | unverified; disputed never automatic) in `shared/news.ts`.
+  Headlines and links only, never article text.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

@@ -15,6 +15,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
   { name: 'Global Radar: natural hazards', to: '/radar', state: 'working', note: '2D map or 3D globe. USGS earthquakes of magnitude 4.5 and above, updated every 10 minutes. GDACS alerts for cyclones, floods, volcanoes, droughts and wildfires, updated every 30 minutes.' },
   { name: 'Global Radar: geopolitical events', to: '/radar', state: 'demo', note: 'Simulated scenarios for now. Real, sourced conflict and news events are planned.' },
   { name: 'Global Radar: timeline', to: '/radar', state: 'working', note: 'Daily event counts by category. Click a day to filter the map and the list.' },
+  { name: 'News verification', to: '/news', state: 'working', note: 'Headlines from the GDELT Project grouped by story; independent publishers counted, syndicated copies and official sources marked. Headlines and links only.' },
   { name: 'Country dossiers', to: '/countries', state: 'working', note: '23 World Bank indicators for every economy, each with its reference year, and history charts from 1990.' },
   { name: 'Country comparison', to: '/countries/vs?c=DEU,FRA,USA', state: 'working', note: 'Up to four countries side by side across all 23 indicators.' },
   { name: 'Animated country explorer', to: '/countries/compare', state: 'working', note: 'Bubble chart of any two World Bank indicators, sized by a third, year by year since 1990.' },
@@ -44,6 +45,7 @@ const MODULES: { name: string; to?: string; state: State; note: string }[] = [
 
 const SOURCES = [
   { name: 'World Bank Open Data (WDI)', url: 'https://data.worldbank.org/', license: 'CC BY 4.0', use: 'Country indicators' },
+  { name: 'GDELT Project (DOC 2.0 API)', url: 'https://www.gdeltproject.org/', license: 'Free use with attribution', use: 'News verification (headlines and links)' },
   { name: 'USGS Earthquake Hazards Program', url: 'https://earthquake.usgs.gov/earthquakes/feed/', license: 'Public domain', use: 'Earthquake layer' },
   { name: 'GDACS (UN OCHA and EC JRC)', url: 'https://www.gdacs.org/', license: 'Free use with attribution', use: 'Disaster alert layer' },
   { name: 'European Central Bank Data Portal', url: 'https://data.ecb.europa.eu/', license: 'Free reuse with the source quoted ("Source: ECB statistics")', use: 'Macro & FX' },

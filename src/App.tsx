@@ -39,6 +39,7 @@ const Admin = lazy(() => import('./pages/Admin'));
 const AdminQuote = lazy(() => import('./pages/AdminQuote'));
 const Status = lazy(() => import('./pages/Status'));
 const About = lazy(() => import('./pages/About'));
+const News = lazy(() => import('./pages/News'));
 const Legal = lazy(() => import('./pages/Legal'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
@@ -83,6 +84,7 @@ export function App() {
             <Route path="admin/quote" element={<Lazy><AdminQuote /></Lazy>} />
             <Route path="status" element={<Lazy><Status /></Lazy>} />
             <Route path="about" element={<Lazy><About /></Lazy>} />
+            <Route path="news" element={<Lazy><News /></Lazy>} />
             <Route path="legal/:doc" element={<Lazy><Legal /></Lazy>} />
             <Route path="*" element={<Lazy><NotFound /></Lazy>} />
           </Route>
