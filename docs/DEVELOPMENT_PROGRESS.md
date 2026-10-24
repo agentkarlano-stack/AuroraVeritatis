@@ -20,6 +20,13 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 35 (2026-10-24) — Global Radar 2D Map | 3D Globe
+- **Switch:** Radar now has a 2D Map | 3D Globe switch. The 3D view reuses `GeoMap` with Radar's filtered events.
+- **Preserved when switching:** selected country, selected event, filters, time window and day.
+- **3D extras:** satellite, grayscale and dark styles; one information layer from the catalogue (economic, energy, trade, finance, satellite); country search in both views; day/night shading from the sun's position; full screen; a country card with the dossier, briefing and currency links.
+- **URL and fallback:** the view is shareable via the URL and the choice is remembered. Without WebGL2: 2D with a reason.
+- **Tests:** 19/19 browser checks (1440 and 390 px), plus terminator tests against the sun elevation.
+
 ### Runs 33–34 (2026-10-23) — Economic maps and the Commodity & Energy Monitor
 - **PR #37 (merged):** 29 Map Explorer layers (finance and markets, economic geography, trade and logistics, energy and commodities), showing the most recent value per country with its own year via `/api/map/:indicator`. Preview smoke passed the new check.
 - **Commodity & Energy Monitor:**
