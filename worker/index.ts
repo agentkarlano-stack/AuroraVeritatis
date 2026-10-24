@@ -2,6 +2,7 @@ import type { PublicConfig } from '../shared/types';
 import { cotHistory, cotOverview } from './cftc';
 import { macroHistory, macroOverview } from './ecb';
 import { error, json } from './http';
+import { aiAsk, aiStatus, type AiGatewayEnv } from './ai/handler';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
@@ -11,7 +12,7 @@ import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, er
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries, latestValues } from './worldbank';
 
-export interface Env extends TwelveDataEnv, BrevoEnv {
+export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv {
   ASSETS: Fetcher;
   /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
   CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
@@ -105,6 +106,9 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   const BUILD_ID = env.CF_VERSION_METADATA?.id?.slice(0, 12) ?? 'dev';
   if (request.method === 'POST' && path.startsWith('/api/newsletter/')) return newsletterPost(request, env, url, path, ip0);
   if (request.method === 'POST' && path === '/api/business/quote') return quotePost(request, env, url, ip0);
+  if (request.method === 'POST' && path === '/api/ai/ask') {
+    return aiAsk(request, env, { countryProfile, events: async () => [...(await earthquakes().catch(() => [])), ...(await disasters().catch(() => []))] });
+  }
   if (request.method !== 'GET') return error(405, 'Method not allowed');
 
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
@@ -113,6 +117,8 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   if (path === '/api/health') {
     return json({ status: 'ok', service: 'aurora-veritatis', time: new Date().toISOString() });
   }
+
+  if (path === '/api/ai/status') return aiStatus(env);
 
   if (path === '/api/config') {
     return json(publicConfig(env, url), { maxAge: 300 });
