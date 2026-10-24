@@ -20,6 +20,10 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 40 (2026-10-24) — Fair use, subscription terms, account recovery
+- **Legal drafts:** new `/legal/fairuse` (one person per personal account, no scraping, AI allowance never unlimited, organisation AI budgets, graduated response without IP-only limits or fingerprinting); `/legal/subscriptions` updated for 1/3/6/12-month periods, trials, renewal, cancellation at period end and named organisation seats. Linked from Plans and the footer.
+- **Support procedure:** `docs/ACCOUNT-RECOVERY.md` (forgotten password, compromised account, lost mailbox, missing emails, displaced device, audit trail).
+
 ### Run 39 (2026-10-24) — Organisations, named seats and AI budgets
 - **Migration `20261024000200_organisations.sql`** (owner applies, after the sessions and subscriptions migrations):
   - `organizations` (plan, seats, contract dates, status, monthly AI budget in euro cents, hard cap on by default, 80% alert), `org_members` (one organisation per account; `member` | `org_admin`), `ai_usage`.

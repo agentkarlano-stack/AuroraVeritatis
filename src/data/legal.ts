@@ -56,9 +56,25 @@ export const LEGAL: Record<string, LegalDoc> = {
   subscriptions: {
     title: 'Subscription Terms & Refund Policy',
     sections: [
-      { heading: 'Status', body: 'Paid subscriptions are not yet offered. Proposed prices on the Plans page are not offers.' },
+      { heading: 'Status', body: 'Paid subscriptions are not yet offered and no payment details are collected. Proposed prices on the Plans page, including the discounts for longer periods, are provisional and are not offers.' },
+      { heading: 'Periods', body: 'Plans are planned for periods of 1, 3, 6 or 12 months, paid upfront for the whole period. The Plans page shows the total for the period, the monthly equivalent and any saving compared with monthly payment.' },
+      { heading: 'Trials and complimentary periods', body: 'Aurora may grant a free trial or a complimentary period. These end automatically on the date shown on the Account page; nothing is charged and nothing renews.' },
+      { heading: 'Renewal', body: 'While payments are switched off, nothing renews automatically. Your renewal preference is stored so it can be honoured once paid plans launch, and you will be told before any first charge.' },
+      { heading: 'Cancellation', body: 'You can cancel on the Account page at any time. Access continues until the end of the current period, and you can resume before then. Afterwards the account returns to Free and your data stays.' },
       { heading: 'Withdrawal right', body: 'EU consumers will have a 14-day right of withdrawal; the treatment of digital content supplied immediately will be defined after legal review.' },
-      { heading: 'Cancellation & refunds', body: 'Monthly plans will be cancellable at any time with effect from the end of the billing period. Refund rules will be finalised before launch.' },
+      { heading: 'Refunds', body: 'Refund rules for unused parts of a paid period will be finalised before launch.' },
+      { heading: 'Organisations', body: 'Business and institutional plans are agreed individually in writing (seats, period, AI allowance). Seats are named: each seat belongs to one person and may not be shared.' },
+    ],
+  },
+  fairuse: {
+    title: 'Fair Use Policy',
+    sections: [
+      { heading: 'Purpose', body: 'Aurora Veritatis runs on shared infrastructure and licensed or rate-limited data sources. This policy keeps the service fast and affordable for everyone.' },
+      { heading: 'Personal accounts', body: 'A personal account is for one person. You may sign in on your own devices; sharing a paid account with others is not allowed. Aurora may limit a paid personal account to one active device at a time, and will tell the signed-out device why.' },
+      { heading: 'Automated access', body: 'Do not scrape pages or call the API at scale, run bots against the service, or try to bypass rate limits, plan limits or access controls. Exports offered in the app (CSV, JSON, images) are for your own research.' },
+      { heading: 'AI features', body: 'When AI features launch, every plan will include a monthly allowance shown in your account. There is no unlimited AI use. Organisations have a monthly AI budget agreed in their contract; when it is reached, AI features pause until the next month unless the organisation agreed otherwise.' },
+      { heading: 'Data and content', body: 'Data from third-party sources keeps its own licence, shown next to the data. Do not republish it in bulk or present Aurora content as your own data product.' },
+      { heading: 'What happens on a breach', body: 'We first contact you. Persistent or serious misuse may lead to rate limiting, removal of a paid feature or, as a last resort, suspension of the account. Limits based only on IP addresses or device fingerprinting are not used.' },
     ],
   },
   imprint: {

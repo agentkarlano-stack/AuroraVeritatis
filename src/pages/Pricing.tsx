@@ -29,8 +29,16 @@ export default function Pricing() {
           ))}
         </div>
         <p className="max-w-2xl text-xs text-slate-dim">
-          Longer periods are paid upfront for the whole period; discounts are provisional. There is no refund schedule or renewal policy yet: both will be
-          published before paid plans launch, and renewal will be your choice.
+          Longer periods are paid upfront for the whole period; discounts are provisional. Refund rules will be published before paid plans launch, and
+          renewal will be your choice. See the draft{' '}
+          <Link className="text-gold hover:underline" to="/legal/subscriptions">
+            subscription terms
+          </Link>{' '}
+          and{' '}
+          <Link className="text-gold hover:underline" to="/legal/fairuse">
+            fair use policy
+          </Link>
+          : personal plans are for one person, and AI features will come with a monthly allowance, never unlimited use.
         </p>
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
