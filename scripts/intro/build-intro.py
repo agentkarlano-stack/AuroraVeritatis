@@ -1,6 +1,6 @@
 """Builds the cinematic intro film from trimmed source clips and the rendered globe (docs/INTRO.md).
 
-    python3 scripts/intro/build-intro.py <clips_dir> <globe_dir> <out_master.mp4> landscape|portrait
+    python3 scripts/intro/build-intro.py <clips_dir> <globe_dir> <out_master.mp4> landscape|portrait [v1|v2]
 
 Every shot is normalised to 30 fps, framed for the target aspect (portrait crops landscape shots around a chosen
 centre), graded to the brand palette (charcoal blacks, platinum mid-tones, warm gold highlights, low saturation) and
@@ -10,12 +10,38 @@ import subprocess
 import sys
 
 clips, globe, out, mode = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+variant = sys.argv[5] if len(sys.argv) > 5 else 'v1'
 W, H = (1920, 1080) if mode == 'landscape' else (1080, 1920)
 FPS = 30
-T = 0.35  # transition length (s)
+T = 0.35 if variant == 'v1' else 0.3  # transition length (s)
 
 # (file, start, duration, horizontal centre for portrait crops (0..1), push-in amount, per-shot exposure/saturation)
-if mode == 'landscape':
+if variant == 'v2' and mode == 'landscape':
+    # Budapest, London, Moscow, New York, Tokyo: faster cut (owner directive 2026-10-24). Commons clips: c-*.
+    SHOTS = [
+        ('c-bud-night.mp4', 0.3, 1.9, 0.5, 0.02, (0.03, 0.70)),
+        ('4457.mp4', 1.6, 1.4, 0.5, 0.025, (-0.02, 0.62)),
+        ('c-msk-kremlin.mp4', 1.0, 1.6, 0.5, 0.04, (0.04, 0.62)),
+        ('c-bud-tram.mp4', 1.8, 1.4, 0.5, 0.00, (0.00, 0.60)),
+        ('4331.mp4', 0.8, 1.3, 0.5, 0.00, (-0.04, 0.50)),
+        ('c-msk-tram2.mp4', 5.0, 1.4, 0.5, 0.02, (0.02, 0.58)),
+        ('c-bud-night.mp4', 3.3, 1.8, 0.5, 0.03, (0.02, 0.66)),
+        ('4383.mp4', 0.5, 1.4, 0.5, 0.04, (0.00, 0.62)),
+    ]
+    XF = ['hblur', 'fade', 'hblur', 'hblur', 'hblur', 'fade', 'hblur', 'fade']
+elif variant == 'v2':
+    SHOTS = [
+        ('c-bud-night.mp4', 0.3, 1.9, 0.62, 0.02, (0.03, 0.70)),
+        ('4457.mp4', 1.6, 1.4, 0.47, 0.02, (-0.02, 0.62)),
+        ('c-msk-kremlin.mp4', 1.0, 1.6, 0.60, 0.03, (0.04, 0.62)),
+        ('c-bud-tram.mp4', 1.8, 1.4, 0.40, 0.00, (0.00, 0.60)),
+        ('34562.mp4', 1.0, 1.3, 0.5, 0.00, (-0.03, 0.50)),
+        ('c-msk-tram2.mp4', 5.0, 1.4, 0.30, 0.02, (0.02, 0.58)),
+        ('c-bud-night.mp4', 3.3, 1.8, 0.75, 0.03, (0.02, 0.66)),
+        ('49876.mp4', 1.0, 1.4, 0.5, 0.00, (0.07, 0.62)),
+    ]
+    XF = ['hblur', 'fade', 'hblur', 'hblur', 'hblur', 'fade', 'hblur', 'fade']
+elif mode == 'landscape':
     SHOTS = [
         ('42343.mp4', 0.6, 2.0, 0.5, 0.00, (0.07, 0.72)),
         ('4457.mp4', 1.5, 2.2, 0.5, 0.025, (-0.02, 0.62)),
@@ -35,7 +61,7 @@ else:
         ('4383.mp4', 0.5, 1.8, 0.40, 0.04, (0.00, 0.62)),
     ]
     XF = ['hblur', 'hblur', 'fade', 'hblur', 'hblur', 'fade']
-GLOBE_DUR = 3.0
+GLOBE_DUR = 3.0 if variant == 'v1' else 2.4
 
 LOOK = (
     "curves=all='0/0.025 0.12/0.08 0.5/0.46 0.85/0.84 1/0.95',"

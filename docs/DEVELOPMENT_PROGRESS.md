@@ -28,6 +28,12 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
   - `post-deploy.yml` replaces the post-merge smoke and UI-audit runs and their two fixed sleeps. It waits for the exact deployed commit (`/api/health` now reports `commit`; fallback 180 s), runs the smoke test, then a quick UI audit (12 routes × 3 widths + all interaction checks) only when site files changed.
   - Full UI audit: nightly, only if main changed in the last 26 h, and on demand.
 - **Note:** this repository is public, so standard GitHub-hosted runners are free for it. The included-minutes shortfall must come from private repositories on the account.
+### Run 47 (2026-10-24) — Second cinematic edit (Budapest, Moscow) and rotation
+- **Edit v2:** 12.2 s with Budapest (Danube at blue hour and at night, tram), Moscow (Spasskaya Tower at night, tram square), London, New York and Tokyo. Shorter shots, 0.3 s transitions, shorter globe; no captions.
+- **Footage:** Wikimedia Commons CC BY 3.0/4.0 clips, credited in `docs/INTRO.md` and on the Status page. CC BY-SA was excluded so the Mixkit licence of the other shots is not affected.
+- **Rotation:** the cinematic intro alternates v1/v2 on each eligible visit (`nextFilmEdit`, key `av-intro-film`); the first-ever visit gets v1. `build-intro.py` takes a variant and `encode.sh` a version suffix.
+- **Not yet included:** Saint Petersburg and Vienna (no suitable freely licensed clip; a free Pexels key would allow a third edit).
+- **Tests:** unit test for the rotation; browser check: v1 → v2 → v1 at 1280 and 390 px, one film file per visit.
 
 ### Run 46 (2026-10-24) — Country profile backgrounds
 - **Picker (Account → Profile background):** country, landmark grid with previews, live preview banner, reset to neutral; the suggestion comes only from the country last opened in a dossier on this device, and a manual choice is never replaced.

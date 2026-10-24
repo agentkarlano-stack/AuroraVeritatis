@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { VISIT_GAP_MS, decideIntro, isFreshVisit, resolveIntroExperience, type IntroExperience } from './intro';
+import { VISIT_GAP_MS, decideIntro, isFreshVisit, resolveIntroExperience, nextFilmEdit, type IntroExperience } from './intro';
 
 const base = { reducedMotion: false, path: '/', cinematicSeen: false, cinematicThisSession: false };
 const load = (pref: IntroExperience | null, extra: Partial<Parameters<typeof decideIntro>[0]> = {}) => decideIntro({ ...base, pref, trigger: 'load', freshVisit: true, ...extra });
@@ -64,5 +64,14 @@ describe('fresh visits', () => {
     expect(isFreshVisit({ ...v, navigationType: 'reload' })).toBe(false);
     expect(isFreshVisit({ ...v, navigationType: 'back_forward' })).toBe(false);
     expect(isFreshVisit({ ...v, referrer: `${ORIGIN}/radar` })).toBe(false);
+  });
+});
+
+describe('cinematic edit rotation', () => {
+  it('starts with the first edit and alternates', () => {
+    expect(nextFilmEdit(null)).toBe('v1');
+    expect(nextFilmEdit('v1')).toBe('v2');
+    expect(nextFilmEdit('v2')).toBe('v1');
+    expect(nextFilmEdit('junk')).toBe('v1');
   });
 });

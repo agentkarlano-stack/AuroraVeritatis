@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BRAND_INTRO_MS, CINEMATIC_START_TIMEOUT_MS, VISIT_GAP_MS, decideIntro, isFreshVisit, resolveIntroExperience, type IntroPlay, type IntroTrigger } from '../lib/intro';
+import { BRAND_INTRO_MS, CINEMATIC_START_TIMEOUT_MS, FILM_EDITS, VISIT_GAP_MS, decideIntro, isFreshVisit, nextFilmEdit, resolveIntroExperience, type FilmEdit, type IntroPlay, type IntroTrigger } from '../lib/intro';
 import { usePrefs } from '../store/prefs';
 import { Monogram } from './Logo';
 
@@ -16,13 +16,22 @@ const CINEMATIC_SEEN_KEY = 'av-cinematic-seen';
 const CINEMATIC_SESSION_KEY = 'av-cinematic-session';
 const LAST_SEEN_KEY = 'av-last-seen';
 
-/** Film variants in public/media/intro (see docs/INTRO.md for the edit, sources and licences). */
-const film = (name: string) => ({ webm: `/media/intro/${name}-v1.webm`, mp4: `/media/intro/${name}-v1.mp4`, poster: `/media/intro/${name}-v1.jpg` });
-const FILM = { large: film('aurora-intro-1920'), landscape: film('aurora-intro-1280'), portrait: film('aurora-intro-720x1280') };
+/**
+ * Film variants in public/media/intro (see docs/INTRO.md for the edits, sources and licences). The cinematic intro
+ * alternates between the edits on eligible visits (`nextFilmEdit` in lib/intro.ts).
+ */
+const film = (name: string, v: FilmEdit) => ({ edit: v, webm: `/media/intro/${name}-${v}.webm`, mp4: `/media/intro/${name}-${v}.mp4`, poster: `/media/intro/${name}-${v}.jpg` });
+const FILM_EDIT_KEY = 'av-intro-film';
 /** Portrait screens get the vertical edit; large landscape screens the 1080p file; everything else 720p. */
 function pickFilm() {
-  if (window.innerHeight > window.innerWidth * 1.1) return FILM.portrait;
-  return window.innerWidth * (window.devicePixelRatio || 1) > 1600 ? FILM.large : FILM.landscape;
+  let edit: FilmEdit = FILM_EDITS[0];
+  try {
+    edit = nextFilmEdit(localStorage.getItem(FILM_EDIT_KEY));
+  } catch {
+    // Storage unavailable: always the first edit.
+  }
+  if (window.innerHeight > window.innerWidth * 1.1) return film('aurora-intro-720x1280', edit);
+  return window.innerWidth * (window.devicePixelRatio || 1) > 1600 ? film('aurora-intro-1920', edit) : film('aurora-intro-1280', edit);
 }
 
 function reducedMotion() {
@@ -185,6 +194,8 @@ function CinematicStage({ onEnd, onSkip }: { onEnd: () => void; onSkip: () => vo
   const [fading, setFading] = useState(false);
   const [film] = useState(pickFilm);
   const done = useRef(false);
+  // Remember which edit played, so the next eligible visit shows the other one.
+  useEffect(() => local.set(FILM_EDIT_KEY, film.edit), [film.edit]);
 
   useEffect(() => {
     const v = video.current;
