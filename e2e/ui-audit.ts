@@ -14,7 +14,7 @@ import { writeFileSync } from 'node:fs';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
 const BASE = (process.env.BASE_URL ?? 'https://aurorav.app').replace(/\/$/, '');
-const ALL_ROUTES = ['/', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
+const ALL_ROUTES = ['/', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/assistant', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
 const QUICK = process.env.QUICK === '1';
 const QUICK_ROUTES = ['/', '/hq', '/radar', '/geo', '/countries/DEU', '/markets', '/lab', '/impact', '/brain', '/account', '/pricing', '/about'];
 const ROUTES = QUICK ? QUICK_ROUTES : ALL_ROUTES;

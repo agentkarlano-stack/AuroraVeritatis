@@ -4,7 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { cloudflare } from '@cloudflare/vite-plugin';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), cloudflare()],
+  // remoteBindings: false keeps local dev and preview offline; Workers AI ("ai" binding) is then absent locally and the AI
+  // gateway answers "not configured". Deployed Workers (previews, production) get the real binding.
+  plugins: [react(), tailwindcss(), cloudflare({ remoteBindings: false })],
   // The deployed commit, reported by /api/health so post-merge checks test the right deployment.
   define: { __BUILD_COMMIT__: JSON.stringify(process.env.WORKERS_CI_COMMIT_SHA || process.env.GITHUB_SHA || '') },
   build: {

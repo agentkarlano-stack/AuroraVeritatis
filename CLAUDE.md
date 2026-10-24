@@ -79,6 +79,12 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - News verification (`pages/News.tsx`, `/news`): GDELT DOC 2.0 via `worker/gdelt.ts` (`GET /api/news`, cached 15 min);
   registry, story grouping and statuses (confirmed | corroborated | unverified; disputed never automatic) in `shared/news.ts`.
   Headlines and links only, never article text.
+- Aurora AI (`docs/AI.md`): EVE/KNOX gateway in `worker/ai/` (`providers.ts` router: OpenAI key or Workers AI binding `AI`,
+  failover; `grounding.ts` numbered sources + citation check; `handler.ts` `POST /api/ai/ask`, `GET /api/ai/status`).
+  Usage control in the database with the user's own token (`ai_begin`/`ai_finish`, migration `20261025000000_ai_gateway.sql`,
+  off by default, global monthly budget + daily requests per plan; admin panel `components/admin/AiAdmin.tsx`).
+  Client `/assistant` (`pages/Assistant.tsx`, `lib/assistant.ts`); read-aloud via browser speech synthesis. Local
+  preview runs with `remoteBindings: false` (no Workers AI locally).
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

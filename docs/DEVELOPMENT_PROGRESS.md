@@ -29,6 +29,11 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 - **Client:** `/news` (search, time window, story cards with status, independent/syndicated counts, official sources, publisher type, links to the source); "Recent coverage" button on country dossiers. Smoke prints an informational News line.
 - **Tests:** unit tests for registry, grouping, syndication and GDELT mapping; browser 12/12 at 1280 and 360 px.
 - **Prepared, not active:** Mediastack and GNews (paid; not needed while GDELT works).
+### Run 49 (2026-10-24) — Aurora AI gateway (EVE, KNOX)
+- **Worker** `worker/ai/`: provider router (OpenAI with `OPENAI_API_KEY`, Cloudflare Workers AI binding `AI`; order `AI_PROVIDERS`, timeout and failover), source grounding (World Bank country data, USGS/GDACS events, opt-in Brain notes marked unverified), citation check, `POST /api/ai/ask` and `GET /api/ai/status`.
+- **Migration `20261025000000_ai_gateway.sql`** (owner applies): AI off by default; global monthly budget (€30) and daily requests per plan (5/30/100/300); reservations through `ai_begin`/`ai_finish` with the user's own token (no service key in the Worker); organisation AI budgets respected; admin overview and settings, audited.
+- **Client:** `/assistant` (EVE and KNOX tabs, sources, citations, usage, Add to Brain, read-aloud with the browser voice, related Aurora links without AI); `/admin` AI usage and spending panel.
+- **Tests:** SQL suite `ai.sql` (6 suites pass); Worker tests (router failover without key leaks, pricing, citations, validation, full flow with reservation/completion/release); browser 20/20 at 1280 and 390 px.
 
 ### Run 48 (2026-10-24) — GitHub Actions optimisation
 - **Measured (20–24 Oct, 343 runs):** about 950 billable job-minutes in 4 days. Breakdown: CI 286, UI audit 255 (11 runs cancelled after their 200 s sleep), production smoke 203 (180 s sleep), preview 146, intro fetch 35, live auth 25.
