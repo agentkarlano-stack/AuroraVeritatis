@@ -3,7 +3,9 @@ export interface LegalDoc {
   sections: { heading: string; body: string }[];
 }
 
-const OPERATOR = 'Aurora Veritatis, a student initiative in formation (not yet a registered association or company), 6353 Going am Wilden Kaiser, Austria';
+/** Owner decision 2026-10-24 (option B): operated by an individual. The postal address is still to be provided. */
+export const OPERATOR_NAME = 'Tanner Karl';
+const OPERATOR = `${OPERATOR_NAME}, a private individual (Aurora Veritatis is not a registered company or association)`;
 
 /**
  * DRAFT legal texts. They are placeholders structured for review by a qualified lawyer
@@ -17,7 +19,7 @@ export const LEGAL: Record<string, LegalDoc> = {
       { heading: 'Nature of the service', body: 'Aurora Veritatis provides research and educational tools. Content may be incomplete, delayed, estimated or simulated, and is labelled accordingly.' },
       { heading: 'Acceptable use', body: 'You may not scrape the service at scale, attempt to bypass access controls or rate limits, or use the service for unlawful purposes.' },
       { heading: 'No investment advice', body: 'Nothing on the platform constitutes investment, legal, tax or other professional advice. See the Risk Disclaimer.' },
-      { heading: 'Liability', body: 'To be drafted under applicable (Austrian/EU) law after legal review.' },
+      { heading: 'Liability', body: 'To be drafted after legal review under the law that applies to the operator, which depends on where the operator lives.' },
     ],
   },
   privacy: {
@@ -27,7 +29,7 @@ export const LEGAL: Record<string, LegalDoc> = {
       { heading: 'Data we process', body: 'As a guest, your preferences are stored only in your browser (localStorage), and your Personal Intelligence Brain graphs only in your browser (IndexedDB). We do not receive them. If you create an account, we process your email address and the preferences you choose to sync, stored with Supabase. Server logs are processed by Cloudflare.' },
       { heading: 'Legal bases', body: 'Contract performance (Art. 6(1)(b) GDPR) for accounts; legitimate interests (Art. 6(1)(f)) for security logging; consent (Art. 6(1)(a)) for optional analytics.' },
       { heading: 'Processors', body: 'Cloudflare (hosting), Supabase (database and authentication), Resend (transactional email), PostHog EU (analytics, only with consent). Further processors will be listed before launch.' },
-      { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection, and the right to complain to a supervisory authority (in Austria: Datenschutzbehörde). Local data can be exported or deleted from the Account page. Signed-in users can delete their account and all synced data there too.' },
+      { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection, and the right to complain to a data protection supervisory authority, in particular in the EU member state where you live or work. Local data can be exported or deleted from the Account page. Signed-in users can delete their account and all synced data there too.' },
     ],
   },
   cookies: {
@@ -78,10 +80,12 @@ export const LEGAL: Record<string, LegalDoc> = {
     ],
   },
   imprint: {
-    title: 'Legal Notice (Impressum)',
+    title: 'Legal Notice',
     sections: [
-      { heading: 'Information pursuant to § 5 ECG / § 25 MedienG', body: `${OPERATOR}. Email: auroraveritatissup@gmail.com.` },
-      { heading: 'About the operator', body: 'The platform is built by co-founders of the Aurora Veritatis student group, which is being established. Members of the group are its first users and help with testing and development. The legal form and registration details will be added here once the group is registered.' },
+      { heading: 'Operator and person responsible for content', body: `${OPERATOR_NAME} (private individual). Aurora Veritatis is the name of this website and project; it is not a registered company or association.` },
+      { heading: 'Contact', body: 'Email: auroraveritatissup@gmail.com.' },
+      { heading: 'Postal address', body: 'To be added. A full postal address is legally required for the operator of a website like this one; it will be published here before the site is promoted publicly or offers paid services.' },
+      { heading: 'Applicable rules', body: 'Which disclosure rules apply (for example the national laws implementing the EU E-Commerce Directive, and media law) depends on the country where the operator lives. This notice will be completed and reviewed accordingly.' },
     ],
   },
 };

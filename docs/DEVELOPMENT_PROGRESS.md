@@ -20,6 +20,12 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 43 (2026-10-24) — Operator decision, About page, migration status in smoke
+- **Legal (owner option B):** operator is Tanner Karl, a private individual; no registered company or association is claimed. The legal notice no longer cites Austrian law or the Going address: which disclosure rules apply depends on the operator's current residence (to be confirmed); the postal address is marked "to be added". Privacy complaint wording follows GDPR Art. 77 (authority where the user lives or works).
+- **About page `/about`:** based on the owner's draft copy; principles, audience, vision, operator, contact and transparency links. No invented team, partners or credentials. Linked in the footer, sitemap and UI audit.
+- **Status page:** brought up to date (impact chain, portfolio risk, Prediction Research, commodities, Map Explorer, pending account features).
+- **Smoke test:** reports which 2026-10-24 migrations are applied (sessions, subscriptions, organisations), using guest calls to their functions.
+
 ### Run 42 (2026-10-24) — Quant portfolio risk (VaR / expected shortfall)
 - **Lab → Portfolio risk (`/lab?tool=risk`):**
   - Up to 8 holdings, on real World Bank monthly commodity prices or the labelled simulated `.D` instruments (daily).
