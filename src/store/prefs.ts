@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BrainBackground, BrainColorMode } from '../lib/brainDisplay';
 import type { Drawing } from '../lib/chart';
+import type { ProfileBackground } from '../lib/profileBackground';
 import type { IntroExperience, LegacyIntroMode } from '../lib/intro';
 import { DEFAULT_BRIEFING_PREFS, normalizeBriefingPrefs, type BriefingPrefs } from '../lib/worldBriefing';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
@@ -59,6 +60,12 @@ interface PrefsState {
   /** Brain canvas display (this device only). */
   brainCanvas: { background: BrainBackground; colorMode: BrainColorMode };
   setBrainCanvas: (patch: Partial<PrefsState['brainCanvas']>) => void;
+  /** Optional landmark background for the profile (synced); read via normalizeBackground. */
+  profileBackground?: unknown;
+  setProfileBackground: (bg: ProfileBackground | null) => void;
+  /** Country most recently opened in a dossier (used only to suggest a background). */
+  lastCountry?: string | null;
+  setLastCountry: (iso3: string) => void;
   /** Chart favourites (ranges, intervals, types, indicators, drawing tools, templates); read via useChartFavourites. */
   chartFavs?: unknown;
   setChartFavs: (favs: unknown) => void;
@@ -122,6 +129,8 @@ export const usePrefs = create<PrefsState>()(
       toggleCommodity: (id) => set((s) => ({ commodityWatch: s.commodityWatch.includes(id) ? s.commodityWatch.filter((x) => x !== id) : [...s.commodityWatch, id].slice(-30) })),
       briefing: DEFAULT_BRIEFING_PREFS,
       setChartFavs: (chartFavs) => set({ chartFavs }),
+      setProfileBackground: (profileBackground) => set({ profileBackground }),
+      setLastCountry: (lastCountry) => set({ lastCountry }),
       setBriefing: (patch) => set((s) => ({ briefing: normalizeBriefingPrefs({ ...normalizeBriefingPrefs(s.briefing), ...patch }) })),
       brainCanvas: { background: 'dots', colorMode: 'type' },
       setBrainCanvas: (patch) => set((s) => ({ brainCanvas: { ...s.brainCanvas, ...patch } })),

@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Change, LimitNotice, PageHeader, Panel, ProvenanceBadge, Sparkline } from '../components/ui';
+import { ProfileBanner } from '../components/profile/ProfileBanner';
+import { normalizeBackground } from '../lib/profileBackground';
 import { INSTRUMENTS, INSTRUMENT_MAP } from '../data/instruments';
 import { countryByIso3, searchCountries } from '../lib/countries';
 import { demoBars, lastQuote } from '../lib/demoMarket';
@@ -26,9 +28,11 @@ export default function Headquarters() {
   const [dragging, setDragging] = useState<WidgetId | null>(null);
   const visible = layout.filter((w) => !hidden.includes(w));
   const shown = editing ? layout : visible;
+  const hasBackground = normalizeBackground(usePrefs((st) => st.profileBackground)) !== null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
+      {hasBackground && <ProfileBanner className="mb-6" />}
       <PageHeader
         eyebrow={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         title={status === 'signed-in' ? `Welcome back${session?.user.email ? `, ${session.user.email.split('@')[0]}` : ''}` : 'Headquarters'}

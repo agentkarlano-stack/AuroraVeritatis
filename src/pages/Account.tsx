@@ -15,6 +15,8 @@ import { SecuritySettings } from '../components/account/SecuritySettings';
 import { DevicesPanel } from '../components/account/DevicesPanel';
 import { SubscriptionPanel } from '../components/account/SubscriptionPanel';
 import { OrganisationCard } from '../components/account/OrganisationCard';
+import { BackgroundPicker } from '../components/profile/BackgroundPicker';
+import { ProfileBanner } from '../components/profile/ProfileBanner';
 import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
 import { INTRO_EXPERIENCES, resolveIntroExperience } from '../lib/intro';
 
@@ -81,6 +83,10 @@ export default function Account() {
             Password updated. Use it the next time you sign in.
           </p>
         )}
+        <ProfileBanner>
+          <div className="text-xs uppercase tracking-wider text-gold-soft">Account</div>
+          <div className="text-xl font-semibold text-platinum">{status === 'signed-in' ? profile?.display_name || session?.user.email : 'Guest'}</div>
+        </ProfileBanner>
         <Panel title="Profile">
           {status === 'signed-in' ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -119,6 +125,7 @@ export default function Account() {
         </Panel>
 
         {status === 'signed-in' && <ProfileEditor onLoaded={onProfile} />}
+        {!recovery && <BackgroundPicker />}
         {/* During password recovery the user has no current password; only the recovery form is shown. */}
         {status === 'signed-in' && !recovery && <SecuritySettings />}
         {status === 'signed-in' && !recovery && <DevicesPanel />}

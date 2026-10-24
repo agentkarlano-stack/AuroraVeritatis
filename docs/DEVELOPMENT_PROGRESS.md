@@ -20,6 +20,13 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 46 (2026-10-24) — Country profile backgrounds
+- **Picker (Account → Profile background):** country, landmark grid with previews, live preview banner, reset to neutral; the suggestion comes only from the country last opened in a dossier on this device, and a manual choice is never replaced.
+- **Storage:** choice in synced `prefs.profileBackground`.
+- **Banner (`ProfileBanner`):** shown on the Account page and in Headquarters, with a readability gradient and the photo credit and licence link always visible.
+- **Photos:** 30 Wikimedia Commons featured pictures of 19 countries (CC0, public domain, CC BY, CC BY-SA), resized WebP 1280/640/320 (5.2 MB). Fetched on the `claude/intro-work` runner. Manifest and attribution rules in `docs/LANDMARKS.md`; licence test in `lib/profileBackground.test.ts`.
+- **Tests:** browser 18/18 at 1280 and 360 px.
+
 ### Run 45 (2026-10-24) — Homepage direct links, recognisable module buttons
 - **Homepage:** under the two main actions, a compact "Go directly to" row (Map Explorer, Country Dossiers, Market Terminal, Commodities, Market Impact, Portfolio risk, World Briefing, Brain). Module cards updated to what each module does today.
 - **`ModuleLink`** (`components/ui.tsx`): links to another module are now small bordered buttons with an arrow. Used in the Radar event drawer and the impact chain; plain inline links stay only inside sentences.
