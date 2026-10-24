@@ -59,6 +59,7 @@ const LEGAL: Record<string, string> = {
   disclaimer: 'Financial & Investment Risk Disclaimer',
   ai: 'AI Transparency',
   subscriptions: 'Subscription Terms & Refund Policy',
+  fairuse: 'Fair Use Policy',
   imprint: 'Legal Notice',
 };
 

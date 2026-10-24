@@ -26,6 +26,7 @@ const LEGAL = [
   ['disclaimer', 'Risk disclaimer'],
   ['ai', 'AI transparency'],
   ['subscriptions', 'Subscriptions & refunds'],
+  ['fairuse', 'Fair use'],
   ['imprint', 'Legal notice'],
 ] as const;
 

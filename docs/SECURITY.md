@@ -42,6 +42,8 @@ Report vulnerabilities to auroraveritatissup@gmail.com.
   - IP changes and mobile data never sign anyone out.
 - **Tests:** `supabase/tests/sessions.sql` in the `migrations` CI job.
 
+Support procedure for lost or compromised accounts: `docs/ACCOUNT-RECOVERY.md`.
+
 ## Organisations and AI budgets (2026-10-24, migration 20261024000200)
 - Tables live in `aurora_private` with no grants to `anon`/`authenticated`; all access goes through `security definer` functions.
 - Only Aurora administrators (role + active session) create organisations, change contracts and add or remove seats; each action is audited. Organisation administrators can read their own organisation's members and AI spend, nothing else.
