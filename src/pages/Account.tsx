@@ -12,6 +12,7 @@ import { useChartLibrary } from '../store/chartLibrary';
 import { Avatar } from '../components/Avatar';
 import { ProfileEditor, type ProfileRow } from '../components/account/ProfileEditor';
 import { SecuritySettings } from '../components/account/SecuritySettings';
+import { DevicesPanel } from '../components/account/DevicesPanel';
 import { INTRO_REPLAY_EVENT } from '../components/IntroSplash';
 import { INTRO_EXPERIENCES, resolveIntroExperience } from '../lib/intro';
 
@@ -118,6 +119,7 @@ export default function Account() {
         {status === 'signed-in' && <ProfileEditor onLoaded={onProfile} />}
         {/* During password recovery the user has no current password; only the recovery form is shown. */}
         {status === 'signed-in' && !recovery && <SecuritySettings />}
+        {status === 'signed-in' && !recovery && <DevicesPanel />}
 
         <Panel title="Data stored in this browser" eyebrow={status === 'signed-in' ? 'Synced to your account. Signing out removes this copy from the browser.' : undefined}>
           <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">

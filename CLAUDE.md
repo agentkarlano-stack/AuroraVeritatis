@@ -52,6 +52,11 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - Accounts are live (Supabase project `oscdwaeofqdiwcnxsich`). `e2e/live/auth.ts` (`live-auth.yml`) is the real-browser,
   real-email end-to-end test; it runs on PR previews labelled `live-auth` (3 real emails per run; Supabase hourly and Resend 100/day limits) and on demand against production. Local data
   belongs to one account at a time (`auth/localAccount.ts`); changes during the first sync are uploaded afterwards.
+- Sessions (`supabase/migrations/20261024000000_sessions.sql`, `lib/sessions.ts`, `auth/SessionGuard.tsx`,
+  `components/account/DevicesPanel.tsx`): device list from `auth.sessions` (no IPs), revoke one or all others,
+  `session_active()` gates entitlements/admin (JWT window documented in docs/SECURITY.md), optional one-device rule for
+  paid plans (admin switch, off by default). Test locally: Postgres 16 at /usr/lib/postgresql/16/bin (initdb as user
+  `postgres` in /var/tmp), then `PGHOST=/var/tmp PGPORT=5433 PGUSER=postgres bash scripts/test-migrations.sh`.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

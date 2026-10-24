@@ -20,6 +20,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 36 (2026-10-24) — Device management and account-sharing protection
+- **Migration `20261024000000_sessions.sql`** (owner applies):
+  - device list (`my_sessions`, no IPs); revoke one device; claim on sign-in; session status;
+  - an audited admin switch for one active device on paid individual plans (off by default);
+  - `session_active()` gates entitlements and admin, so a revoked device loses paid features at once.
+- **App:**
+  - Account → Devices: sign out one device or all others.
+  - SessionGuard: claims the session after sign-in, checks every 2 minutes and on focus, signs a displaced device out with an explanation.
+  - Admin → Account sharing.
+- **Tests:** SQL session suite (applied twice), unit tests, and a browser test with a mocked Supabase (5/5).
 ### Run 35 (2026-10-24) — Global Radar 2D Map | 3D Globe
 - **Switch:** Radar now has a 2D Map | 3D Globe switch. The 3D view reuses `GeoMap` with Radar's filtered events.
 - **Preserved when switching:** selected country, selected event, filters, time window and day.

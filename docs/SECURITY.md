@@ -24,6 +24,24 @@
 
 Report vulnerabilities to auroraveritatissup@gmail.com.
 
+## Sessions and account sharing (2026-10-24, migration 20261024000000)
+- **Session registry:** Supabase Auth's own `auth.sessions` (one row per signed-in device; the access token carries its `session_id`). Users see their devices through `my_sessions()`: browser and operating system from the user agent, sign-in time and last activity. **No IP addresses, locations or fingerprinting.**
+- **Revoking:**
+  - "Sign out" on one device: `revoke_my_session` deletes that session, and its refresh tokens go with it.
+  - "Sign out of other devices": Supabase `signOut({ scope: 'others' })`.
+  - A lost device is handled with "Sign out of other devices" plus a password change.
+- **Token window, documented:** an access token issued before a revocation stays cryptographically valid until it expires (Supabase default 1 hour). Mitigations:
+  - `my_entitlements()` and every admin function check `session_active()`, so a revoked device drops to Free and loses admin rights at once.
+  - The app checks `session_status()` every 2 minutes and on focus, then signs out locally with an explanation.
+  - Row-level security on the user's own notes and preferences is unchanged, so a revoked device can read its own data until the token expires. That data belongs to the same person, so this is acceptable.
+  - Any future paid API must call `session_active()` server side.
+- **One-device rule (optional, off by default, admin switch, audited):**
+  - For paid individual plans, the newest interactive sign-in (`claim_session`) signs out the other sessions, and the displaced device is told why.
+  - Tabs of one browser share a session, so they are unaffected.
+  - Free accounts are never limited; organisation seats will be named users.
+  - IP changes and mobile data never sign anyone out.
+- **Tests:** `supabase/tests/sessions.sql` in the `migrations` CI job.
+
 ## Supabase schema review (2026-10-21)
 - Column-level `REVOKE` does not override a table-level grant. Supabase grants ALL on new public tables to `anon` and
   `authenticated`, so restricted columns need a table-level revoke plus explicit column grants.

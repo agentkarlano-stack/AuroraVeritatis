@@ -16,3 +16,4 @@ for pass in 1 2; do
 done
 psql -X -q -d "$db" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql
 psql -X -q -d "$db" -v ON_ERROR_STOP=1 -f supabase/tests/admin.sql
+psql -X -q -d "$db" -v ON_ERROR_STOP=1 -f supabase/tests/sessions.sql
