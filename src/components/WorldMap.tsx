@@ -22,6 +22,8 @@ const COUNTRY_FEATURES = (feature(topo, topo.objects.countries) as FeatureCollec
 export interface WorldMapHandle {
   /** Centres on a coordinate at zoom k (1 = whole world), with a slow transition unless reduced motion is preferred. */
   focus: (lat: number, lon: number, k: number) => void;
+  /** Fits a country into view; false when the country is not on the map. */
+  focusCountry: (iso3: string) => boolean;
   reset: () => void;
 }
 
@@ -74,6 +76,15 @@ export function WorldMap({ ref, events, selectedEventId, highlightIso3 = [], onE
       if (!pt) return;
       const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
       setView(centerOn(pt[0], pt[1], k, W, H), reduced ? 0 : 900);
+    },
+    focusCountry: (iso3) => {
+      const f = COUNTRY_FEATURES.find((x) => countryByNumeric(x.id)?.iso3 === iso3);
+      if (!f) return false;
+      const [[x0, y0], [x1, y1]] = path.bounds(f);
+      const k = Math.max(1, Math.min(8, W / ((x1 - x0) * 1.6 || 1), H / ((y1 - y0) * 1.6 || 1)));
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      setView(centerOn((x0 + x1) / 2, (y0 + y1) / 2, k, W, H), reduced ? 0 : 900);
+      return true;
     },
     reset: () => setView({ k: 1, x: 0, y: 0 }, true),
   }));
