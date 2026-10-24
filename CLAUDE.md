@@ -35,6 +35,9 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
 - `src/lib/` — pure logic with unit tests (Monte Carlo, technical indicators, tension index, synthetic market data).
 - `src/store/prefs.ts` — Zustand store persisted to localStorage (layout, watchlist, alerts, notes, chart settings, drawings;
   to be synced to Supabase `user_preferences`).
+- Quant Research Lab (`pages/Lab.tsx`, tabs Monte Carlo | Backtest | Portfolio risk): portfolio VaR/expected shortfall
+  (historical, normal, Monte Carlo), Euler contributions and Kupiec backtest in `lib/risk.ts` + `components/RiskTool.tsx`
+  (real World Bank monthly commodities or simulated `.D` daily).
 - Strategy Lab (`pages/Strategy.tsx`) uses `simulateGbm` with a `jump` and `lib/scenario.ts`; quick search is
   `components/CommandPalette.tsx` + `lib/search.ts`.
 - Cloud sync: `lib/sync.ts` (backend-agnostic, tested) + `auth/PrefsSync.tsx` (subscribes to the prefs store, newer side

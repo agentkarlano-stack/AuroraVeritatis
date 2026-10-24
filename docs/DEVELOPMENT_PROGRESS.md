@@ -11,7 +11,7 @@ _Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, int
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | After the owner applies the three 2026-10-24 migrations: production live-auth run and checks of devices, subscriptions and organisations. Development: multi-window workspaces, Quant VaR/CVaR (market directive priorities 4–5), advanced visualisation and performance |
+| Next recommended action | After the owner applies the three 2026-10-24 migrations: production live-auth run and checks of devices, subscriptions and organisations. Development: multi-window workspaces (market directive priority 4), advanced visualisation and performance |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,16 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 42 (2026-10-24) — Quant portfolio risk (VaR / expected shortfall)
+- **Lab → Portfolio risk (`/lab?tool=risk`):**
+  - Up to 8 holdings, on real World Bank monthly commodity prices or the labelled simulated `.D` instruments (daily).
+  - VaR and expected shortfall at 95% or 99%, over 1, 3 or 12 months (or 1, 10 or 21 days), by three methods: historical simulation (non-overlapping sums for longer horizons; "too few periods" when under 20), normal (variance-covariance) and seeded multivariate-normal Monte Carlo (Cholesky).
+  - Euler risk contributions, annualised volatility, maximum drawdown and a histogram with the VaR line.
+  - Rolling one-period backtest with the Kupiec proportion-of-failures test.
+  - CSV export with source and period labels.
+- **Logic:** `lib/risk.ts`, with `normInv`, `erfc`, covariance, Cholesky and Kupiec tested against reference values.
+- **Tests:** browser 16/16 at 1280 and 360 px.
+
 ### Run 41 (2026-10-24) — Market Impact chain on real data
 - **Impact page, new top panel "Event → country → commodity exposure":**
   - A live USGS/GDACS event is placed in a country: the GDACS country name, else the Natural Earth borders, else the nearest country within 400 km for offshore events. The user can override the country.

@@ -143,7 +143,7 @@ export function OverlayHistogram({ a, b, s0 }: { a: Histogram; b: Histogram; s0:
   );
 }
 
-export function HistogramChart({ hist, marker, markerLabel }: { hist: Histogram; marker?: number; markerLabel?: string }) {
+export function HistogramChart({ hist, marker, markerLabel, ariaLabel = 'Distribution of simulated terminal values' }: { hist: Histogram; marker?: number; markerLabel?: string; ariaLabel?: string }) {
   const max = Math.max(...hist.counts);
   const lo = hist.edges[0]!;
   const hi = hist.edges.at(-1)!;
@@ -151,7 +151,7 @@ export function HistogramChart({ hist, marker, markerLabel }: { hist: Histogram;
   const y = scale(0, max, H - PAD.b, PAD.t);
   const xl = ticks(lo, hi, 6).map((v) => ({ x: x(v), label: fmtAxis(v) }));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Distribution of simulated terminal values">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={ariaLabel}>
       <Axes yTicks={ticks(0, max, 4)} y={y} xLabels={xl} />
       {hist.counts.map((c, i) => (
         <rect
