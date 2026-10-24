@@ -62,6 +62,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   `aurora_private.subscriptions` (trial | complimentary | paid; only admins create trial/complimentary while payments
   are off); effective plan = highest of grant and subscription (`tier_of`); cancel at period end, resume, renewal
   preference; `admin_expiring`. No payments, no automatic renewal until the owner approves.
+- Prediction Research (`pages/Forecasts.tsx`, `/lab/forecasts`): the user's own forecasts (criteria, revisions, resolution)
+  scored with proper scoring rules in `lib/forecasting.ts` (Brier, log, calibration bins, by category); stored in this browser
+  (`store/forecasts.ts`, JSON export/import). Market-implied probabilities are not shown: Polymarket/Kalshi/Manifold terms
+  restrict commercial display (written permission or a data licence needed).
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

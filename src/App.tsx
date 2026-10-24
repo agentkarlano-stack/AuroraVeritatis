@@ -27,6 +27,7 @@ const Briefing = lazy(() => import('./pages/Briefing'));
 const GeoExplorer = lazy(() => import('./pages/GeoExplorer'));
 const Newsletter = lazy(() => import('./pages/Newsletter'));
 const Commodities = lazy(() => import('./pages/Commodities'));
+const Forecasts = lazy(() => import('./pages/Forecasts'));
 const Business = lazy(() => import('./pages/Business'));
 const Brain = lazy(() => import('./pages/Brain'));
 const Share = lazy(() => import('./pages/Share'));
@@ -64,6 +65,7 @@ export function App() {
             <Route path="countries/:iso3" element={<Lazy><CountryDossier /></Lazy>} />
             <Route path="markets" element={<Lazy><Markets /></Lazy>} />
             <Route path="markets/commodities" element={<Lazy><Commodities /></Lazy>} />
+            <Route path="lab/forecasts" element={<Lazy><Forecasts /></Lazy>} />
             <Route path="lab" element={<Lazy><Lab /></Lazy>} />
             <Route path="impact" element={<Lazy><Impact /></Lazy>} />
             <Route path="strategy" element={<Lazy><Strategy /></Lazy>} />

@@ -20,6 +20,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+### Run 38 (2026-10-24) — Prediction Research
+- **Feature:** `/lab/forecasts` lets users write forecasts with resolution criteria, revise them (history with notes), resolve yes/no/void, and see Brier and log scores against the 50% baseline, a calibration diagram and scores by category. CSV and JSON export, JSON import, Add to Brain, and links from Quant Research and Radar events.
+- **Sources checked:**
+  - Manifold: "personal, non-commercial use", so excluded.
+  - Polymarket: the terms are client-rendered and unverified; the public API works but display rights are unconfirmed.
+  - Kalshi and Metaculus: they blocked automated access.
+  - Market-implied probabilities are therefore marked unavailable until there is written permission or a licence.
+- **Tests:** unit tests and browser 20/20.
+
 ### Run 37 (2026-10-24) — Subscription periods (1, 3, 6, 12 months)
 - **Plans page:** period selector with the upfront total, monthly equivalent and savings; provisional discounts disclosed.
 - **Migration `20261024000100_subscriptions.sql`** (owner applies):
