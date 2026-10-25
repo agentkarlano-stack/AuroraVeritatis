@@ -103,7 +103,7 @@ function CountryFacts({ iso3 }: { iso3: string }) {
         </dl>
       )}
       <a className="mt-1 inline-flex items-center gap-1 text-[11px] text-slate-dim hover:text-gold" href={p.source.url} target="_blank" rel="noreferrer">
-        {p.source.name} · {p.source.license} <ExternalLink className="h-3 w-3" aria-hidden />
+        {p.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
       </a>
     </div>
   );

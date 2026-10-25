@@ -144,7 +144,7 @@ export default function Compare() {
             <input type="checkbox" className="accent-[#c9a35a]" checked={logX} onChange={(e) => setLogX(e.target.checked)} /> Log scale (horizontal)
           </label>
           <span className="flex items-center gap-1.5 text-xs text-slate-dim">
-            <ProvenanceBadge kind="confirmed" /> World Bank WDI · CC BY 4.0
+            <ProvenanceBadge kind="confirmed" /> World Bank WDI
           </span>
         </div>
       </Panel>

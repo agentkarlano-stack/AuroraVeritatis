@@ -287,7 +287,7 @@ export function RiskTool() {
           </DemoNotice>
         ) : (
           <p className="text-xs text-slate-dim">
-            Real World Bank monthly average prices (The Pink Sheet, CC BY 4.0). Monthly averages smooth out moves within a month, so these figures understate
+            Real World Bank monthly average prices (The Pink Sheet). Monthly averages smooth out moves within a month, so these figures understate
             short-term risk; they are not daily or intraday risk measures.
           </p>
         )}

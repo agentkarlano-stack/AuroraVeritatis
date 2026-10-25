@@ -27,6 +27,7 @@ const LEGAL = [
   ['ai', 'AI transparency'],
   ['subscriptions', 'Subscriptions & refunds'],
   ['fairuse', 'Fair use'],
+  ['sources', 'Data sources'],
   ['imprint', 'Legal notice'],
 ] as const;
 
