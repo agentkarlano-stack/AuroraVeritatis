@@ -22,7 +22,7 @@ function Empty({ children, to, action }: { children: ReactNode; to: string; acti
   return (
     <div className="rounded-lg border border-dashed border-line px-4 py-4 text-sm text-slate-dim">
       <p>{children}</p>
-      <Link to={to} className="mt-2 inline-flex items-center gap-1 text-xs text-gold hover:underline">
+      <Link to={to} className="mt-1 inline-flex min-h-8 items-center gap-1 text-xs text-gold hover:underline">
         {action} <ArrowRight className="h-3 w-3" aria-hidden />
       </Link>
     </div>
@@ -74,7 +74,7 @@ export function ResumeWidget() {
             );
           })}
         </ul>
-        <button className="mt-2 text-[11px] text-slate-dim hover:text-mist" onClick={clearRecent}>
+        <button className="mt-1 inline-flex min-h-8 items-center text-[11px] text-slate-dim hover:text-mist" onClick={clearRecent}>
           Clear history
         </button>
       </div>
@@ -150,7 +150,7 @@ export function FollowingWidget({ since }: { since: string | null }) {
         </>
       )}
       <div className="border-t border-line pt-2">
-        <button className="text-xs text-gold hover:underline" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
+        <button className="inline-flex min-h-8 items-center text-xs text-gold hover:underline" onClick={() => setAdding((a) => !a)} aria-expanded={adding}>
           {adding ? 'Done' : 'Follow regions, conflicts, companies'}
         </button>
         {adding && (
