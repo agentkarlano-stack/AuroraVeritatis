@@ -279,7 +279,10 @@ export async function integrationHealth(env: Env, f: typeof fetch = fetch, now =
   );
 }
 
-/** Public summary: provider, secret names, status and whether authentication passed. No facts, no errors. */
+/**
+ * Public summary: provider, secret names, status, whether authentication passed and, when it failed, the short reason
+ * (already scrubbed of every secret value, e.g. "token endpoint answered 401"). No facts.
+ */
 export function publicSummary(rows: ProviderHealth[]) {
-  return rows.map((r) => ({ id: r.id, status: r.status, authenticated: r.authenticated, secrets: r.secrets }));
+  return rows.map((r) => ({ id: r.id, status: r.status, authenticated: r.authenticated, secrets: r.secrets, ...(r.error ? { reason: r.error } : {}) }));
 }
