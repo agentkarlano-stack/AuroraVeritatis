@@ -670,6 +670,68 @@ async function main() {
         assert(g.error && gs.error, 'guests could call entitlement or admin functions');
         return `tier free, is_admin false, payments disabled, 25 notes; guests refused (${g.error.code}, ${gs.error.code})`;
       });
+      // Migrations 2026-10-24 (sessions, subscriptions, organisations) and 2026-10-25 (AI gateway): read-only checks.
+      await check('M1', 'Sessions, subscription, organisation and AI usage functions work for an ordinary user', 'api', async () => {
+        const st = await A.rpc('session_status');
+        assert(!st.error && (st.data as { active?: boolean } | null)?.active === true, `session_status: ${st.error?.message ?? JSON.stringify(st.data)}`);
+        const ss = await A.rpc('my_sessions');
+        assert(!ss.error && Array.isArray(ss.data) && ss.data.length >= 1, `my_sessions: ${ss.error?.message ?? JSON.stringify(ss.data)}`);
+        const sub = await A.rpc('my_subscription');
+        assert(!sub.error, `my_subscription: ${sub.error?.message}`);
+        const org = await A.rpc('my_organization');
+        assert(!org.error && org.data == null, `my_organization: ${org.error?.message ?? JSON.stringify(org.data)}`);
+        const ai = await A.rpc('my_ai_usage');
+        const u = ai.data as { enabled?: boolean; used_today?: number; limit_today?: number } | null;
+        assert(!ai.error && u && typeof u.enabled === 'boolean' && typeof u.limit_today === 'number', `my_ai_usage: ${ai.error?.message ?? JSON.stringify(ai.data)}`);
+        return `session active, ${ss.data.length} session(s) listed, subscription ${sub.data ? 'present' : 'none'}, no organisation; AI ${u.enabled ? 'switched on' : 'switched off'}, Free limit ${u.limit_today}/day`;
+      });
+      await check('M2', 'Ordinary users cannot call the new administrator functions', 'api', async () => {
+        const calls: [string, Record<string, unknown>][] = [
+          ['admin_ai_overview', {}],
+          ['admin_set_ai_settings', { on_off: true, budget_cents: 100000, limits: { free: 9999, premium: 9999, prime: 9999, intelligence: 9999 } }],
+          ['admin_expiring', { days: 14 }],
+          ['admin_list_orgs', {}],
+          ['admin_set_session_policy', { single_session: true }],
+          ['admin_start_subscription', { target: idA, new_tier: 'intelligence', months: 12, sub_kind: 'complimentary', why: 'self-escalation attempt' }],
+        ];
+        const codes: string[] = [];
+        for (const [fn, args] of calls) {
+          const r = await A.rpc(fn, args);
+          assert(r.error, `${fn} succeeded for an ordinary user`);
+          codes.push(r.error.code ?? '?');
+        }
+        const e = await A.rpc('my_entitlements');
+        assert((e.data as { tier?: string } | null)?.tier === 'free', `tier after attempts: ${JSON.stringify(e.data)}`);
+        return `${calls.length} calls refused (${[...new Set(codes)].join(', ')}); tier still free`;
+      });
+      // EVE through the real gateway. A real (paid) provider request is made only when AI_LIVE_TEST=1 and AI is
+      // switched on; otherwise the check confirms the gate and makes no provider call.
+      await check('AI1', 'EVE answers through the gateway with usage recorded (at most one real request)', 'api', async () => {
+        const token = (await A.auth.getSession()).data.session?.access_token;
+        assert(token, 'no session token');
+        const before = ((await A.rpc('my_ai_usage')).data as { enabled?: boolean; used_today?: number } | null) ?? {};
+        if (!before.enabled) {
+          const r = await fetch(`${BASE}/api/ai/ask`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ assistant: 'eve', question: 'What does GDP measure?' }) });
+          const j = (await r.json().catch(() => ({}))) as { reason?: string };
+          assert(r.status === 429 && /switched off/i.test(j.reason ?? ''), `expected the "switched off" refusal, got ${r.status} ${JSON.stringify(j)}`);
+          throw new Skip('AI is switched off in /admin → AI: the gateway refused correctly and made no provider call');
+        }
+        if (process.env.AI_LIVE_TEST !== '1') throw new Skip('AI is on; the paid test request runs only with AI_LIVE_TEST=1');
+        const r = await fetch(`${BASE}/api/ai/ask`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ assistant: 'eve', question: 'In one short sentence: what does GDP measure?' }),
+        });
+        const j = (await r.json().catch(() => ({}))) as { answer?: string; provider?: string; model?: string; fallback?: boolean; usage?: { tokensIn?: number; tokensOut?: number }; error?: string };
+        assert(r.ok && j.answer, `ask failed: ${r.status} ${j.error ?? ''}`);
+        const after = ((await A.rpc('my_ai_usage')).data as { used_today?: number } | null) ?? {};
+        assert((after.used_today ?? 0) > (before.used_today ?? 0), `usage not recorded: ${before.used_today} → ${after.used_today}`);
+        const tin = j.usage?.tokensIn ?? 0;
+        const tout = j.usage?.tokensOut ?? 0;
+        // gpt-4o-mini list price $0.15 / $0.60 per million tokens.
+        const usd = j.provider === 'openai' ? (tin * 0.15 + tout * 0.6) / 1e6 : 0;
+        return `${j.provider} ${j.model}${j.fallback ? ' (fallback)' : ''}: ${tin} in + ${tout} out tokens ≈ $${usd.toFixed(6)}; usage recorded (${before.used_today ?? 0} → ${after.used_today})`;
+      });
     } else {
       record('S1', 'Two-account RLS tests', 'api', 'skip', 'second account not available');
     }

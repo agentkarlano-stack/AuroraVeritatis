@@ -11,11 +11,18 @@ on:
       url:
         description: Base URL to test
         default: https://aurorav.app
+      ai_test:
+        description: Make one minimal real EVE request if AI is switched on (costs < $0.001)
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       url:
         type: string
         required: true
+      ai_test:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,6 +46,7 @@ jobs:
         run: node e2e/live/auth.ts
         env:
           BASE_URL: ${{ inputs.url || 'https://aurorav.app' }}
+          AI_LIVE_TEST: ${{ inputs.ai_test && '1' || '' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
