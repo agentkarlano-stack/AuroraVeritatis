@@ -265,7 +265,7 @@ function AnswerView({ answer, question }: { answer: AiAnswer; question: string }
             ),
           )}
         </div>
-        <ReadAloud sentences={sentences} />
+        <ReadAloud sentences={sentences} assistant={answer.assistant} />
         <div>
           <div className="eyebrow mb-1">Sources</div>
           {answer.sources.length === 0 ? (
@@ -315,21 +315,51 @@ function AnswerView({ answer, question }: { answer: AiAnswer; question: string }
 }
 
 /** Read-aloud with the browser's built-in speech synthesis: free, offline-capable, with the current sentence highlighted. */
-function ReadAloud({ sentences }: { sentences: string[] }) {
-  const [state, setState] = useState<'idle' | 'playing' | 'paused'>('idle');
+const SPEEDS = [0.75, 1, 1.25, 1.5] as const;
+
+/**
+ * Read-aloud: the natural voice (ElevenLabs through the Worker; cached, metered by characters) when it is available
+ * and the reader is signed in, otherwise the browser's own voice with the sentence being read highlighted.
+ */
+function ReadAloud({ sentences, assistant }: { sentences: string[]; assistant: AssistantId }) {
+  const { session } = useAuth();
+  const natural = useApi<{ natural: boolean }>('/api/voice/status');
+  const [state, setState] = useState<'idle' | 'loading' | 'playing' | 'paused'>('idle');
+  const [mode, setMode] = useState<'natural' | 'browser'>('natural');
+  const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
   const [current, setCurrent] = useState(-1);
+  const [note, setNote] = useState<string | null>(null);
   const stopped = useRef(false);
+  const audio = useRef<HTMLAudioElement | null>(null);
   const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-  useEffect(() => () => window.speechSynthesis?.cancel(), []);
-  if (!supported || !sentences.length) return null;
-  const play = (from = 0) => {
+  const naturalOk = natural.status === 'ready' && natural.data.natural && !!session;
+  const useNatural = naturalOk && mode === 'natural';
+  useEffect(
+    () => () => {
+      window.speechSynthesis?.cancel();
+      audio.current?.pause();
+      if (audio.current?.src) URL.revokeObjectURL(audio.current.src);
+    },
+    [],
+  );
+  if ((!supported && !naturalOk) || !sentences.length) return null;
+
+  const stop = () => {
+    stopped.current = true;
+    window.speechSynthesis?.cancel();
+    audio.current?.pause();
+    if (audio.current) audio.current.currentTime = 0;
+    setState('idle');
+    setCurrent(-1);
+  };
+  const playBrowser = (from = 0) => {
     stopped.current = false;
     window.speechSynthesis.cancel();
     const speak = (i: number) => {
       if (stopped.current || i >= sentences.length) return (setState('idle'), setCurrent(-1));
       const u = new SpeechSynthesisUtterance(sentences[i]);
       u.lang = 'en-GB';
-      u.rate = 1;
+      u.rate = speed;
       u.onstart = () => setCurrent(i);
       u.onend = () => speak(i + 1);
       u.onerror = () => (setState('idle'), setCurrent(-1));
@@ -338,29 +368,115 @@ function ReadAloud({ sentences }: { sentences: string[] }) {
     setState('playing');
     speak(from);
   };
+  const playNatural = async () => {
+    setNote(null);
+    if (audio.current?.src) {
+      audio.current.playbackRate = speed;
+      const ok = await audio.current.play().then(
+        () => true,
+        () => false,
+      );
+      if (ok) return setState('playing');
+    }
+    setState('loading');
+    const res = await fetch('/api/voice/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session!.access_token}` },
+      body: JSON.stringify({ text: sentences.join(' '), voice: assistant }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      const msg = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error;
+      setNote(`${msg ?? 'The natural voice is unavailable.'} Using your browser's voice.`);
+      setMode('browser');
+      return supported ? playBrowser() : setState('idle');
+    }
+    const el = new Audio(URL.createObjectURL(await res.blob()));
+    el.playbackRate = speed;
+    el.onended = () => setState('idle');
+    try {
+      await el.play();
+    } catch {
+      URL.revokeObjectURL(el.src);
+      setNote("This browser could not play the natural voice. Using your browser's voice.");
+      setMode('browser');
+      return supported ? playBrowser() : setState('idle');
+    }
+    audio.current = el;
+    setState('playing');
+  };
+  const pause = () => {
+    if (useNatural) audio.current?.pause();
+    else window.speechSynthesis.pause();
+    setState('paused');
+  };
+  const resume = () => {
+    if (useNatural) void audio.current?.play();
+    else window.speechSynthesis.resume();
+    setState('playing');
+  };
+
   return (
     <div className="rounded-md border border-line px-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         {state === 'playing' ? (
-          <button className="btn-ghost h-8 text-xs" onClick={() => (window.speechSynthesis.pause(), setState('paused'))}>
+          <button className="btn-ghost h-8 text-xs" onClick={pause}>
             <Pause className="h-3.5 w-3.5" aria-hidden /> Pause
           </button>
         ) : (
-          <button className="btn-ghost h-8 text-xs" onClick={() => (state === 'paused' ? (window.speechSynthesis.resume(), setState('playing')) : play())}>
-            <Play className="h-3.5 w-3.5" aria-hidden /> {state === 'paused' ? 'Resume' : 'Listen'}
+          <button
+            className="btn-ghost h-8 text-xs"
+            disabled={state === 'loading'}
+            onClick={() => (state === 'paused' ? resume() : useNatural ? void playNatural() : playBrowser())}
+          >
+            <Play className="h-3.5 w-3.5" aria-hidden /> {state === 'loading' ? 'Preparing…' : state === 'paused' ? 'Resume' : 'Listen'}
           </button>
         )}
-        {state !== 'idle' && (
-          <button className="btn-ghost h-8 text-xs" onClick={() => ((stopped.current = true), window.speechSynthesis.cancel(), setState('idle'), setCurrent(-1))}>
+        {state !== 'idle' && state !== 'loading' && (
+          <button className="btn-ghost h-8 text-xs" onClick={stop}>
             <Square className="h-3.5 w-3.5" aria-hidden /> Stop
           </button>
         )}
-        <span className="text-[11px] text-slate-dim">Read aloud by your browser&apos;s voice. The text below follows along.</span>
+        <label className="flex items-center gap-1 text-[11px] text-slate-dim">
+          Speed
+          <select
+            className="input h-8 w-auto py-0 text-xs"
+            value={speed}
+            onChange={(e) => {
+              const v = Number(e.target.value) as (typeof SPEEDS)[number];
+              setSpeed(v);
+              if (audio.current) audio.current.playbackRate = v;
+            }}
+          >
+            {SPEEDS.map((v) => (
+              <option key={v} value={v}>
+                {v}×
+              </option>
+            ))}
+          </select>
+        </label>
+        {naturalOk && supported && (
+          <label className="flex items-center gap-1 text-[11px] text-slate-dim">
+            Voice
+            <select
+              className="input h-8 w-auto py-0 text-xs"
+              value={mode}
+              disabled={state !== 'idle'}
+              onChange={(e) => setMode(e.target.value as 'natural' | 'browser')}
+            >
+              <option value="natural">Natural (ElevenLabs)</option>
+              <option value="browser">Browser</option>
+            </select>
+          </label>
+        )}
       </div>
+      <p className="mt-1 text-[11px] text-slate-dim">
+        {useNatural ? 'Natural voice by ElevenLabs, generated from the text below.' : "Read aloud by your browser's voice; the text below follows along."}
+      </p>
+      {note && <p className="mt-1 text-[11px] text-warn">{note}</p>}
       {state !== 'idle' && (
         <p className="mt-2 text-sm leading-relaxed" aria-live="polite">
           {sentences.map((s, i) => (
-            <span key={i} className={i === current ? 'rounded bg-gold/15 text-platinum' : 'text-slate-dim'}>
+            <span key={i} className={!useNatural && i === current ? 'rounded bg-gold/15 text-platinum' : useNatural ? 'text-mist' : 'text-slate-dim'}>
               {s}{' '}
             </span>
           ))}

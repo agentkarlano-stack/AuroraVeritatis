@@ -4,6 +4,7 @@ import { macroHistory, macroOverview } from './ecb';
 import { error, json } from './http';
 import { aiAsk, aiModels, aiStatus, requireAdmin, type AiGatewayEnv } from './ai/handler';
 import { integrationHealth, publicSummary, type ProviderHealth } from './health';
+import { voiceEnabled, voiceSpeak, type VoiceEnv } from './voice';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
@@ -15,7 +16,7 @@ import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, er
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries, latestValues } from './worldbank';
 
-export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv {
+export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, VoiceEnv {
   ASSETS: Fetcher;
   /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
   CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
@@ -118,6 +119,17 @@ function healthOnce(env: Env): Promise<ProviderHealth[]> {
   return healthRun.rows;
 }
 
+/** Narration audio cached at the edge for 30 days (hash of model, voice and text). */
+const voiceCache = {
+  async get(key: string) {
+    const r = await caches.default.match(`https://voice-cache.aurora.internal/${key}`);
+    return r ? r.arrayBuffer() : null;
+  },
+  async put(key: string, audio: ArrayBuffer) {
+    await caches.default.put(`https://voice-cache.aurora.internal/${key}`, new Response(audio, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'max-age=2592000' } }));
+  },
+};
+
 /** AI answers cached at the edge for 6 hours, keyed by a hash of assistant, question and sources (never notes). */
 const answerCache = {
   async get(key: string) {
@@ -144,6 +156,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
       cache: answerCache,
     });
   }
+  if (request.method === 'POST' && path === '/api/voice/speak') return voiceSpeak(request, env, { cache: voiceCache });
   if (request.method !== 'GET') return error(405, 'Method not allowed');
 
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
@@ -155,6 +168,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   }
 
   if (path === '/api/ai/status') return aiStatus(env);
+  if (path === '/api/voice/status') return json({ natural: voiceEnabled(env) });
   if (path === '/api/ai/models') return aiModels(request, env);
 
   if (path === '/api/config') {
