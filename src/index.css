@@ -183,3 +183,19 @@
     width: 0;
   }
 }
+
+/* Subtle star field behind the 3D globe (GeoMap): static CSS, no extra requests, no animation. */
+.av-starfield {
+  background-color: #08080a;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(241, 240, 236, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 27% 72%, rgba(241, 240, 236, 0.35), transparent 60%),
+    radial-gradient(1.5px 1.5px at 41% 9%, rgba(241, 240, 236, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 58% 88%, rgba(241, 240, 236, 0.3), transparent 60%),
+    radial-gradient(1px 1px at 73% 24%, rgba(241, 240, 236, 0.5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 86% 61%, rgba(201, 163, 90, 0.45), transparent 60%),
+    radial-gradient(1px 1px at 94% 12%, rgba(241, 240, 236, 0.35), transparent 60%),
+    radial-gradient(1px 1px at 6% 52%, rgba(241, 240, 236, 0.3), transparent 60%),
+    radial-gradient(ellipse at center, rgba(201, 163, 90, 0.05), transparent 70%);
+  background-size: 340px 340px, 280px 280px, 420px 420px, 300px 300px, 360px 360px, 520px 520px, 260px 260px, 380px 380px, 100% 100%;
+}
