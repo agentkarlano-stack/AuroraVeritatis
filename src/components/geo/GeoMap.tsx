@@ -69,6 +69,38 @@ function bbox(g: Geometry): [number, number, number, number] | null {
   return best;
 }
 
+/**
+ * Country outlines as lines without the artificial edges of the data: segments along the antimeridian or the south pole
+ * and jumps across the antimeridian (which a flat projection draws as lines across the whole map).
+ */
+export function borderLines(fc: FeatureCollection<Geometry, Record<string, unknown>>): FeatureCollection<Geometry, Record<string, unknown>> {
+  const artificial = (a: number[], b: number[]) =>
+    Math.abs(a[0]! - b[0]!) > 180 ||
+    (Math.abs(a[0]!) >= 179.999 && Math.abs(b[0]!) >= 179.999) ||
+    (a[1]! <= -89.9 && b[1]! <= -89.9);
+  return {
+    type: "FeatureCollection",
+    features: fc.features.map((f) => {
+      const g = f.geometry;
+      const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
+      const lines: number[][][] = [];
+      for (const ring of polys.flat()) {
+        let cur: number[][] = [];
+        for (let i = 0; i < ring.length; i++) {
+          const pt = ring[i]!;
+          if (i > 0 && artificial(ring[i - 1]!, pt)) {
+            if (cur.length > 1) lines.push(cur);
+            cur = [];
+          }
+          cur.push(pt);
+        }
+        if (cur.length > 1) lines.push(cur);
+      }
+      return { ...f, geometry: { type: "MultiLineString", coordinates: lines } };
+    }),
+  };
+}
+
 const topo = world as unknown as Topology<{
   countries: GeometryCollection<{ name: string }>;
 }>;
@@ -107,6 +139,8 @@ const COUNTRIES: FeatureCollection<
     }),
   };
 })();
+/** Border lines (computed once). */
+const BORDERS = borderLines(COUNTRIES);
 
 interface Props {
   ref?: Ref<GeoMapHandle>;
@@ -197,6 +231,7 @@ function buildStyle(
       }),
     },
   };
+  sources.borders = { type: "geojson", data: BORDERS };
   if (!satelliteBase) {
     layers.push({
       id: "land",
@@ -266,14 +301,28 @@ function buildStyle(
       });
     }
   }
+  // Borders: on imagery a dark casing under a light line keeps them readable over bright and dark ground alike.
+  if (satelliteBase) {
+    layers.push({
+      id: "borders-casing",
+      type: "line",
+      source: "borders",
+      paint: {
+        "line-color": "#050506",
+        "line-opacity": 0.55,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 1, 1.4, 4, 2.2, 7, 3.4],
+        "line-blur": 0.6,
+      },
+    });
+  }
   layers.push({
     id: "borders",
     type: "line",
-    source: "countries",
+    source: "borders",
     paint: {
-      "line-color": s.style === "dark" ? "#5e5233" : "#d8d4c8",
-      "line-opacity": satelliteBase ? 0.45 : 0.7,
-      "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.4, 6, 1.2],
+      "line-color": s.style === "dark" ? "#7a6b42" : s.style === "political" ? "#c9c3b2" : "#ece7da",
+      "line-opacity": satelliteBase ? 0.8 : s.style === "dark" ? 0.85 : 0.75,
+      "line-width": ["interpolate", ["linear"], ["zoom"], 1, 0.5, 4, 0.9, 7, 1.6],
     },
   });
   layers.push({
@@ -574,7 +623,7 @@ export default function GeoMap({
   return (
     <div
       ref={box}
-      className="h-full w-full"
+      className={`h-full w-full ${state.mode === "3d" ? "av-starfield" : ""}`}
       role="region"
       aria-label="Interactive map. Drag to move, scroll or pinch to zoom, click a country or event for details."
     />
