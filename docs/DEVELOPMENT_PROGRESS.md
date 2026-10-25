@@ -20,6 +20,10 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-25 (owner confirmation cycle):** live test on a real account (PR #66, 31 passed / 0 failed): the four
+  migrations work (M1), new admin functions refused (M2), one real EVE request via OpenAI gpt-4o-mini, 204 + 22 tokens
+  ≈ $0.000044, usage recorded (AI1). OpenSky token endpoint answers 522 from Cloudflare (unreachable from the Worker).
+  #67 Efficient frontier, #68 Triple barrier. Legal draft #65 awaits owner approval (publishes the address).
 - **2026-10-25 (cont.):** #60 Integration Health (verified: OpenAI, ElevenLabs, GNews, AISStream, FMP authenticate;
   OpenSky secret missing on the Worker), #61 Volatility drag simulator, #62 GNews (licence-gated), #63 ElevenLabs
   narration + CSP `media-src` fix. Next: Efficient Frontier (Ledoit-Wolf), Triple Barrier, FMP adapter, briefing narration.

@@ -97,3 +97,5 @@ jobs:
     uses: ./.github/workflows/live-auth.yml
     with:
       url: ${{ needs.preview.outputs.url }}
+      # One minimal paid EVE request only when the PR also carries "live-auth-ai".
+      ai_test: ${{ contains(github.event.pull_request.labels.*.name, 'live-auth-ai') }}

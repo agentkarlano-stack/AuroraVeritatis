@@ -205,7 +205,8 @@ export async function openskyToken(clientId: string, secret: string, f: typeof f
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: secret }),
-    signal: T(10000),
+    // OpenSky's identity server can be slow from cloud networks.
+    signal: T(25000),
   });
   if (!res.ok) throw new Error(`OpenSky token endpoint answered ${res.status}`);
   const j = (await res.json()) as { access_token?: string; expires_in?: number };
@@ -279,7 +280,10 @@ export async function integrationHealth(env: Env, f: typeof fetch = fetch, now =
   );
 }
 
-/** Public summary: provider, secret names, status and whether authentication passed. No facts, no errors. */
+/**
+ * Public summary: provider, secret names, status, whether authentication passed and, when it failed, the short reason
+ * (already scrubbed of every secret value, e.g. "token endpoint answered 401"). No facts.
+ */
 export function publicSummary(rows: ProviderHealth[]) {
-  return rows.map((r) => ({ id: r.id, status: r.status, authenticated: r.authenticated, secrets: r.secrets }));
+  return rows.map((r) => ({ id: r.id, status: r.status, authenticated: r.authenticated, secrets: r.secrets, ...(r.error ? { reason: r.error } : {}) }));
 }

@@ -30,6 +30,7 @@ describe('integration health', () => {
     for (const v of Object.values(env)) expect(text).not.toContain(v);
     // The public summary has statuses and names only.
     expect(Object.keys(publicSummary(rows)[0]!)).toEqual(['id', 'status', 'authenticated', 'secrets']);
+    expect(publicSummary(rows).find((r) => r.id === 'elevenlabs')!.reason).toBe('ElevenLabs answered 401');
   });
 
   it('needs both OpenSky client id and secret, and uses the OAuth2 client-credentials flow', async () => {

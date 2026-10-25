@@ -5,6 +5,8 @@ import { FanChart, HistogramChart } from '../components/SvgCharts';
 import { BacktestTool } from '../components/BacktestTool';
 import { RiskTool } from '../components/RiskTool';
 import { VolatilityDragTool } from '../components/VolatilityDragTool';
+import { FrontierTool } from '../components/FrontierTool';
+import { TripleBarrierTool } from '../components/TripleBarrierTool';
 import { PageHeader, Panel, Unavailable } from '../components/ui';
 import { fmtNumber, fmtPct } from '../lib/format';
 import { MC_LIMITS, simulateGbm, type GbmParams, type GbmResult } from '../lib/montecarlo';
@@ -18,7 +20,7 @@ function num(v: string | null, fallback: number) {
 
 export default function Lab() {
   const [params, setParams] = useSearchParams();
-  const tool = (['backtest', 'risk', 'drag'] as const).find((t) => t === params.get('tool')) ?? 'mc';
+  const tool = (['backtest', 'risk', 'drag', 'frontier', 'barrier'] as const).find((t) => t === params.get('tool')) ?? 'mc';
   const label = params.get('label')?.slice(0, 40) ?? 'Hypothetical portfolio';
   const [form, setForm] = useState({
     s0: String(num(params.get('s0'), 10000)),
@@ -114,7 +116,7 @@ export default function Lab() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader
         eyebrow="Quantitative Research Lab"
-        title={tool === 'backtest' ? 'Strategy backtesting' : tool === 'risk' ? 'Portfolio risk: VaR and expected shortfall' : tool === 'drag' ? 'Volatility drag: average return vs compound growth' : 'Monte Carlo risk simulation'}
+        title={tool === 'backtest' ? 'Strategy backtesting' : tool === 'risk' ? 'Portfolio risk: VaR and expected shortfall' : tool === 'drag' ? 'Volatility drag: average return vs compound growth' : tool === 'frontier' ? 'Efficient frontier: risk and return of portfolios' : tool === 'barrier' ? 'Strategy validation: triple barrier method' : 'Monte Carlo risk simulation'}
         actions={
           <Link to="/lab/forecasts" className="btn-ghost text-xs">
             Prediction Research
@@ -123,7 +125,11 @@ export default function Lab() {
       >
         {tool === 'backtest'
           ? 'Test simple, transparent trading rules against buy-and-hold, after costs and without look-ahead bias.'
-          : tool === 'drag'
+          : tool === 'barrier'
+            ? 'Label each trading signal by what happens first: a profit barrier, a loss barrier or a time limit. Overlap-aware statistics show how much evidence a rule really has.'
+            : tool === 'frontier'
+            ? 'Combine observed commodity returns into portfolios: the efficient frontier, minimum variance, maximum Sharpe and risk parity, with covariance shrinkage and an out-of-sample check.'
+            : tool === 'drag'
             ? 'Two investments can have different average returns while their compounded outcomes differ the other way. Compare a calm and a volatile strategy on the same random numbers.'
             : tool === 'risk'
             ? 'Measure how much a portfolio lost in bad periods, by three standard methods, see which holdings drive the risk and check whether the measure held up in the past.'
@@ -136,6 +142,8 @@ export default function Lab() {
             ['backtest', 'Backtest'],
             ['risk', 'Portfolio risk'],
             ['drag', 'Volatility drag'],
+            ['frontier', 'Efficient frontier'],
+            ['barrier', 'Triple barrier'],
           ] as const
         ).map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tool === k} aria-pressed={tool === k} className="chip" onClick={() => setParams(k === 'mc' ? {} : { tool: k })}>
@@ -148,7 +156,11 @@ export default function Lab() {
       </div>
 
 
-      {tool === 'drag' ? (
+      {tool === 'barrier' ? (
+        <TripleBarrierTool />
+      ) : tool === 'frontier' ? (
+        <FrontierTool />
+      ) : tool === 'drag' ? (
         <VolatilityDragTool />
       ) : tool === 'risk' ? (
         <RiskTool />
