@@ -134,7 +134,13 @@ export function Sparkline({ values, width = 96, height = 28, className = '' }: {
 export function Change({ value, className = '' }: { value: number | null; className?: string }) {
   if (value == null || !Number.isFinite(value)) return <span className={`text-slate-dim ${className}`}>—</span>;
   const cls = value > 0 ? 'text-up' : value < 0 ? 'text-down' : 'text-mist';
-  return <span className={`num ${cls} ${className}`}>{`${value > 0 ? '+' : ''}${(value * 100).toFixed(2)}%`}</span>;
+  // The direction has a shape as well as a colour, so it reads without colour vision.
+  return (
+    <span className={`num ${cls} ${className}`}>
+      {value !== 0 && <span aria-hidden className="mr-0.5 text-[0.7em]">{value > 0 ? '▲' : '▼'}</span>}
+      {`${value > 0 ? '+' : ''}${(value * 100).toFixed(2)}%`}
+    </span>
+  );
 }
 
 export function LimitNotice({ what, limit }: { what: string; limit: number }) {

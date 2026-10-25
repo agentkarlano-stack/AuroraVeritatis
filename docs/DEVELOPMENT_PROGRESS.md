@@ -11,7 +11,7 @@ _Last updated: 2026-10-23, runs 26–29: menus, intro default, Map Explorer, int
 | Production check | Smoke **29/29** on every preview through PR #22. Auth status: configured, schema applied, guest access denied, email confirmation required; plans/admin functions missing until the owner applies `20261023000000` |
 | Live account test | Previews 23 passed / 0 failed / 3 skipped (email links on previews go to the Site URL). Production run 2: 24/26; the remaining sync timing bug is fixed in PR #15 |
 | Owner-dependent | Apply `20261022000000` (deletion hardening) and `20261023000000` (profiles, admin, plans), then the admin bootstrap SQL; legal-notice decision; UCDP token (see Knowledge `OWNER-ACTIONS.md`) |
-| Next recommended action | After the owner applies the three 2026-10-24 migrations: production live-auth run and checks of devices, subscriptions and organisations. Development: multi-window workspaces (market directive priority 4), advanced visualisation and performance |
+| Next recommended action | Owner: apply the four pending migrations (sessions, subscriptions, organisations, AI gateway), switch AI on in /admin, press "Check OpenAI key and models". Dev: Integration Health dashboard, GNews in /api/news, ElevenLabs narration, Simulation Studio (see Knowledge `CONSOLIDATED-ROADMAP.md`) |
 | Previous next action | Production re-run of `live-auth.yml` after PR #15; then currency slice 2 (single-currency pages, IMF, monthly CPI), C mobile suite, D audit |
 
 ## Decision (2026-10-20, delegated by owner)
@@ -20,6 +20,9 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-25:** #57 Radar borders (antimeridian artefacts removed, casing, star field); #58 AI cost controls ($5/month,
+  50/80/100 % thresholds, 6-hour answer cache, in-flight sharing, admin model check `GET /api/ai/models`); de-AI
+  dashboard pass (no decorative glows, factual Headquarters title, ▲/▼ on changes) and AI status in the smoke test.
 ### Run 50 (2026-10-24) — News ingestion and coverage verification
 - **Sources:** GDELT DOC 2.0 (free, attribution, no key; throttles bursts, so 25 s timeout and 30-minute cache) plus the UN News RSS feed (official; also the fallback when GDELT does not respond, with a visible note). Shared logic in `shared/news.ts`:
   - source registry (publisher identity, type: official, wire, broadcaster, newspaper, magazine; unknown domains "unrated");

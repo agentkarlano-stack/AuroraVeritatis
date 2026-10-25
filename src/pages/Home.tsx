@@ -30,7 +30,6 @@ export default function Home() {
   return (
     <div>
       <section className="relative overflow-hidden border-b border-line">
-        <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,163,90,0.10),transparent_60%)]" />
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 md:py-24 lg:grid-cols-[1.2fr_1fr]">
           <div>
             <div className="eyebrow mb-4">{BRAND.subtitle}</div>

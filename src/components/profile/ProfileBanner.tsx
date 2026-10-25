@@ -22,9 +22,7 @@ export function ProfileBanner({ children, className = '' }: { children?: ReactNo
           loading="lazy"
           decoding="async"
         />
-      ) : (
-        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(201,163,90,0.12),transparent_60%)]" />
-      )}
+      ) : null}
       <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-ink-950/95 via-ink-950/55 to-ink-950/15" />
       <div className="relative flex min-h-36 flex-col justify-end p-4 sm:min-h-44 sm:p-5">{children}</div>
       {l && (

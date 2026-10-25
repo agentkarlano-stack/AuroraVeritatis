@@ -23,7 +23,7 @@ const FULL: WidgetId[] = ['briefing'];
 export default function Headquarters() {
   const { layout: rawLayout, hidden, moveWidget, toggleWidget, resetLayout } = usePrefs();
   const layout = normalizeLayout(rawLayout);
-  const { status, session } = useAuth();
+  const { status } = useAuth();
   const [editing, setEditing] = useState(false);
   const [dragging, setDragging] = useState<WidgetId | null>(null);
   const visible = layout.filter((w) => !hidden.includes(w));
@@ -35,7 +35,7 @@ export default function Headquarters() {
       {hasBackground && <ProfileBanner className="mb-6" />}
       <PageHeader
         eyebrow={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        title={status === 'signed-in' ? `Welcome back${session?.user.email ? `, ${session.user.email.split('@')[0]}` : ''}` : 'Headquarters'}
+        title="Headquarters"
         actions={
           <>
             {editing && (

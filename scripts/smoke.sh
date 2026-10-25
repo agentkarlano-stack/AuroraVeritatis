@@ -97,8 +97,12 @@ print("email sign-up " + signup + ", email confirmation " + confirm)' 2>/dev/nul
     code2=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{}' "$url/rest/v1/rpc/$fn" 2>/dev/null || echo 000)
     if [[ "$code2" == "401" || "$code2" == "403" ]]; then applied+="${m%%:*} "; else missing+="${m%%:*}($code2) "; fi
   done
+  # AI gateway migration (20261025): ai_begin exists when guests are refused (401/403), 404 when missing.
+  local ai_gate
+  ai_gate=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -H "apikey: $key" -H "Authorization: Bearer $key" -H 'Content-Type: application/json' -d '{"feature":"smoke","est_cents":0}' "$url/rest/v1/rpc/ai_begin" 2>/dev/null || echo 000)
   local later="2026-10-24 migrations applied: ${applied:-none}"
   [[ -n "$missing" ]] && later+="; not applied: ${missing% }"
+  if [[ "$ai_gate" == "401" || "$ai_gate" == "403" ]]; then later+="; AI gateway migration applied"; else later+="; AI gateway migration not applied ($ai_gate)"; fi
   echo "configured ($(printf '%s' "$url" | sed -E 's#https?://([^.]+)\..*#\1#')…); $schema; $plans; ${later% }; $settings"
 }
 auth="Auth: $(auth_status)"
@@ -113,6 +117,10 @@ news_raw=$(curl -sS -m 40 -w '\nHTTP %{http_code} in %{time_total}s' "$base/api/
 news=$(printf '%s' "$news_raw" | sed '$d' | python3 -c 'import json,sys; d=json.load(sys.stdin); print(str(d.get("articles", 0)) + " articles in " + str(len(d.get("stories", []))) + " stories" + (" (saved copy)" if d.get("stale") else "") + (" | " + d["partial"] if d.get("partial") else ""))' 2>/dev/null || echo "unavailable: $(printf '%s' "$news_raw" | tail -c 300 | tr '\n' ' ')")
 echo "News: $news"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=News (GDELT)::$news"
+# AI providers: whether each is configured (true/false only; never a key) and whether usage controls are installed.
+ai=$(curl -sS -m 20 "$base/api/ai/status" 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); p=d.get("providers", {}); print("OpenAI key " + ("set" if p.get("openai") else "NOT set") + "; Workers AI " + ("bound" if p.get("workers-ai") else "not bound") + "; order " + ",".join(d.get("order", [])))' 2>/dev/null || echo "unavailable")
+echo "AI: $ai"
+[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=AI status::$ai"
 echo "Integrations: ${integ:-unavailable}"
 echo "Integration check: ${check_out:-unavailable}"
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
