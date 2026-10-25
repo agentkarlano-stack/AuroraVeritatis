@@ -125,6 +125,11 @@ echo "AI: $ai"
 # Providers: status per integration from the cached connection test (statuses and secret names only).
 prov=$(printf '%s' "$check_out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("; ".join(p["id"] + " " + p["status"] + ("" if p["authenticated"] is None else (" auth ok" if p["authenticated"] else " auth FAILED")) + (" [" + ",".join(p["secrets"]) + "]" if p["secrets"] else "") + (" (" + p["reason"] + ")" if p.get("reason") else "") for p in d.get("providers", [])))' 2>/dev/null || echo "unavailable")
 echo "Providers: $prov"
+# OpenSky's identity server from this runner (no credentials sent): 400/401 = reachable, 5xx/000 = down or blocked.
+# Compared with the Worker's result it shows whether OpenSky is unreachable from Cloudflare only.
+sky=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X POST -d 'grant_type=client_credentials' https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token 2>/dev/null || true)
+echo "OpenSky identity server from the CI runner: HTTP ${sky:-000}"
+[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=OpenSky reachability::identity server from the CI runner answered HTTP ${sky:-000} (400/401 = reachable)"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Providers::$prov"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=AI status::$ai"
 echo "Integrations: ${integ:-unavailable}"
