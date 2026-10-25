@@ -35,7 +35,7 @@ export default function Headquarters() {
       {hasBackground && <ProfileBanner className="mb-6" />}
       <PageHeader
         eyebrow={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        title="Headquarters"
+        title="My dashboard"
         actions={
           <>
             {editing && (

@@ -10,7 +10,7 @@ import { NewsletterSignup } from './NewsletterSignup';
 import { Wordmark } from './Logo';
 
 const NAV = [
-  { to: '/hq', label: 'Headquarters' },
+  { to: '/', label: 'Headquarters' },
   { to: '/radar', label: 'Global Radar' },
   { to: '/geo', label: 'Map Explorer' },
   { to: '/countries', label: 'Countries' },
@@ -82,7 +82,7 @@ export function Layout() {
           </Link>
           <nav className="hidden items-center gap-1 xl:flex" aria-label="Main">
             {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} className={navCls}>
+              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={navCls}>
                 {n.label}
               </NavLink>
             ))}
@@ -107,7 +107,7 @@ export function Layout() {
         {open && (
           <nav className="border-t border-line bg-ink-950 px-4 py-3 xl:hidden" aria-label="Mobile">
             {[...NAV, { to: '/pricing', label: 'Plans' }, { to: status === 'signed-in' ? '/account' : '/signin', label: status === 'signed-in' ? 'Account' : 'Sign in' }].map((n) => (
-              <NavLink key={n.to} to={n.to} className={(s) => `block ${navCls(s)}`}>
+              <NavLink key={n.to} to={n.to} end={n.to === '/'} className={(s) => `block ${navCls(s)}`}>
                 {n.label}
               </NavLink>
             ))}
@@ -123,13 +123,13 @@ export function Layout() {
       <nav className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 border-t border-line bg-ink-950/95 backdrop-blur lg:hidden" aria-label="Quick">
         {(
           [
-            ['/hq', 'HQ', LayoutDashboard],
+            ['/', 'HQ', LayoutDashboard],
             ['/radar', 'Radar', Globe2],
             ['/countries', 'Countries', Landmark],
             ['/markets', 'Markets', BarChart3],
           ] as const
         ).map(([to, label, Icon]) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `flex flex-col items-center justify-center gap-1 text-[10px] ${isActive ? 'text-gold-soft' : 'text-mist'}`}>
+          <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `flex flex-col items-center justify-center gap-1 text-[10px] ${isActive ? 'text-gold-soft' : 'text-mist'}`}>
             <Icon className="h-5 w-5" aria-hidden />
             {label}
           </NavLink>
@@ -202,6 +202,11 @@ export function Layout() {
               <li>
                 <Link className="text-mist hover:text-platinum" to="/about">
                   About us
+                </Link>
+              </li>
+              <li>
+                <Link className="text-mist hover:text-platinum" to="/overview">
+                  Platform overview
                 </Link>
               </li>
               <li>

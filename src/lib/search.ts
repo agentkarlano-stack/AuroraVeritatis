@@ -10,7 +10,9 @@ export interface SearchItem {
 }
 
 export const PAGES: SearchItem[] = [
-  ['/hq', 'Headquarters', 'Personal dashboard'],
+  ['/', 'Headquarters', 'Map-first intelligence dashboard'],
+  ['/hq', 'My dashboard', 'Personal widgets: briefing, watchlist, alerts, notes'],
+  ['/overview', 'Platform overview', 'What Aurora Veritatis offers'],
   ['/radar', 'Global Radar', 'Event map, layers and timeline'],
   ['/countries', 'Country Dossiers', 'All countries'],
   ['/countries/compare', 'Compare countries over time', 'Animated indicator comparison'],

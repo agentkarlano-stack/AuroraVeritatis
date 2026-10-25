@@ -35,8 +35,11 @@ export interface GeoMapHandle {
   /** PNG of the current view with a source footer, or null when the browser refuses (e.g. tainted canvas). */
   exportPng: (footer: string) => Promise<Blob | null>;
   flyTo: (lon: number, lat: number, zoom: number) => void;
-  /** Fits the view to a country; false when the country is not on the map. */
-  focusCountry: (iso3: string) => boolean;
+  /**
+   * Fits the view to a country; false when the country is not on the map. `padding` (px) keeps it clear of panels
+   * drawn over the map, e.g. `{ right: 480 }` for a side dossier.
+   */
+  focusCountry: (iso3: string, padding?: number | { top: number; right: number; bottom: number; left: number }) => boolean;
 }
 
 /** Bounding box of a geometry as [west, south, east, north]; uses the largest part for countries spanning the antimeridian. */
@@ -571,7 +574,7 @@ export default function GeoMap({
         ...(reduced ? {} : { duration: 1400 }),
       });
     },
-    focusCountry: (iso3) => {
+    focusCountry: (iso3, padding = 40) => {
       const f = COUNTRIES.features.find((x) => x.properties.iso3 === iso3);
       const b = f ? bbox(f.geometry) : null;
       if (!b || !mapRef.current) return false;
@@ -583,7 +586,7 @@ export default function GeoMap({
           [b[0], b[1]],
           [b[2], b[3]],
         ],
-        { padding: 40, maxZoom: 6, duration: reduced ? 0 : 1200 },
+        { padding, maxZoom: 6, duration: reduced ? 0 : 1200 },
       );
       return true;
     },

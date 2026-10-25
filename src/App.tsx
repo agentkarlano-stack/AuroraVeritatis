@@ -10,6 +10,7 @@ import { AppLoading } from './components/ui';
 import Home from './pages/Home';
 
 const Headquarters = lazy(() => import('./pages/Headquarters'));
+const IntelHQ = lazy(() => import('./pages/IntelHQ'));
 const Radar = lazy(() => import('./pages/Radar'));
 const Countries = lazy(() => import('./pages/Countries'));
 const CountryDossier = lazy(() => import('./pages/CountryDossier'));
@@ -55,7 +56,8 @@ export function App() {
         <Routes>
           <Route path="share/card" element={<Lazy><ShareCard /></Lazy>} />
           <Route element={<Layout />}>
-            <Route index element={<Home />} />
+            <Route index element={<Lazy><IntelHQ /></Lazy>} />
+            <Route path="overview" element={<Home />} />
             <Route path="hq" element={<Lazy><Headquarters /></Lazy>} />
             <Route path="radar" element={<Lazy><Radar /></Lazy>} />
             <Route path="briefing" element={<Lazy><Briefing /></Lazy>} />

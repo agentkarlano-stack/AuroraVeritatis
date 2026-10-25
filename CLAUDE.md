@@ -98,6 +98,12 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   returns with exact arithmetic mean/volatility, monthly paths, common random numbers, log-scale fan.
 - Owner messages: verbatim copies of directives are in the Knowledge repo `OWNER-MESSAGES/`; the plan of record is
   `CONSOLIDATED-ROADMAP.md` there. Earlier messages can be recovered from the session event log (list_events, kinds user).
+- Intelligence Headquarters (`pages/IntelHQ.tsx`, route `/`; the former landing page is `/overview`, the widget
+  dashboard `/hq` is "My dashboard"): left feed (USGS/GDACS signals + GDELT/UN News stories, search), centre `GeoMap` globe,
+  right panel = situation/selected event or the docked `components/hq/CountryPanel.tsx` (resizable, `?k=ISO3` deep link,
+  `focusCountry` with panel padding, Esc/close restores the previous camera). Auto tour logic in `lib/hqTour.ts`: real
+  events only, pauses on interaction, resumes after 60 s idle unless paused explicitly; prefs in localStorage `av-hq`.
+  Requirements ledger with AV-* IDs: Knowledge `REQUIREMENTS-LEDGER.md`.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
