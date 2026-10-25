@@ -20,6 +20,9 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-25 (cont.):** #60 Integration Health (verified: OpenAI, ElevenLabs, GNews, AISStream, FMP authenticate;
+  OpenSky secret missing on the Worker), #61 Volatility drag simulator, #62 GNews (licence-gated), #63 ElevenLabs
+  narration + CSP `media-src` fix. Next: Efficient Frontier (Ledoit-Wolf), Triple Barrier, FMP adapter, briefing narration.
 - **2026-10-25:** #57 Radar borders (antimeridian artefacts removed, casing, star field); #58 AI cost controls ($5/month,
   50/80/100 % thresholds, 6-hour answer cache, in-flight sharing, admin model check `GET /api/ai/models`); de-AI
   dashboard pass (no decorative glows, factual Headquarters title, ▲/▼ on changes) and AI status in the smoke test.
