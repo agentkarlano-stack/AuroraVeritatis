@@ -63,6 +63,7 @@ const LEGAL: Record<string, string> = {
   ai: 'AI Transparency',
   subscriptions: 'Subscription Terms & Refund Policy',
   fairuse: 'Fair Use Policy',
+  sources: 'Data Sources & Licences',
   imprint: 'Legal Notice',
 };
 

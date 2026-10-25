@@ -135,7 +135,7 @@ export default function Markets() {
           <ProvenanceBadge kind="confirmed" />
           {symbol.startsWith('CMD:') ? (
             <span>
-              Official World Bank monthly average prices (CC BY 4.0): one value per month, not live or spot prices.{' '}
+              Official World Bank monthly average prices: one value per month, not live or spot prices.{' '}
               <Link className="text-gold hover:underline" to="/markets/commodities">
                 Commodity &amp; Energy Monitor
               </Link>

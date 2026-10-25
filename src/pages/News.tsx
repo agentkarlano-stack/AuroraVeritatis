@@ -97,7 +97,7 @@ export default function News() {
         {res.status === 'ready' && (
           <>
             <p className="text-xs text-slate-dim">
-              {res.data.articles} articles in {res.data.stories.length} stories · {res.data.source.name} · {res.data.source.license}
+              {res.data.articles} articles in {res.data.stories.length} stories · {res.data.source.name}
               {res.data.stale && <span className="ml-1 text-warn">· saved copy: {res.data.stale.reason}</span>}
               {res.data.partial && <span className="ml-1 text-warn">· {res.data.partial}</span>}
             </p>

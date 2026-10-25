@@ -171,7 +171,7 @@ export function EventChain() {
                     })}
                   </tbody>
                 </table>
-                <p className="mt-1 text-[11px] text-slate-dim">World Bank World Development Indicators (CC BY 4.0), most recent year per indicator.</p>
+                <p className="mt-1 text-[11px] text-slate-dim">World Bank World Development Indicators, most recent year per indicator.</p>
               </div>
             )}
           </section>

@@ -182,7 +182,7 @@ export default function Currency() {
         </Panel>
         <Panel title="Sources and downloads">
           <p className="flex items-center gap-2 text-sm text-mist">
-            <ProvenanceBadge kind="confirmed" /> World Bank WDI · CC BY 4.0
+            <ProvenanceBadge kind="confirmed" /> World Bank WDI
           </p>
           <ul className="mt-2 space-y-1 text-xs text-slate-dim">
             {Object.values(CURRENCY_INDICATORS).map((d) => (

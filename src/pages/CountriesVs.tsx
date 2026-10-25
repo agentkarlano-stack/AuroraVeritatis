@@ -87,7 +87,7 @@ export default function CountriesVs() {
             </div>
           )}
           <span className="ml-auto flex items-center gap-1.5 text-xs text-slate-dim">
-            <ProvenanceBadge kind="confirmed" /> World Bank WDI · CC BY 4.0
+            <ProvenanceBadge kind="confirmed" /> World Bank WDI
           </span>
         </div>
       </Panel>

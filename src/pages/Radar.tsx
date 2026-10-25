@@ -518,7 +518,6 @@ function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => vo
               {e.source.name}
             </Link>
           )}
-          <span className="block text-slate-dim">{e.source.license}</span>
         </dd>
       </dl>
       <AddToBrain

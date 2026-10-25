@@ -383,7 +383,6 @@ function TourCard(props: {
                     {s.name}
                   </Link>
                 )}
-                <span className="block text-slate-dim">{s.license}</span>
               </li>
             ))}
           </ul>

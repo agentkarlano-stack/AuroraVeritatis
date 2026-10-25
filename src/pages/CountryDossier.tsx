@@ -79,7 +79,7 @@ export default function CountryDossier() {
         <>
           <div className="mb-4 flex items-center justify-between text-xs text-slate-dim">
             <span className="flex items-center gap-2">
-              <ProvenanceBadge kind="confirmed" /> {profile.data.source.name} · {profile.data.source.license}
+              <ProvenanceBadge kind="confirmed" /> {profile.data.source.name}
             </span>
             <span className="flex gap-2">
               <button className="hover:text-platinum" onClick={() => setOpen(new Set(SECTIONS.map((s) => s.key)))}>
