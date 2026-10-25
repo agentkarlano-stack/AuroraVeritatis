@@ -79,17 +79,29 @@ async function gdelt(query: string, timespan: Timespan): Promise<NewsArticle[]> 
     .map((a) => ({ url: a.url, title: a.title.trim().slice(0, 300), domain: (a.domain || new URL(a.url).hostname).toLowerCase().replace(/^www\./, ''), seen: gdeltTime(a.seendate), language: a.language, sourceCountry: a.sourcecountry }));
 }
 
-export async function newsSearch(query: string, timespan: Timespan): Promise<NewsResult> {
-  const [g, un] = await Promise.allSettled([gdelt(query, timespan), fetchText(UN_NEWS_RSS, 10_000).then(parseUnNews)]);
-  if (g.status === 'rejected' && un.status === 'rejected') throw new Error(`GDELT: ${(g.reason as Error).message}; UN News: ${(un.reason as Error).message}`);
-  const articles = [...(g.status === 'fulfilled' ? g.value : []), ...(un.status === 'fulfilled' ? filterUn(un.value, query, timespan) : [])];
+/**
+ * Merges GDELT, UN News and (when licensed for display) GNews. Duplicate URLs are kept once; story grouping and
+ * statuses are the same for every source.
+ */
+export async function newsSearch(query: string, timespan: Timespan, extra?: { name: string; search: () => Promise<NewsArticle[]> }): Promise<NewsResult> {
+  const [g, un, x] = await Promise.allSettled([gdelt(query, timespan), fetchText(UN_NEWS_RSS, 10_000).then(parseUnNews), extra ? extra.search() : Promise.resolve([])]);
+  if (g.status === 'rejected' && un.status === 'rejected' && (!extra || x.status === 'rejected')) throw new Error(`GDELT: ${(g.reason as Error).message}; UN News: ${(un.reason as Error).message}`);
+  const seen = new Set<string>();
+  const articles = [...(g.status === 'fulfilled' ? g.value : []), ...(un.status === 'fulfilled' ? filterUn(un.value, query, timespan) : []), ...(x.status === 'fulfilled' ? x.value : [])].filter((a) =>
+    seen.has(a.url) ? false : (seen.add(a.url), true),
+  );
+  const notes = [g.status === 'rejected' ? 'GDELT did not respond' : '', extra && x.status === 'rejected' ? `${extra.name} did not respond` : ''].filter(Boolean);
   return {
     query,
     timespan,
     articles: articles.length,
     stories: groupStories(articles).slice(0, 40),
-    source: { name: 'GDELT Project (DOC 2.0 API) and UN News', url: 'https://www.gdeltproject.org/', license: 'Free use with attribution; headlines and links only' },
+    source: {
+      name: `GDELT Project (DOC 2.0 API), UN News${extra ? ` and ${extra.name}` : ''}`,
+      url: 'https://www.gdeltproject.org/',
+      license: 'Free use with attribution; headlines and links only',
+    },
     fetchedAt: new Date().toISOString(),
-    ...(g.status === 'rejected' ? { partial: 'GDELT did not respond; showing UN News only.' } : {}),
+    ...(notes.length ? { partial: `${notes.join('; ')}; showing the other sources.` } : {}),
   };
 }

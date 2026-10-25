@@ -68,7 +68,7 @@ export default function News() {
         ))}
       </div>
 
-      <Panel title="Search" eyebrow="GDELT">
+      <Panel title="Search" eyebrow="GDELT · UN News · GNews when licensed">
         <form
           className="flex flex-wrap gap-2"
           onSubmit={(e) => {

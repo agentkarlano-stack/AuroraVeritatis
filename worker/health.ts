@@ -66,6 +66,8 @@ interface Probe {
   /** Display licensed for users (only then can the status reach LICENSED/LIVE). */
   licensed: boolean;
   live?: boolean;
+  /** Worker variable that records the owner's licence confirmation; when set, a passing test means LIVE. */
+  licensedVar?: [string, string];
   pendingAction?: string;
   blockedAction?: string;
   test?: (env: Env, f: typeof fetch) => Promise<Record<string, string | number | boolean | null>>;
@@ -108,7 +110,8 @@ export const PROBES: Probe[] = [
     pattern: PATTERNS.gnews,
     licence: 'Headlines and links with attribution; commercial use depends on the GNews plan',
     licensed: false,
-    blockedAction: 'Confirm the GNews plan allows commercial display (free plan: development only)',
+    licensedVar: ['GNEWS_DISPLAY', 'licensed'],
+    blockedAction: 'Confirm the GNews plan allows commercial display (free plan: development only), then set the Worker variable GNEWS_DISPLAY=licensed',
     test: async (env, f) => {
       const u = `https://gnews.io/api/v4/top-headlines?max=1&lang=en&apikey=${encodeURIComponent(first(env, PATTERNS.gnews)!)}`;
       const res = await ok(await f(u, { signal: T(10000) }), 'GNews');
@@ -266,8 +269,9 @@ export async function integrationHealth(env: Env, f: typeof fetch = fetch, now =
       if (!p.test) return { ...base, status: 'CONNECTED', authenticated: null, facts: {}, ownerAction: null };
       try {
         const facts = await p.test(env, f);
-        const status: HealthStatus = !p.licensed ? 'BLOCKED' : p.live ? 'LIVE' : 'TESTED';
-        return { ...base, status, authenticated: true, facts, ownerAction: p.licensed ? null : (p.blockedAction ?? null) };
+        const licensedByOwner = p.licensedVar ? env[p.licensedVar[0]] === p.licensedVar[1] : false;
+        const status: HealthStatus = licensedByOwner ? 'LIVE' : !p.licensed ? 'BLOCKED' : p.live ? 'LIVE' : 'TESTED';
+        return { ...base, status, authenticated: true, facts, ownerAction: p.licensed || licensedByOwner ? null : (p.blockedAction ?? null) };
       } catch (e) {
         return { ...base, status: 'BLOCKED', authenticated: false, facts: {}, ownerAction: 'Check the key and the plan in the provider account', error: scrub((e as Error).message, env) };
       }
