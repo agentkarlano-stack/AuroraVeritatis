@@ -199,3 +199,17 @@
     radial-gradient(ellipse at center, rgba(201, 163, 90, 0.05), transparent 70%);
   background-size: 340px 340px, 280px 280px, 420px 420px, 300px 300px, 360px 360px, 520px 520px, 260px 260px, 380px 380px, 100% 100%;
 }
+
+/* Country flag in the dossier header: a slow, slight wave (static with reduced motion). */
+.av-flag {
+  display: inline-block;
+  transform-origin: 10% 50%;
+  animation: av-flag-wave 6s ease-in-out infinite;
+}
+@keyframes av-flag-wave {
+  0%, 100% { transform: perspective(200px) rotateY(0deg) skewY(0deg); }
+  50% { transform: perspective(200px) rotateY(-10deg) skewY(-1.5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .av-flag { animation: none; }
+}

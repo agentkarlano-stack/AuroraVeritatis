@@ -20,6 +20,9 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-25 (consolidated product directive, increment 1):** map-first Intelligence Headquarters at `/` (feed, globe,
+  situation/event panel, integrated country dossier with deep link and camera restore, auto tour with idle resume,
+  responsive tabs below 1024 px); old landing page at `/overview`. Owner role + last-owner protection migration (#70).
 - **2026-10-25 (owner confirmation cycle):** live test on a real account (PR #66, 31 passed / 0 failed): the four
   migrations work (M1), new admin functions refused (M2), one real EVE request via OpenAI gpt-4o-mini, 204 + 22 tokens
   ≈ $0.000044, usage recorded (AI1). OpenSky token endpoint answers 522 from Cloudflare (unreachable from the Worker).

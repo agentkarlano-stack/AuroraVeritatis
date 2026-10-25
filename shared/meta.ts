@@ -22,7 +22,8 @@ export interface PageMeta {
 
 const STATIC: Record<string, { title: string; description: string; noindex?: boolean }> = {
   '/': { title: SITE.defaultTitle, description: SITE.defaultDescription },
-  '/hq': { title: 'Headquarters', description: 'Your personal dashboard: a daily briefing, events, the World Tension Index, markets, a watchlist, alerts and saved research.' },
+  '/hq': { title: 'My dashboard', description: 'Your personal dashboard: a daily briefing, events, the World Tension Index, markets, a watchlist, alerts and saved research.' },
+  '/overview': { title: 'Platform overview', description: 'What Aurora Veritatis offers: global events, country intelligence, markets, quantitative research and a personal research graph.' },
   '/radar': { title: 'Global Radar', description: 'A world map of earthquakes, disaster alerts and simulated geopolitical scenarios, with filters, a timeline and source labels.' },
   '/countries': { title: 'Country Dossiers', description: 'Economic, demographic, infrastructure and defence indicators for every country, sourced from World Bank Open Data.' },
   '/countries/compare': { title: 'Compare countries over time', description: 'Animated bubble chart of World Bank indicators for every economy since 1990.' },
