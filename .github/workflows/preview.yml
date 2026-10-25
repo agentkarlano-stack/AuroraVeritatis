@@ -78,6 +78,12 @@ jobs:
       - name: Check NASA GIBS map layers (informational)
         if: env.HAS_TOKEN == 'true'
         run: node scripts/check-gibs.mjs
+      - name: Check OpenSky credentials from the runner (informational)
+        if: env.HAS_TOKEN == 'true'
+        run: bash scripts/opensky-check.sh
+        env:
+          OPENSKY_CLIENT_ID: ${{ secrets.OPENSKY_CLIENT_ID }}
+          OPENSKY_CLIENT_SECRET: ${{ secrets.OPENSKY_CLIENT_SECRET }}
       - name: Remind to run the live account test
         if: env.HAS_TOKEN == 'true' && steps.changes.outputs.auth == 'true' && !contains(github.event.pull_request.labels.*.name, 'live-auth')
         run: echo "::notice title=Live account test::This PR touches accounts. Add the 'live-auth' label to run the real-email test (3 emails) on the preview."
