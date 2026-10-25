@@ -207,7 +207,7 @@ const ROWS: [string, (r: DragResult) => string][] = [
   ['Median realised CAGR (simulated)', (r) => (r.sim.medianCagr == null ? 'n/a with contributions' : fmtPct(r.sim.medianCagr, 2))],
   ['Mean final wealth', (r) => fmtNumber(r.sim.meanTerminal, 0)],
   ['Median final wealth', (r) => fmtNumber(r.sim.medianTerminal, 0)],
-  ['5th – 95th percentile', (r) => `${fmtNumber(r.sim.p05, 0)} – ${fmtNumber(r.sim.p95, 0)}`],
+  ['5th to 95th percentile', (r) => `${fmtNumber(r.sim.p05, 0)} – ${fmtNumber(r.sim.p95, 0)}`],
   ['Chance of ending below the amount invested', (r) => fmtPct(r.sim.probBelowInvested, 1)],
   ['Chance of reaching the target', (r) => (r.sim.probTarget == null ? 'no target' : fmtPct(r.sim.probTarget, 1))],
   ['Median worst drawdown', (r) => fmtPct(-r.sim.medianMaxDrawdown, 1)],
