@@ -3,9 +3,14 @@ export interface LegalDoc {
   sections: { heading: string; body: string }[];
 }
 
-/** Owner decision 2026-10-24 (option B): operated by an individual. The postal address is still to be provided. */
+/**
+ * Owner decisions: operated by a natural person (2026-10-24, option B); residence Hungary and contact address
+ * confirmed 2026-10-25. No company, registration number or VAT number exists, so none is stated.
+ */
 export const OPERATOR_NAME = 'Tanner Karl';
-const OPERATOR = `${OPERATOR_NAME}, a private individual (Aurora Veritatis is not a registered company or association)`;
+export const OPERATOR_ADDRESS = 'Bartók Béla út 8., Dunaújváros, Hungary';
+export const OPERATOR_EMAIL = 'auroraveritatissup@gmail.com';
+const OPERATOR = `${OPERATOR_NAME}, a private individual resident in Hungary (Aurora Veritatis is not a registered company or association)`;
 
 /**
  * DRAFT legal texts. They are placeholders structured for review by a qualified lawyer
@@ -19,17 +24,20 @@ export const LEGAL: Record<string, LegalDoc> = {
       { heading: 'Nature of the service', body: 'Aurora Veritatis provides research and educational tools. Content may be incomplete, delayed, estimated or simulated, and is labelled accordingly.' },
       { heading: 'Acceptable use', body: 'You may not scrape the service at scale, attempt to bypass access controls or rate limits, or use the service for unlawful purposes.' },
       { heading: 'No investment advice', body: 'Nothing on the platform constitutes investment, legal, tax or other professional advice. See the Risk Disclaimer.' },
-      { heading: 'Liability', body: 'To be drafted after legal review under the law that applies to the operator, which depends on where the operator lives.' },
+      { heading: 'Liability', body: 'The service is provided free of charge during early access. The operator is liable without limitation for intent and gross negligence and for harm to life, body or health, as mandatory law requires; otherwise, to the extent permitted by law, the operator is not liable for losses arising from reliance on content that is labelled as estimated, simulated or AI-generated.' },
+      { heading: 'Governing law', body: 'Hungarian law applies, without depriving consumers of the protection of the mandatory rules of the country where they live. Consumers may also bring proceedings in the courts of their country of residence.' },
     ],
   },
   privacy: {
     title: 'Privacy Policy',
     sections: [
-      { heading: 'Controller', body: `${OPERATOR}. Contact: auroraveritatissup@gmail.com.` },
+      { heading: 'Controller', body: `${OPERATOR}. Address: ${OPERATOR_ADDRESS}. Email: ${OPERATOR_EMAIL}. No data protection officer is appointed; the controller handles requests directly.` },
       { heading: 'Data we process', body: 'As a guest, your preferences are stored only in your browser (localStorage), and your Personal Intelligence Brain graphs only in your browser (IndexedDB). We do not receive them. If you create an account, we process your email address and the preferences you choose to sync, stored with Supabase. Server logs are processed by Cloudflare.' },
       { heading: 'Legal bases', body: 'Contract performance (Art. 6(1)(b) GDPR) for accounts; legitimate interests (Art. 6(1)(f)) for security logging; consent (Art. 6(1)(a)) for optional analytics.' },
-      { heading: 'Processors', body: 'Cloudflare (hosting), Supabase (database and authentication), Resend (transactional email), PostHog EU (analytics, only with consent). Further processors will be listed before launch.' },
-      { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection, and the right to complain to a data protection supervisory authority, in particular in the EU member state where you live or work. Local data can be exported or deleted from the Account page. Signed-in users can delete their account and all synced data there too.' },
+      { heading: 'AI assistants and voice', body: 'When you ask EVE or KNOX a question, your question, the sources Aurora attaches and any notes you choose to share are sent to the AI provider to generate the answer (OpenAI, or Cloudflare Workers AI as a fallback). When you choose the natural voice, the answer text is sent to ElevenLabs to produce audio. Aurora records the number of requests, tokens and estimated cost per account to enforce limits; it does not keep the question text in its database. OpenAI and ElevenLabs may process data in the United States under the EU Standard Contractual Clauses or the EU-US Data Privacy Framework.' },
+      { heading: 'Processors', body: 'Cloudflare (hosting, Workers AI), Supabase (database and authentication), Resend (transactional email), Brevo (newsletter, only after you confirm your subscription), OpenAI (AI answers), ElevenLabs (natural voice, only when you choose it), PostHog EU (analytics, only with consent).' },
+      { heading: 'Retention', body: 'Account data is kept until you delete your account. AI usage records (counts, tokens, cost, no question text) are kept to enforce limits and control costs; when you delete your account they are no longer linked to you. Server logs are kept by Cloudflare for the periods it publishes.' },
+      { heading: 'Your rights', body: 'Access, rectification, erasure, restriction, portability and objection. Local data can be exported or deleted from the Account page; signed-in users can delete their account and all synced data there too. You can complain to the Hungarian data protection authority, Nemzeti Adatvédelmi és Információszabadság Hatóság (NAIH, naih.hu), or to the supervisory authority of the EU member state where you live or work, and you can go to court.' },
     ],
   },
   cookies: {
@@ -50,9 +58,10 @@ export const LEGAL: Record<string, LegalDoc> = {
   ai: {
     title: 'AI Transparency',
     sections: [
-      { heading: 'Current state', body: 'The preview does not yet use generative AI to produce content shown to users.' },
-      { heading: 'Planned assistants', body: 'EVE and KNOX will be AI assistants. Their outputs will be labelled as AI-generated, cite sources for factual claims and may contain errors. Voice output will use computer-generated speech.' },
-      { heading: 'EU AI Act', body: 'Transparency obligations for AI-generated content and chatbots will be assessed and implemented before launch.' },
+      { heading: 'Where AI is used', body: 'EVE and KNOX are AI assistants on the Assistant page, available to signed-in users within a daily allowance. Every answer is labelled as AI-generated, lists the sources it was given and keeps only citations to those sources. Answers may contain errors; check the sources before relying on them.' },
+      { heading: 'Models', body: 'Answers come from OpenAI models, with Cloudflare Workers AI (open-weight models) as a fallback; the answer shows which provider and model produced it. Calculations, simulations and charts are computed by Aurora code, not by AI.' },
+      { heading: 'Voice', body: 'Read-aloud uses either your browser’s speech synthesis or, if you choose it, an ElevenLabs computer-generated voice. These voices are generated and are not recordings of a real person.' },
+      { heading: 'EU AI Act', body: 'You are told when you interact with an AI system and AI-generated text and audio are labelled, in line with the transparency obligations of the EU AI Act.' },
     ],
   },
   subscriptions: {
@@ -82,10 +91,11 @@ export const LEGAL: Record<string, LegalDoc> = {
   imprint: {
     title: 'Legal Notice',
     sections: [
-      { heading: 'Operator and person responsible for content', body: `${OPERATOR_NAME} (private individual). Aurora Veritatis is the name of this website and project; it is not a registered company or association.` },
-      { heading: 'Contact', body: 'Email: auroraveritatissup@gmail.com.' },
-      { heading: 'Postal address', body: 'To be added. A full postal address is legally required for the operator of a website like this one; it will be published here before the site is promoted publicly or offers paid services.' },
-      { heading: 'Applicable rules', body: 'Which disclosure rules apply (for example the national laws implementing the EU E-Commerce Directive, and media law) depends on the country where the operator lives. This notice will be completed and reviewed accordingly.' },
+      { heading: 'Operator and person responsible for content', body: `${OPERATOR_NAME}, private individual. Aurora Veritatis is the name of this website and project; it is not a registered company or association and has no company registration or VAT number.` },
+      { heading: 'Address', body: OPERATOR_ADDRESS },
+      { heading: 'Contact', body: `Email: ${OPERATOR_EMAIL}. Questions are answered in English or Hungarian.` },
+      { heading: 'Hosting', body: 'Cloudflare, Inc., 101 Townsend St, San Francisco, CA 94107, USA (website and API); Supabase, Inc. (database and sign-in).' },
+      { heading: 'Applicable rules', body: 'Information provided under Section 4 of Hungarian Act CVIII of 2001 on electronic commerce services, which implements the EU E-Commerce Directive.' },
     ],
   },
 };
