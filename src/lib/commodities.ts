@@ -4,6 +4,8 @@
  * nothing is a forecast or a live price.
  */
 
+import { simpleReturns } from './risk';
+
 export interface CommoditySeries {
   id: string;
   name: string;
@@ -133,3 +135,13 @@ export function toCsv(data: CommodityData, ids: string[]): string {
 
 /** CFTC Commitments of Traders markets related to a commodity (Positioning page codes). */
 export const COT_LINKS: Record<string, string> = { wti: '067651', brent: '067651', 'gas-us': '023651', gold: '088691', silver: '084691', copper: '085692', wheat: '001602', maize: '002602', soybeans: '005602' };
+
+/** Monthly simple returns of the chosen series over the months where every series has a value, most recent last. */
+export function alignCommodities(data: CommodityData, ids: string[]): { series: number[][]; labels: string[] } {
+  const raw = ids.map((id) => simpleReturns(data.series.find((s) => s.id === id)?.values ?? []));
+  const n = Math.min(...raw.map((r) => r.length));
+  const keep: number[] = [];
+  for (let t = 0; t < n; t++) if (raw.every((r) => r[t] != null)) keep.push(t);
+  // Return t runs from month t to month t + 1.
+  return { series: raw.map((r) => keep.map((t) => r[t]!)), labels: keep.map((t) => monthAt(data.start, t + 1)) };
+}

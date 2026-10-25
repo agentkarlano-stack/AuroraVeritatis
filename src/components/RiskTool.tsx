@@ -2,7 +2,7 @@ import { Download, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { INSTRUMENTS } from '../data/instruments';
 import { useApi } from '../lib/api';
-import { COMMODITY_DATA_PATH, COMMODITY_OPTIONS, monthAt, type CommodityData } from '../lib/commodities';
+import { alignCommodities, COMMODITY_DATA_PATH, COMMODITY_OPTIONS, type CommodityData } from '../lib/commodities';
 import { demoBars } from '../lib/demoMarket';
 import { fmtNumber, fmtPct } from '../lib/format';
 import {
@@ -75,15 +75,6 @@ interface Aligned {
   labels: string[];
 }
 
-/** Return series of the holdings over the periods where every holding has a value, most recent last. */
-function alignCommodities(data: CommodityData, ids: string[]): Aligned {
-  const raw = ids.map((id) => simpleReturns(data.series.find((s) => s.id === id)?.values ?? []));
-  const n = Math.min(...raw.map((r) => r.length));
-  const keep: number[] = [];
-  for (let t = 0; t < n; t++) if (raw.every((r) => r[t] != null)) keep.push(t);
-  // Return t runs from month t to month t + 1.
-  return { series: raw.map((r) => keep.map((t) => r[t]!)), labels: keep.map((t) => monthAt(data.start, t + 1)) };
-}
 
 function alignSimulated(ids: string[]): Aligned {
   const bars = ids.map((id) => demoBars(id));
