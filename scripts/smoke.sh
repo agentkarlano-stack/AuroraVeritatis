@@ -119,6 +119,8 @@ echo "News: $news"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=News (GDELT)::$news"
 # AI providers: whether each is configured (true/false only; never a key) and whether usage controls are installed.
 ai=$(curl -sS -m 20 "$base/api/ai/status" 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); p=d.get("providers", {}); print("OpenAI key " + ("set" if p.get("openai") else "NOT set") + "; Workers AI " + ("bound" if p.get("workers-ai") else "not bound") + "; order " + ",".join(d.get("order", [])))' 2>/dev/null || echo "unavailable")
+voice=$(curl -sS -m 20 "$base/api/voice/status" 2>/dev/null | python3 -c 'import json,sys; print("on" if json.load(sys.stdin).get("natural") else "off")' 2>/dev/null || echo "unavailable")
+ai="$ai; natural voice $voice"
 echo "AI: $ai"
 # Providers: status per integration from the cached connection test (statuses and secret names only).
 prov=$(printf '%s' "$check_out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("; ".join(p["id"] + " " + p["status"] + ("" if p["authenticated"] is None else (" auth ok" if p["authenticated"] else " auth FAILED")) + (" [" + ",".join(p["secrets"]) + "]" if p["secrets"] else "") for p in d.get("providers", [])))' 2>/dev/null || echo "unavailable")
