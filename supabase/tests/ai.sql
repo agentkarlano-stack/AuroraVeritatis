@@ -15,10 +15,13 @@ do $$ begin perform public.admin_set_ai_settings(true, 999999, '{}'); raise exce
 do $$ begin perform public.admin_ai_overview(); raise exception 'FAIL: user read the AI overview'; exception when insufficient_privilege then null; end $$;
 do $$ begin perform 1 from aurora_private.ai_requests; raise exception 'FAIL: user read ai_requests'; exception when insufficient_privilege then null; end $$;
 
--- The administrator switches AI on: Free = 2 requests a day, global budget 2 cents (amounts are euro cents).
+-- The administrator switches AI on: Free = 2 requests a day, global budget 2 cents (amounts are US dollar cents).
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 set request.jwt.claims = '{"sub": "00000000-0000-0000-0000-00000000000a"}';
-do $$ begin
+do $$ declare o jsonb := public.admin_ai_overview(); begin
+  if (o->'settings'->>'monthly_budget_cents')::int <> 500 or (o->'settings'->>'warn_percent')::int <> 50 or (o->'settings'->>'restrict_percent')::int <> 80 then
+    raise exception 'FAIL: default cost policy %', o->'settings';
+  end if;
   begin perform public.admin_set_ai_settings(true, 100, '{"free": 2, "premium": 3}'); raise exception 'FAIL: incomplete limits accepted'; exception when invalid_parameter_value then null; end;
   perform public.admin_set_ai_settings(true, 2, '{"free": 2, "premium": 30, "prime": 100, "intelligence": 300}');
 end $$;
@@ -54,10 +57,34 @@ do $$ declare r jsonb := public.ai_begin('research', 0.95); begin
   if (r->>'allowed')::boolean then raise exception 'FAIL: global budget not enforced %', r; end if;
 end $$;
 
--- Overview for the administrator.
+-- 80 %: with a 3 cent budget and 2.43 cents spent (81 %), Free accounts are paused, administrators continue,
+-- and each threshold crossed is written to the audit log once.
+reset role;
+update aurora_private.ai_settings set monthly_budget_cents = 3;
+update aurora_private.ai_requests set cost_cents = cost_cents + 0.48 where status = 'reserved';
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c2';
+set request.jwt.claims = '{"sub": "00000000-0000-0000-0000-0000000000c2"}';
+do $$ declare r jsonb := public.ai_begin('research', 0.1); begin
+  if (r->>'allowed')::boolean or r->>'level' <> 'restricted' then raise exception 'FAIL: free account not paused at 80 %%: %', r; end if;
+end $$;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
 set request.jwt.claims = '{"sub": "00000000-0000-0000-0000-00000000000a"}';
+do $$ declare r jsonb := public.ai_begin('research', 0.1); f jsonb; begin
+  if not (r->>'allowed')::boolean then raise exception 'FAIL: administrator refused at 80 %%: %', r; end if;
+  f := public.ai_finish((r->>'request_id')::uuid, true, 'openai', 'm', 1, 1, 0.1);
+  if f->>'level' <> 'restricted' then raise exception 'FAIL: level after finish %', f; end if;
+  perform public.ai_finish((public.ai_begin('research', 0.01)->>'request_id')::uuid, true, 'openai', 'm', 1, 1, 0.01);
+end $$;
+reset role;
+do $$ begin
+  if (select count(*) from aurora_private.admin_audit where action = 'ai.budget.restricted') <> 1 then raise exception 'FAIL: 80 %% notice not recorded exactly once'; end if;
+end $$;
+set role authenticated;
+
+-- Overview for the administrator.
 do $$ declare o jsonb := public.admin_ai_overview(); begin
+  if o->>'level' <> 'restricted' then raise exception 'FAIL: overview level %', o->>'level'; end if;
   if (o->>'month_spend_cents')::numeric < 1.0 or (o->>'month_failed')::int <> 1 then raise exception 'FAIL: overview %', o; end if;
 end $$;
 reset role;

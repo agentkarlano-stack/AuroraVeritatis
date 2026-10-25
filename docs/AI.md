@@ -32,7 +32,20 @@ Provider-independent AI research assistants (owner directive "AI activation", 20
 
 **Database update `supabase/migrations/20261025000000_ai_gateway.sql`** (owner applies after the three 2026-10-24 updates):
 - AI is **off** until an administrator switches it on in `/admin` → AI usage and spending.
-- Default global budget: €30 a month.
+- Default global budget: **$5 a month** (owner policy 2026-10-25; amounts in US dollar cents because OpenAI bills in
+  dollars; organisation budgets stay in euro cents, converted at 0.92).
+- Thresholds: **50 %** warning (audit log `ai.budget.warn`, Worker log); **80 %** administrator notice (audit log
+  `ai.budget.restricted`, banner in `/admin` → AI) and restriction of non-essential AI (Free accounts paused, free Workers
+  AI tried first, answers capped at 300 tokens); **100 %** stop: no new request starts until an administrator raises the
+  budget. No automatic purchases, top-ups or limit increases anywhere in the code.
+- Cost per request (gpt-4o-mini at $0.15 / $0.60 per million tokens): a typical grounded question is about 1,500 input
+  and up to 500 output tokens, so at most about **$0.0005 (0.05 cents)**; $5 covers roughly 10,000 such answers.
+- Avoided calls: answers are cached at the edge for 6 hours (hash of assistant, normalised question and source texts;
+  never when the user's own notes are included); identical questions arriving together share one provider call;
+  calculations stay in code (the model only explains).
+- Model check: `GET /api/ai/models` (administrators only) reads OpenAI's free model list to confirm the key is accepted
+  and the configured model is offered; it uses no tokens and never returns the key. Named future models (for example
+  "GPT-6 Luna", "GPT-6.1 Sol") are only routed to once this list shows them and the price table includes them.
 - Default daily requests: Free 5, Premium 30, Prime 100, Intelligence 300. Usage is never unlimited.
 - `/admin` also shows spending by provider and the top users, and saves settings with an audit entry.
 

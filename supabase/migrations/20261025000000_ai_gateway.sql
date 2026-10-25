@@ -8,20 +8,29 @@
 --   lower than the reservation, so a user cannot lower their own usage by calling the functions directly; calling
 --   ai_begin() directly only uses up the caller's own allowance.
 -- - No service-role key is needed in the Worker. AI stays switched off until an administrator enables it.
+-- - Cost policy (owner, 2026-10-25): all amounts are US dollar cents (OpenAI bills in dollars). Default global budget
+--   $5 a month. At 50 % a warning is recorded, at 80 % the administrator is notified (audit log, admin panel) and
+--   non-essential AI is restricted (Free plan paused, free Workers AI tried first, shorter answers), at 100 % no new
+--   request starts until an administrator raises the budget. Nothing is ever bought or topped up automatically.
 
 create schema if not exists aurora_private;
 
 create table if not exists aurora_private.ai_settings (
   id boolean primary key default true check (id),
   enabled boolean not null default false,
-  -- Global monthly budget for all AI requests (euro cents); requests stop when it is reached.
-  monthly_budget_cents integer not null default 3000 check (monthly_budget_cents >= 0),
+  -- Global monthly budget for all AI requests (US dollar cents); requests stop when it is reached.
+  monthly_budget_cents integer not null default 500 check (monthly_budget_cents >= 0),
   -- Requests per user per day, by plan. Never unlimited.
   daily_requests jsonb not null default '{"free": 5, "premium": 30, "prime": 100, "intelligence": 300}'::jsonb,
   updated_at timestamptz not null default now(),
   updated_by uuid references auth.users (id) on delete set null
 );
 insert into aurora_private.ai_settings (id) values (true) on conflict (id) do nothing;
+-- Thresholds (percent of the monthly budget); added separately so a database that ran an earlier draft gets them too.
+alter table aurora_private.ai_settings add column if not exists warn_percent integer not null default 50 check (warn_percent between 1 and 100);
+alter table aurora_private.ai_settings add column if not exists restrict_percent integer not null default 80 check (restrict_percent between 1 and 100);
+-- Records which thresholds were already reported this month, so each is notified once.
+alter table aurora_private.ai_settings add column if not exists notified jsonb not null default '{}'::jsonb;
 
 create table if not exists aurora_private.ai_requests (
   id uuid primary key default gen_random_uuid(),
@@ -66,7 +75,21 @@ language sql stable security definer set search_path = '' as $$
   from aurora_private.ai_settings s where s.id and auth.uid() is not null;
 $$;
 
-/** Checks every limit and reserves the estimated cost. Returns {allowed, reason?, request_id?}. */
+/** Budget level this month: normal, warn (>= warn_percent), restricted (>= restrict_percent) or stopped (>= 100 %). */
+create or replace function aurora_private.ai_level() returns text
+language sql stable security definer set search_path = '' as $$
+  select case
+    when s.monthly_budget_cents = 0 or aurora_private.ai_month_spend() >= s.monthly_budget_cents then 'stopped'
+    when aurora_private.ai_month_spend() >= s.monthly_budget_cents * s.restrict_percent / 100.0 then 'restricted'
+    when aurora_private.ai_month_spend() >= s.monthly_budget_cents * s.warn_percent / 100.0 then 'warn'
+    else 'normal' end
+  from aurora_private.ai_settings s where s.id;
+$$;
+
+/**
+ * Checks every limit and reserves the estimated cost. Returns {allowed, reason?, request_id?, level}. In the restricted
+ * level only paid plans and administrators may start requests.
+ */
 create or replace function aurora_private.ai_begin(feature text, est_cents numeric) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -87,7 +110,10 @@ begin
     return jsonb_build_object('allowed', false, 'reason', 'daily allowance used', 'limit_today', lim);
   end if;
   if aurora_private.ai_month_spend() + est_cents > s.monthly_budget_cents then
-    return jsonb_build_object('allowed', false, 'reason', 'Aurora''s monthly AI budget is used up');
+    return jsonb_build_object('allowed', false, 'reason', 'Aurora''s monthly AI budget is used up', 'level', 'stopped');
+  end if;
+  if aurora_private.ai_level() = 'restricted' and aurora_private.tier_of(me) = 'free' and not aurora_private.caller_is_admin() then
+    return jsonb_build_object('allowed', false, 'reason', 'AI is limited to paid plans for the rest of the month (budget nearly used)', 'level', 'restricted');
   end if;
   org := aurora_private.org_of(me);
   if org is not null then
@@ -98,7 +124,7 @@ begin
   end if;
   insert into aurora_private.ai_requests (user_id, org_id, feature, est_cost_cents, cost_cents)
     values (me, org, feature, est_cents, est_cents) returning id into rid;
-  return jsonb_build_object('allowed', true, 'request_id', rid, 'used_today', aurora_private.ai_today_count(me), 'limit_today', lim);
+  return jsonb_build_object('allowed', true, 'request_id', rid, 'used_today', aurora_private.ai_today_count(me), 'limit_today', lim, 'level', aurora_private.ai_level());
 end;
 $$;
 
@@ -110,6 +136,8 @@ create or replace function aurora_private.ai_finish(request uuid, ok boolean, pr
 language plpgsql security definer set search_path = '' as $$
 declare
   r aurora_private.ai_requests;
+  lvl text;
+  month_key text := to_char(now(), 'YYYY-MM');
 begin
   select * into r from aurora_private.ai_requests where id = request and user_id = auth.uid() and status = 'reserved' and at > now() - interval '10 minutes' for update;
   if r.id is null then raise exception 'Unknown or completed request' using errcode = '22023'; end if;
@@ -119,11 +147,22 @@ begin
     tokens_in = greatest(0, coalesce(t_in, 0)), tokens_out = greatest(0, coalesce(t_out, 0)),
     cost_cents = case when ok then greatest(r.est_cost_cents, least(coalesce(cents, 0), 100)) else 0 end
   where id = request;
+  -- Organisation budgets are contract amounts in euro cents: dollar cents are converted at a fixed 0.92 EUR/USD.
   if ok and r.org_id is not null then
     insert into aurora_private.ai_usage (user_id, org_id, feature, provider, model, tokens_in, tokens_out, cost_cents)
-      values (r.user_id, r.org_id, r.feature, left(coalesce(prov, ''), 40), left(coalesce(mdl, ''), 80), greatest(0, coalesce(t_in, 0)), greatest(0, coalesce(t_out, 0)), greatest(r.est_cost_cents, least(coalesce(cents, 0), 100)));
+      values (r.user_id, r.org_id, r.feature, left(coalesce(prov, ''), 40), left(coalesce(mdl, ''), 80), greatest(0, coalesce(t_in, 0)), greatest(0, coalesce(t_out, 0)), round(greatest(r.est_cost_cents, least(coalesce(cents, 0), 100)) * 0.92, 4));
   end if;
-  return jsonb_build_object('ok', ok);
+  -- Each threshold crossed this month is written to the admin audit log once (shown in the admin panel).
+  lvl := aurora_private.ai_level();
+  if lvl <> 'normal' then
+    update aurora_private.ai_settings set notified = jsonb_build_object(month_key, coalesce(notified -> month_key, '[]'::jsonb) || to_jsonb(lvl))
+      where id and not coalesce(notified -> month_key, '[]'::jsonb) ? lvl;
+    if found then
+      perform aurora_private.audit('ai.budget.' || lvl, null, jsonb_build_object('month', month_key, 'spent_cents', aurora_private.ai_month_spend(),
+        'budget_cents', (select monthly_budget_cents from aurora_private.ai_settings where id)));
+    end if;
+  end if;
+  return jsonb_build_object('ok', ok, 'level', lvl);
 end;
 $$;
 
@@ -133,7 +172,9 @@ language plpgsql stable security definer set search_path = '' as $$
 begin
   perform aurora_private.require_admin();
   return jsonb_build_object(
-    'settings', (select jsonb_build_object('enabled', enabled, 'monthly_budget_cents', monthly_budget_cents, 'daily_requests', daily_requests, 'updated_at', updated_at) from aurora_private.ai_settings where id),
+    'settings', (select jsonb_build_object('enabled', enabled, 'monthly_budget_cents', monthly_budget_cents, 'daily_requests', daily_requests,
+      'warn_percent', warn_percent, 'restrict_percent', restrict_percent, 'updated_at', updated_at) from aurora_private.ai_settings where id),
+    'level', aurora_private.ai_level(),
     'month_spend_cents', aurora_private.ai_month_spend(),
     'month_requests', (select count(*) from aurora_private.ai_requests where at >= date_trunc('month', now()) and status = 'done'),
     'month_failed', (select count(*) from aurora_private.ai_requests where at >= date_trunc('month', now()) and status = 'failed'),
@@ -175,7 +216,8 @@ $$;
 revoke all on function aurora_private.ai_month_spend(), aurora_private.ai_today_count(uuid), aurora_private.my_ai_usage(),
   aurora_private.ai_begin(text, numeric), aurora_private.ai_finish(uuid, boolean, text, text, integer, integer, numeric),
   aurora_private.admin_ai_overview(), aurora_private.admin_set_ai_settings(boolean, integer, jsonb) from public, anon;
-revoke execute on function aurora_private.ai_month_spend(), aurora_private.ai_today_count(uuid) from authenticated;
+revoke all on function aurora_private.ai_level() from public, anon;
+revoke execute on function aurora_private.ai_month_spend(), aurora_private.ai_today_count(uuid), aurora_private.ai_level() from authenticated;
 grant execute on function aurora_private.my_ai_usage(), aurora_private.ai_begin(text, numeric), aurora_private.ai_finish(uuid, boolean, text, text, integer, integer, numeric),
   aurora_private.admin_ai_overview(), aurora_private.admin_set_ai_settings(boolean, integer, jsonb) to authenticated;
 
