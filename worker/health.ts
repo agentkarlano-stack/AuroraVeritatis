@@ -50,9 +50,9 @@ export const PATTERNS = {
   elevenlabs: /ELEVEN|^XI_API_KEY$/,
   gnews: /GNEWS/,
   aisstream: /AIS_?STREAM/,
-  openskyId: /OPENSKY.*(CLIENT_?ID|_ID)$/,
-  openskySecret: /OPENSKY.*SECRET/,
-  cesium: /CESIUM/,
+  openskyId: /OPEN_?SKY.*(ID|USER(NAME)?)$/,
+  openskySecret: /OPEN_?SKY.*(SECRET|PASS(WORD)?)$/,
+  cesium: /CESIUM|^ION_/,
   fmp: /^FMP|FINANCIAL_?MODELING/,
   eia: /^EIA/,
   ucdp: /UCDP/,
@@ -249,7 +249,19 @@ export async function integrationHealth(env: Env, f: typeof fetch = fetch, now =
       const secrets = secretNames(env, p.pattern).concat(p.id === 'opensky' ? secretNames(env, PATTERNS.openskySecret) : []);
       const base = { id: p.id, name: p.name, secrets: [...new Set(secrets)], licence: p.licence, checkedAt: now().toISOString() };
       if (!secretNames(env, p.pattern).length) {
-        return { ...base, status: 'PENDING', authenticated: null, facts: {}, ownerAction: p.pendingAction ?? `Add the ${p.name} key as a Cloudflare Worker secret` };
+        const near = p.id === 'opensky' ? secretNames(env, /OPEN_?SKY/) : [];
+        return {
+          ...base,
+          secrets: near,
+          status: 'PENDING',
+          authenticated: null,
+          facts: {},
+          ownerAction:
+            p.pendingAction ??
+            (near.length
+              ? `Found ${near.join(', ')}, but not both a client id and a client secret (expected names like OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET)`
+              : `No ${p.name} secret on the Worker. Add it in Cloudflare → Workers → auroraveritatis → Settings → Variables and secrets`),
+        };
       }
       if (!p.test) return { ...base, status: 'CONNECTED', authenticated: null, facts: {}, ownerAction: null };
       try {

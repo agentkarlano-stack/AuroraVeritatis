@@ -47,3 +47,14 @@ describe('integration health', () => {
     expect(only.find((r) => r.id === 'opensky')!.error).toMatch(/secret missing/);
   });
 });
+
+describe('secret name variants', () => {
+  it('accepts common OpenSky and Cesium names and explains a half-configured OpenSky', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ access_token: 't', expires_in: 60, subscription: 'free' }))) as unknown as typeof fetch;
+    const rows = await integrationHealth({ OPEN_SKY_CLIENT_ID: 'abc-client', OPEN_SKY_CLIENT_SECRET: 'sky-secret-456', CESIUM_ION_TOKEN: 'cesium-token-123' }, f, now);
+    expect(rows.find((r) => r.id === 'opensky')!.authenticated).toBe(true);
+    expect(rows.find((r) => r.id === 'cesium')!.authenticated).toBe(true);
+    const half = await integrationHealth({ OPENSKY_TOKEN: 'abcdefghij' }, f, now);
+    expect(half.find((r) => r.id === 'opensky')!.ownerAction).toMatch(/OPENSKY_TOKEN/);
+  });
+});
