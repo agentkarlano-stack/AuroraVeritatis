@@ -98,12 +98,13 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   returns with exact arithmetic mean/volatility, monthly paths, common random numbers, log-scale fan.
 - Owner messages: verbatim copies of directives are in the Knowledge repo `OWNER-MESSAGES/`; the plan of record is
   `CONSOLIDATED-ROADMAP.md` there. Earlier messages can be recovered from the session event log (list_events, kinds user).
-- Intelligence Headquarters (`pages/IntelHQ.tsx`, route `/`; the former landing page is `/overview`, the widget
-  dashboard `/hq` is "My dashboard"): left feed (USGS/GDACS signals + GDELT/UN News stories, search), centre `GeoMap` globe,
-  right panel = situation/selected event or the docked `components/hq/CountryPanel.tsx` (resizable, `?k=ISO3` deep link,
-  `focusCountry` with panel padding, Esc/close restores the previous camera). Auto tour logic in `lib/hqTour.ts`: real
-  events only, pauses on interaction, resumes after 60 s idle unless paused explicitly; prefs in localStorage `av-hq`.
-  Requirements ledger with AV-* IDs: Knowledge `REQUIREMENTS-LEDGER.md`.
+- Global Radar (`pages/Radar.tsx`, routes `/` and `/radar`; `/briefing` redirects to `/`; `/overview` is the platform
+  overview; `/hq` is HQ: saved work, no globe): left feed (USGS/GDACS signals + GDELT/UN News stories, search), centre `GeoMap`
+  globe, right panel = situation + briefing launcher, selected event, briefing summary or `components/hq/CountryPanel.tsx`
+  (`?k=ISO3`, `focusCountry` with panel padding, Esc restores the camera). Briefings and the Auto Tour run in
+  `components/presentation/Presentation.tsx` (modes read | play | tour) from a frozen plan (`lib/briefingPlan.ts`:
+  `buildPlan`, `buildTour`, content `version`); clock in `lib/presentation.ts`; voices in `lib/narration.ts`; idle entry in
+  `lib/useIdle.ts` (90 s, `prefs.idle`). Requirements ledger with AV-* IDs: Knowledge `REQUIREMENTS-LEDGER.md`.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
@@ -112,9 +113,7 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   (`latest` layers: most recent value per country with its year; allow-list `MAP_INDICATOR_IDS`), USGS/GDACS events, planned layers
   with their needs); shareable URL state in `lib/geo/state.ts`. `scripts/check-gibs.mjs` (preview workflow) verifies
   every GIBS layer from a GitHub runner, since cloud sessions cannot reach NASA. No WebGL2 → `WorldMap` SVG fallback.
-  Global Radar (`pages/Radar.tsx`) has a 2D Map | 3D Globe switch: 2D is `WorldMap` (with `focusCountry`), 3D reuses `GeoMap`
-  (lazy) with Radar's filtered events, one overlay from the layer catalogue, optional day/night shading (`lib/geo/terminator.ts`)
-  and shared selection/filters; URL `?view=&style=&overlay=&night=&k=`. Choropleth loading is shared (`components/geo/useChoropleths.ts`).
+  Choropleth loading is shared (`components/geo/useChoropleths.ts`); day/night shading `lib/geo/terminator.ts`.
 - Commodity & Energy Monitor (`pages/Commodities.tsx`, `/markets/commodities`): World Bank Pink Sheet monthly averages
   (CC BY 4.0) in the static `public/data/commodities.json` (bypasses the Worker; too large to parse within Workers CPU
   limits), built by `scripts/commodities/convert.py` and refreshed monthly by `commodities.yml` as a PR. Analytics in
@@ -125,9 +124,8 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   three variants) is requested only when it plays; edit, sources and licences in `docs/INTRO.md`; rebuild with
   `scripts/intro/` (render-globe.py, build-intro.py, encode.sh). Stock sites are unreachable from cloud sessions: fetch on a
   GitHub runner (work branch `claude/intro-work`, workflow `intro-fetch.yml`). Only Mixkit **Free** licence clips.
-- World Briefing (`pages/Briefing.tsx`): pure logic in `lib/worldBriefing.ts` (status labels, reliability, fixed
-  background per event type, period window, cross-source de-duplication, consent-based `briefing` prefs synced via
-  `SYNCED_KEYS`); `components/BriefingGlobe.tsx`; `WorldMap` exposes a `focus()` handle via `ref` for guided views.
+- World Briefing logic: `lib/worldBriefing.ts` (status labels, reliability, cross-source de-duplication used by
+  `lib/briefingPlan.ts`); `WorldMap` exposes a `focus()` handle via `ref`.
 - Chart editor (`components/chart/`): `ChartEditor` (toolbar, menus, templates, saved charts, export, full screen),
   `ChartCanvas` (Lightweight Charts rendering, panes, drawings), `IndicatorPanel`, `useDataset`. Pure logic in `lib/chart/`:
   `intervals.ts` (interval ≠ range; exact aggregation, never finer than the source), `chartTypes.ts`, `indicators.ts`

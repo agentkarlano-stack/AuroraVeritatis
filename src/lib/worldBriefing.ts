@@ -3,7 +3,7 @@ import { RISK_LEVELS, type RiskLevel } from './brainRisk';
 
 /**
  * Guided World Briefing (no AI). Every text is either source data or fixed, documented background for the event type;
- * nothing is generated or guessed. Pure logic, used by `pages/Briefing.tsx`.
+ * nothing is generated or guessed. Pure logic, used by `lib/briefingPlan.ts` (Global Radar briefings).
  */
 
 /** How far an item is verified. Simulated scenarios have their own status and are never shown as confirmed. */

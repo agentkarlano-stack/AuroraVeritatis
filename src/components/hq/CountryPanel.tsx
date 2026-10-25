@@ -6,7 +6,7 @@ import type { CountryProfile, IndicatorValue } from '../../../shared/types';
 import { useApi } from '../../lib/api';
 import { countryByIso3 } from '../../lib/countries';
 import { fmtNumber } from '../../lib/format';
-import { flagEmoji } from '../../lib/hqTour';
+import { flagEmoji } from '../../lib/radarLabels';
 
 const SECTIONS = [
   ['overview', 'Overview'],

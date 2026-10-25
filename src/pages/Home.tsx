@@ -6,7 +6,7 @@ import { ProvenanceBadge } from '../components/ui';
 
 /** Platform map (owner's planned structure, Oct 2026). Order matches the two-column layout. */
 const MODULES = [
-  { to: '/radar', icon: Globe2, title: 'Global Radar', text: 'A 2D map or 3D globe of earthquakes, disaster alerts and simulated geopolitical scenarios, with economic map layers and day/night shading. Filter by type, severity, region and date.', tags: '2D · 3D · Layers · Timeline', state: 'Live hazard data' },
+  { to: '/radar', icon: Globe2, title: 'Global Radar', text: 'A grayscale globe of earthquakes, disaster alerts and verified news, with country dossiers, a one-minute briefing (written or narrated by EVE and KNOX) and an Auto Tour.', tags: 'Globe · Briefing · Tour', state: 'Live hazard data' },
   { to: '/markets', icon: BarChart3, title: 'Market Terminal', text: 'A chart editor with favourites, ECB interest and exchange rates, World Bank commodity prices, CFTC futures positioning and the Market Impact chain.', tags: 'Charts · Commodities · Macro · Impact', state: 'Official data, simulated prices' },
   { to: '/countries', icon: Landmark, title: 'Country Dossiers', text: 'World Bank indicators for every economy, with history charts and country comparisons.', tags: 'Indicators · Compare · History', state: 'Official data' },
   { to: '/lab', icon: ChartScatter, title: 'Quant Research', text: 'Portfolio risk with value at risk and expected shortfall, Monte Carlo simulation, strategy backtests, your own forecasts with calibration, and a Strategy Lab for event scenarios.', tags: 'Risk · Backtests · Forecasts · Scenarios', state: 'Working' },
@@ -22,7 +22,7 @@ const QUICK = [
   ['/markets/commodities', 'Commodities'],
   ['/impact', 'Market Impact'],
   ['/lab?tool=risk', 'Portfolio risk'],
-  ['/briefing', 'World Briefing'],
+  ['/', 'World Briefing'],
   ['/brain', 'Brain'],
 ] as const;
 

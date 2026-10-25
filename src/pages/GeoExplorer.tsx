@@ -616,7 +616,7 @@ function EventPanel({ event, onClose }: { event: GeoEvent; onClose: () => void }
               {event.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
           )}
-          <Link className="btn-ghost h-8 text-xs" to="/briefing">
+          <Link className="btn-ghost h-8 text-xs" to="/">
             World Briefing
           </Link>
           <AddToBrain

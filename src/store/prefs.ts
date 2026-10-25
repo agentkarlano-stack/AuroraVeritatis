@@ -4,6 +4,19 @@ import type { BrainBackground, BrainColorMode } from '../lib/brainDisplay';
 import type { Drawing } from '../lib/chart';
 import type { ProfileBackground } from '../lib/profileBackground';
 import type { IntroExperience, LegacyIntroMode } from '../lib/intro';
+
+export interface IdlePrefs {
+  radar: boolean;
+  markets: boolean;
+  countries: boolean;
+}
+export const DEFAULT_IDLE: IdlePrefs = { radar: true, markets: true, countries: false };
+/** Missing or malformed values fall back to the defaults. */
+export function normalizeIdle(v: unknown): IdlePrefs {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const b = (k: keyof IdlePrefs) => (typeof o[k] === 'boolean' ? (o[k] as boolean) : DEFAULT_IDLE[k]);
+  return { radar: b('radar'), markets: b('markets'), countries: b('countries') };
+}
 import { DEFAULT_BRIEFING_PREFS, normalizeBriefingPrefs, type BriefingPrefs } from '../lib/worldBriefing';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
 
@@ -57,6 +70,9 @@ interface PrefsState {
   /** World Briefing settings; the last-briefing time is kept only with consent (`remember`). Read via normalizeBriefingPrefs. */
   briefing: BriefingPrefs;
   setBriefing: (patch: Partial<BriefingPrefs>) => void;
+  /** Automatic idle presentations per area (manual start is always available). Synced with the account. */
+  idle?: Partial<IdlePrefs>;
+  setIdle: (patch: Partial<IdlePrefs>) => void;
   /** Brain canvas display (this device only). */
   brainCanvas: { background: BrainBackground; colorMode: BrainColorMode };
   setBrainCanvas: (patch: Partial<PrefsState['brainCanvas']>) => void;
@@ -128,6 +144,8 @@ export const usePrefs = create<PrefsState>()(
       commodityWatch: ['brent', 'gas-eu', 'gold', 'copper', 'wheat'],
       toggleCommodity: (id) => set((s) => ({ commodityWatch: s.commodityWatch.includes(id) ? s.commodityWatch.filter((x) => x !== id) : [...s.commodityWatch, id].slice(-30) })),
       briefing: DEFAULT_BRIEFING_PREFS,
+      idle: DEFAULT_IDLE,
+      setIdle: (patch) => set((s) => ({ idle: { ...normalizeIdle(s.idle), ...patch } })),
       setChartFavs: (chartFavs) => set({ chartFavs }),
       setProfileBackground: (profileBackground) => set({ profileBackground }),
       setLastCountry: (lastCountry) => set({ lastCountry }),

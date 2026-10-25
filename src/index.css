@@ -213,3 +213,17 @@
 @media (prefers-reduced-motion: reduce) {
   .av-flag { animation: none; }
 }
+
+/* Presentation atmosphere (components/presentation/Presentation.tsx): a faint radar sweep and corner brackets.
+   Frozen while paused; absent with reduced motion. */
+.av-sweep {
+  background: conic-gradient(from 0deg, rgba(201, 163, 90, 0.07), transparent 14%);
+  border-radius: 9999px;
+  animation: av-sweep 9s linear infinite;
+}
+.av-paused .av-sweep { animation-play-state: paused; }
+@keyframes av-sweep { to { transform: rotate(360deg); } }
+.av-bracket { position: absolute; width: 18px; height: 18px; border-color: rgba(201, 163, 90, 0.55); }
+@media (prefers-reduced-motion: reduce) {
+  .av-sweep { display: none; }
+}

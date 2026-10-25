@@ -10,13 +10,13 @@ import { NewsletterSignup } from './NewsletterSignup';
 import { Wordmark } from './Logo';
 
 const NAV = [
-  { to: '/', label: 'Headquarters' },
-  { to: '/radar', label: 'Global Radar' },
+  { to: '/', label: 'Global Radar' },
   { to: '/geo', label: 'Map Explorer' },
   { to: '/countries', label: 'Countries' },
   { to: '/markets', label: 'Markets' },
   { to: '/lab', label: 'Quant Research' },
   { to: '/brain', label: 'Brain' },
+  { to: '/hq', label: 'HQ' },
 ];
 
 const LEGAL = [
@@ -124,8 +124,8 @@ export function Layout() {
       <nav className="fixed inset-x-0 bottom-0 z-40 grid h-16 grid-cols-5 border-t border-line bg-ink-950/95 backdrop-blur lg:hidden" aria-label="Quick">
         {(
           [
-            ['/', 'HQ', LayoutDashboard],
-            ['/radar', 'Radar', Globe2],
+            ['/', 'Radar', Globe2],
+            ['/hq', 'HQ', LayoutDashboard],
             ['/countries', 'Countries', Landmark],
             ['/markets', 'Markets', BarChart3],
           ] as const

@@ -110,8 +110,7 @@ export default function News() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        <ModuleLink to="/briefing">World Briefing</ModuleLink>
-        <ModuleLink to="/assistant">Ask EVE about a story</ModuleLink>
+                <ModuleLink to="/assistant">Ask EVE about a story</ModuleLink>
         <ModuleLink to="/radar">Global Radar</ModuleLink>
       </div>
     </div>

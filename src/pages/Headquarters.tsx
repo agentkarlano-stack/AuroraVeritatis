@@ -199,7 +199,7 @@ function BriefingWidget() {
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] text-slate-dim">Generated from platform data for {briefing.date}. Rule-based, no AI. Each line shows how reliable its inputs are.</p>
-        <Link to="/briefing" className="btn-ghost h-8 text-xs">
+        <Link to="/" className="btn-ghost h-8 text-xs">
           <Play className="h-3.5 w-3.5" aria-hidden /> Guided World Briefing
         </Link>
       </div>

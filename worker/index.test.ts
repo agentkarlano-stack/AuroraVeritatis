@@ -196,7 +196,7 @@ describe('GDACS normalisation', () => {
       { geometry: { type: 'Point', coordinates: [30, -2] }, properties: { eventtype: 'DR', eventid: 4, alertlevel: 'Red', url: 'javascript:alert(1)' } },
     ]);
     expect(events).toHaveLength(2);
-    expect(events[0]).toMatchObject({ id: 'gdacs-TC-1001-7', title: 'Tropical Cyclone TEST-26', lat: 14.2, lon: 125.5, severity: 3, provenance: 'estimate', category: 'natural-disaster', region: 'Philippines' });
+    expect(events[0]).toMatchObject({ id: 'gdacs-TC-1001', title: 'Tropical Cyclone TEST-26', lat: 14.2, lon: 125.5, severity: 3, provenance: 'estimate', category: 'natural-disaster', region: 'Philippines' });
     expect(events[0]!.summary).toContain('150 km/h');
     expect(events[0]!.source.url).toBe('https://www.gdacs.org/report.aspx?eventid=1001');
     expect(events[1]).toMatchObject({ title: 'Drought', severity: 5, region: 'Unknown' });
@@ -204,10 +204,28 @@ describe('GDACS normalisation', () => {
     expect(alertToSeverity(undefined)).toBe(1);
   });
 
+  it('merges episodes of one event and never maps placeholder coordinates', async () => {
+    const { normalizeGdacs } = await import('./gdacs');
+    const ep = (episodeid: number, lon: number, todate: string) => ({
+      geometry: { type: 'Point', coordinates: [lon, 15] },
+      properties: { eventtype: 'TC', eventid: 77, episodeid, name: 'Typhoon X', alertlevel: 'Orange', todate },
+    });
+    const events = normalizeGdacs([
+      ep(1, 140, '2026-10-20T00:00:00'),
+      ep(3, 136, '2026-10-22T00:00:00'),
+      ep(2, 138, '2026-10-21T00:00:00'),
+      { geometry: { type: 'Point', coordinates: [0, 0] }, properties: { eventtype: 'FL', eventid: 5 } },
+      { geometry: { type: 'Point', coordinates: [200, 95] }, properties: { eventtype: 'FL', eventid: 6 } },
+    ]);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ id: 'gdacs-TC-77', lon: 136 });
+    expect(events[0]!.summary).toContain('3 GDACS updates');
+  });
+
   it('serves the feed and reports upstream failures', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ features: [{ geometry: { type: 'Point', coordinates: [1, 2] }, properties: { eventtype: 'VO', eventid: 9, alertlevel: 'Green' } }] })));
     const ok = await body<{ events: { id: string }[] }>(get('/api/events/disasters'));
-    expect(ok.events.map((e) => e.id)).toEqual(['gdacs-VO-9-0']);
+    expect(ok.events.map((e) => e.id)).toEqual(['gdacs-VO-9']);
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })));
     expect((await body<{ events: unknown[] }>(get('/api/events/disasters'))).events).toEqual([]);
     vi.stubGlobal('fetch', vi.fn(async () => new Response('down', { status: 503 })));

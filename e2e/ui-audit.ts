@@ -14,12 +14,12 @@ import { writeFileSync } from 'node:fs';
 import { chromium, type Browser, type Page } from 'playwright-core';
 
 const BASE = (process.env.BASE_URL ?? 'https://aurorav.app').replace(/\/$/, '');
-const ALL_ROUTES = ['/', '/overview', '/hq', '/radar', '/geo', '/briefing', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/assistant', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
+const ALL_ROUTES = ['/', '/overview', '/hq', '/radar', '/geo', '/countries', '/countries/compare', '/countries/vs', '/countries/DEU', '/markets', '/markets/commodities', '/lab', '/lab/forecasts', '/impact', '/strategy', '/tension', '/positioning', '/macro', '/currency', '/brain', '/assistant', '/share', '/pricing', '/business', '/signin', '/account', '/newsletter', '/status', '/about', '/legal/terms', '/legal/imprint', '/legal/privacy'];
 const QUICK = process.env.QUICK === '1';
 const QUICK_ROUTES = ['/', '/hq', '/radar', '/geo', '/countries/DEU', '/markets', '/lab', '/impact', '/brain', '/account', '/pricing', '/about'];
 const ROUTES = QUICK ? QUICK_ROUTES : ALL_ROUTES;
 const WIDTHS = QUICK ? [360, 768, 1440] : [320, 360, 375, 390, 414, 768, 1024, 1440, 1920];
-const SLOW = new Set(['/geo', '/markets', '/briefing', '/radar']);
+const SLOW = new Set(['/', '/geo', '/markets', '/radar']);
 
 interface Issue {
   kind: string;
@@ -154,7 +154,7 @@ async function interactions(browser: Browser) {
     const film = plays && (await page.locator('video').count()) > 0;
     check('Cinematic intro plays on the first-ever visit', film, film ? `film requested: ${filmRequests.length} file(s)` : 'no film');
     if (plays) await skip.click();
-    await page.getByRole('link', { name: 'Global Radar' }).first().click();
+    await page.getByRole('link', { name: 'Map Explorer' }).first().click();
     await page.waitForTimeout(800);
     check('Intro does not replay on client navigation', (await skip.count()) === 0);
     await page.reload();
@@ -235,20 +235,23 @@ async function interactions(browser: Browser) {
     }
     await ctx.close();
   }
-  // World Briefing loads events or explains why not.
+  // Global Radar briefing: opens full screen (or shows an honest empty summary) and Esc returns to the Radar.
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await ctx.addInitScript(() => sessionStorage.setItem('av-intro-shown', '1'));
     const page = await ctx.newPage();
     await page.goto(`${BASE}/briefing`);
     await page.waitForTimeout(4000);
-    const start = page.getByRole('button', { name: 'Start briefing' });
-    const enabled = await start.isEnabled().catch(() => false);
-    const empty = await page.getByText(/No events in this period/).count();
-    check('World Briefing offers a tour or an honest empty state', enabled || empty > 0);
-    if (enabled) {
-      await start.click();
-      check('World Briefing tour starts', (await page.getByText(/^Event 1 of \d+/).count()) === 1);
+    check('/briefing redirects to Global Radar', new URL(page.url()).pathname === '/');
+    await page.getByRole('button', { name: 'Read Briefing' }).click();
+    await page.waitForTimeout(1500);
+    const shown = await page.getByRole('dialog', { name: 'Written briefing' }).count();
+    const empty = await page.getByText(/No significant, located developments/).count();
+    check('Read Briefing opens the presentation or an honest empty summary', shown > 0 || empty > 0);
+    if (shown) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(500);
+      check('Esc leaves the briefing', (await page.getByRole('dialog', { name: 'Written briefing' }).count()) === 0);
     }
     await ctx.close();
   }

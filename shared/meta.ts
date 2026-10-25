@@ -24,7 +24,8 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/': { title: SITE.defaultTitle, description: SITE.defaultDescription },
   '/hq': { title: 'My dashboard', description: 'Your personal dashboard: a daily briefing, events, the World Tension Index, markets, a watchlist, alerts and saved research.' },
   '/overview': { title: 'Platform overview', description: 'What Aurora Veritatis offers: global events, country intelligence, markets, quantitative research and a personal research graph.' },
-  '/radar': { title: 'Global Radar', description: 'A world map of earthquakes, disaster alerts and simulated geopolitical scenarios, with filters, a timeline and source labels.' },
+  '/briefing': { title: 'World Briefing', description: 'The World Briefing now opens from Global Radar: the last 24 hours, 3 or 7 days in about a minute, written or narrated.', noindex: true },
+  '/radar': { title: 'Global Radar', description: 'A grayscale globe of earthquakes, disaster alerts and verified news, with country dossiers, a one-minute briefing and an Auto Tour. Every item links to its source.' },
   '/countries': { title: 'Country Dossiers', description: 'Economic, demographic, infrastructure and defence indicators for every country, sourced from World Bank Open Data.' },
   '/countries/compare': { title: 'Compare countries over time', description: 'Animated bubble chart of World Bank indicators for every economy since 1990.' },
   '/countries/vs': { title: 'Side-by-side country comparison', description: 'Compare up to four countries across World Bank indicators, each value with its reference year.' },
@@ -36,7 +37,6 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/strategy': { title: 'Strategy Lab', description: 'Compare event scenarios against a no-event baseline with adjustable assumptions and visible uncertainty.' },
   '/geo': { title: 'Map Explorer', description: 'A 2D map and 3D globe combining NASA satellite observations, World Bank country statistics and live earthquake and disaster alerts, with sources and dates for every layer.' },
   '/newsletter': { title: 'Newsletter', description: 'Subscribe to the Aurora Veritatis newsletter with double opt-in, or unsubscribe and delete your newsletter data.' },
-  '/briefing': { title: 'World Briefing', description: 'A guided tour of recent earthquakes and disaster alerts, one event at a time, with location, background, severity, reliability and sources. No AI.' },
   '/brain': { title: 'Personal Intelligence Brain', description: 'Build your own research graph linking events, countries, companies, markets and indicators with typed, sourced relationships. Stored privately in your browser.' },
   '/share': { title: 'Share Aurora Veritatis', description: 'Link previews, Story and post images for Aurora Veritatis. Download them or copy a link to share.' },
   '/share/card': { title: 'Share card', description: 'Render target for social images.', noindex: true },
@@ -78,7 +78,8 @@ export function metaFor(pathname: string): PageMeta {
 }
 
 function baseMeta(path: string): Omit<PageMeta, 'image'> {
-  const canonical = `${SITE.origin}${path === '/' ? '/' : path}`;
+  // /radar is the same page as the landing page.
+  const canonical = `${SITE.origin}${path === '/' || path === '/radar' ? '/' : path}`;
   const s = STATIC[path];
   if (s) return { title: withSite(s.title), description: s.description, canonical, noindex: s.noindex };
 

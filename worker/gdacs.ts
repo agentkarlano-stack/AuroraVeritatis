@@ -51,14 +51,37 @@ export function alertToSeverity(level: string | undefined): GeoEvent['severity']
 
 function point(geometry: GdacsFeature['geometry']): [number, number] | null {
   const c = geometry?.coordinates;
-  if (geometry?.type === 'Point' && Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number') return [c[0], c[1]];
-  return null;
+  if (geometry?.type !== 'Point' || !Array.isArray(c) || typeof c[0] !== 'number' || typeof c[1] !== 'number') return null;
+  const [lon, lat] = c as [number, number];
+  // Out-of-range or exactly 0,0 coordinates are placeholders, not locations: such features are skipped rather than
+  // being drawn as a false hotspot in the ocean.
+  if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (lat === 0 && lon === 0)) return null;
+  return [lon, lat];
 }
 
-/** Defensive normalisation: features without a point location or a recognised event type are skipped. */
+/**
+ * Defensive normalisation: features without a point location or a recognised event type are skipped. GDACS publishes
+ * one feature per episode (update) of an event; they are merged into one canonical event per event id, located at the
+ * latest episode, with the number of updates in the summary.
+ */
 export function normalizeGdacs(features: GdacsFeature[]): GeoEvent[] {
-  const out: GeoEvent[] = [];
+  const latest = new Map<string, { f: GdacsFeature; episodes: number; t: number }>();
   for (const f of features) {
+    const p = f.properties ?? {};
+    const type = (p.eventtype ?? '').toUpperCase();
+    if (!point(f.geometry) || !TYPE_LABEL[type]) continue;
+    const key = p.eventid != null ? `${type}-${p.eventid}` : `${type}-${JSON.stringify(f.geometry?.coordinates)}`;
+    const t = Date.parse(p.todate ?? p.fromdate ?? '') || 0;
+    const prev = latest.get(key);
+    if (!prev) latest.set(key, { f, episodes: 1, t });
+    else latest.set(key, { f: t >= prev.t ? f : prev.f, episodes: prev.episodes + 1, t: Math.max(t, prev.t) });
+  }
+  return toEvents([...latest.values()]);
+}
+
+function toEvents(items: { f: GdacsFeature; episodes: number }[]): GeoEvent[] {
+  const out: GeoEvent[] = [];
+  for (const { f, episodes } of items) {
     const p = f.properties ?? {};
     const pt = point(f.geometry);
     const type = (p.eventtype ?? '').toUpperCase();
@@ -69,9 +92,16 @@ export function normalizeGdacs(features: GdacsFeature[]): GeoEvent[] {
     const label = TYPE_LABEL[type]!;
     const severityText = p.severitydata?.severitytext?.trim();
     out.push({
-      id: `gdacs-${type}-${p.eventid ?? `${lat},${lon}`}-${p.episodeid ?? 0}`,
+      id: `gdacs-${type}-${p.eventid ?? `${lat},${lon}`}`,
       title: p.name?.trim() || p.eventname?.trim() || `${label}${p.country ? ` — ${p.country}` : ''}`,
-      summary: [`${label}. GDACS ${p.alertlevel ?? 'Green'} alert (modelled humanitarian impact).`, severityText, p.description?.trim()].filter(Boolean).join(' '),
+      summary: [
+        `${label}. GDACS ${p.alertlevel ?? 'Green'} alert (modelled humanitarian impact).`,
+        severityText,
+        p.description?.trim(),
+        episodes > 1 ? `${episodes} GDACS updates; latest shown.` : null,
+      ]
+        .filter(Boolean)
+        .join(' '),
       category: 'natural-disaster',
       severity: alertToSeverity(p.alertlevel),
       lat,

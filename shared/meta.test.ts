@@ -7,7 +7,9 @@ describe('page metadata', () => {
   });
 
   it('suffixes the site name and normalises trailing slashes', () => {
-    expect(metaFor('/radar/')).toMatchObject({ title: 'Global Radar · Aurora Veritatis', canonical: 'https://aurorav.app/radar' });
+    expect(metaFor('/markets/')).toMatchObject({ canonical: 'https://aurorav.app/markets' });
+    // /radar is the landing page under its own name: same canonical URL.
+    expect(metaFor('/radar/')).toMatchObject({ title: 'Global Radar · Aurora Veritatis', canonical: 'https://aurorav.app/' });
   });
 
   it('names country dossiers and canonicalises the code', () => {
