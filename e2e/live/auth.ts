@@ -96,9 +96,17 @@ async function getJson(url: string, init: RequestInit = {}, token?: string): Pro
   throw new Error('mail API rate limit');
 }
 
+/** Collection items from mail.tm in any of its formats: plain array, `member` (API Platform 4) or `hydra:member`. */
+function members<T>(x: unknown): T[] {
+  if (Array.isArray(x)) return x as T[];
+  const o = (x ?? {}) as Record<string, unknown>;
+  const list = o.member ?? o['hydra:member'];
+  if (!Array.isArray(list)) throw new Error(`unexpected collection format: ${JSON.stringify(x).slice(0, 120)}`);
+  return list as T[];
+}
+
 async function mailTm(api: string, tag: string): Promise<Inbox> {
-  const domains = (await getJson(`${api}/domains`)) as { 'hydra:member': { domain: string; isActive: boolean }[] };
-  const domain = domains['hydra:member'].find((d) => d.isActive)?.domain;
+  const domain = members<{ domain: string; isActive: boolean }>(await getJson(`${api}/domains`)).find((d) => d.isActive)?.domain;
   assert(domain, 'no active domain');
   const address = `av-e2e-${tag}-${randomBytes(5).toString('hex')}@${domain}`;
   const pw = password();
@@ -109,7 +117,7 @@ async function mailTm(api: string, tag: string): Promise<Inbox> {
     address,
     seen: new Set(),
     list: async () =>
-      ((await getJson(`${api}/messages`, {}, token)) as { 'hydra:member': { id: string; from: { address: string }; subject: string }[] })['hydra:member'].map((m) => ({ id: m.id, from: m.from.address, subject: m.subject })),
+      members<{ id: string; from: { address: string }; subject: string }>(await getJson(`${api}/messages`, {}, token)).map((m) => ({ id: m.id, from: m.from.address, subject: m.subject })),
     body: async (id) => {
       const m = (await getJson(`${api}/messages/${id}`, {}, token)) as { html?: string[]; text?: string };
       return [...(m.html ?? []), m.text ?? ''].join('\n');
