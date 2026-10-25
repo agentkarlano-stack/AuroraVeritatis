@@ -73,7 +73,7 @@ function bbox(g: Geometry): [number, number, number, number] | null {
  * Country outlines as lines without the artificial edges of the data: segments along the antimeridian or the south pole
  * and jumps across the antimeridian (which a flat projection draws as lines across the whole map).
  */
-export function borderLines(fc: FeatureCollection<Geometry, Record<string, unknown>>): FeatureCollection<Geometry, Record<string, unknown>> {
+function borderLines(fc: FeatureCollection<Geometry, Record<string, unknown>>): FeatureCollection<Geometry, Record<string, unknown>> {
   const artificial = (a: number[], b: number[]) =>
     Math.abs(a[0]! - b[0]!) > 180 ||
     (Math.abs(a[0]!) >= 179.999 && Math.abs(b[0]!) >= 179.999) ||
