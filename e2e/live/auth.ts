@@ -240,7 +240,7 @@ async function signInViaUi(page: Page, email: string, pw: string) {
 
 async function waitSignedIn(page: Page, email: string) {
   await page.waitForURL(/\/account/, { timeout: 30_000 });
-  await page.getByText(email, { exact: true }).waitFor({ timeout: 30_000 });
+  await page.getByText(email, { exact: true }).first().waitFor({ timeout: 30_000 });
 }
 
 async function waitSynced(page: Page) {
@@ -513,7 +513,7 @@ async function main() {
     await check('6', 'Sign-out clears the session and this browser’s copy', 'browser', async () => {
       const page = await newPage(ctxA2);
       await page.goto(`${BASE}/account`);
-      await page.getByRole('button', { name: 'Sign out' }).click();
+      await page.getByRole('button', { name: 'Sign out', exact: true }).click();
       await page.getByRole('heading', { name: 'Guest session' }).waitFor({ timeout: 15_000 });
       await page.reload();
       await page.getByRole('heading', { name: 'Guest session' }).waitFor({ timeout: 15_000 });
@@ -572,7 +572,7 @@ async function main() {
       // From here the new password is the valid one, whatever happens next (cleanup depends on it).
       if (await apiClient(sbUrl, anonKey, inboxA.address, next).then(() => true, () => false)) pwA2 = next;
       await page.getByText('Password updated.').waitFor({ timeout: 15_000 });
-      await page.getByRole('button', { name: 'Sign out' }).click();
+      await page.getByRole('button', { name: 'Sign out', exact: true }).click();
       await page.getByRole('heading', { name: 'Guest session' }).waitFor({ timeout: 15_000 });
       await signInViaUi(page, inboxA.address, next);
       await waitSignedIn(page, inboxA.address);

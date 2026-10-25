@@ -205,7 +205,8 @@ export async function openskyToken(clientId: string, secret: string, f: typeof f
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: secret }),
-    signal: T(10000),
+    // OpenSky's identity server can be slow from cloud networks.
+    signal: T(25000),
   });
   if (!res.ok) throw new Error(`OpenSky token endpoint answered ${res.status}`);
   const j = (await res.json()) as { access_token?: string; expires_in?: number };
