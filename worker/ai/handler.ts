@@ -110,12 +110,18 @@ async function rpc(env: AiGatewayEnv, token: string, fn: string, args: unknown, 
  * GET /api/ai/models (administrators only): is the OpenAI key present and accepted, and which chat models does the
  * account offer? Uses OpenAI's free model list (no tokens, no cost). Never returns the key.
  */
-export async function aiModels(request: Request, env: AiGatewayEnv, fetchImpl: typeof fetch = fetch): Promise<Response> {
+/** Null when the caller is an Aurora administrator, otherwise the refusal to return. */
+export async function requireAdmin(request: Request, env: AiGatewayEnv, fetchImpl: typeof fetch = fetch): Promise<Response | null> {
   const token = request.headers.get('Authorization')?.match(/^Bearer (\S{20,4096})$/)?.[1];
   if (!token || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return error(401, 'Administrators only.');
   // admin_audit_log is refused for everyone except administrators (2026-10-23 migration).
   const adm = await rpc(env, token, 'admin_audit_log', { lim: 1 }, fetchImpl).catch(() => null);
-  if (!adm?.ok) return error(403, 'Administrators only.');
+  return adm?.ok ? null : error(403, 'Administrators only.');
+}
+
+export async function aiModels(request: Request, env: AiGatewayEnv, fetchImpl: typeof fetch = fetch): Promise<Response> {
+  const refused = await requireAdmin(request, env, fetchImpl);
+  if (refused) return refused;
   if (!env.OPENAI_API_KEY) return json({ key: 'missing', models: [], configured: modelOf(env, 'openai') });
   const res = await fetchImpl('https://api.openai.com/v1/models', {
     headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },

@@ -2,7 +2,8 @@ import type { PublicConfig } from '../shared/types';
 import { cotHistory, cotOverview } from './cftc';
 import { macroHistory, macroOverview } from './ecb';
 import { error, json } from './http';
-import { aiAsk, aiModels, aiStatus, type AiGatewayEnv } from './ai/handler';
+import { aiAsk, aiModels, aiStatus, requireAdmin, type AiGatewayEnv } from './ai/handler';
+import { integrationHealth, publicSummary, type ProviderHealth } from './health';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
@@ -101,6 +102,19 @@ async function cached(request: Request, ctx: ExecutionContext, produce: () => Pr
   const body = (await last.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body || typeof body !== 'object' || Array.isArray(body)) return first ?? refresh;
   return json({ ...body, stale: { since: last.headers.get('X-Aurora-Saved'), reason } }, { maxAge: 60 });
+}
+
+/**
+ * Integration tests run at most once per deployment and isolate: the public check and the admin dashboard share the
+ * result, so opening the dashboard repeatedly does not use provider quotas.
+ */
+let healthRun: { build: string; at: number; rows: Promise<ProviderHealth[]> } | null = null;
+function healthOnce(env: Env): Promise<ProviderHealth[]> {
+  const build = env.CF_VERSION_METADATA?.id ?? 'dev';
+  if (!healthRun || healthRun.build !== build || Date.now() - healthRun.at > 30 * 60_000) {
+    healthRun = { build, at: Date.now(), rows: integrationHealth(env as unknown as Record<string, unknown>) };
+  }
+  return healthRun.rows;
 }
 
 /** AI answers cached at the edge for 6 hours, keyed by a hash of assistant, question and sources (never notes). */
@@ -312,14 +326,22 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     // re-tests the providers.
     const key = new Request(`${url.origin}/api/integrations/check?build=${BUILD_ID}`);
     return cached(key, ctx, async () => {
-      const [td, br] = await Promise.all([
+      const [td, br, health] = await Promise.all([
         marketConfigured(env) ? marketDiagnostics(env).catch((e: Error) => ({ error: e.message })) : Promise.resolve({ error: 'TWELVE_DATA_API_KEY not configured' }),
         brevoStatus(env).configured ? brevoDiagnostics(env).catch((e: Error) => ({ error: e.message })) : Promise.resolve({ error: 'BREVO_API_KEY not configured' }),
+        healthOnce(env),
       ]);
       // Cache a complete success for 6 hours; anything with an error only briefly, so fixes show up quickly.
       const failed = 'error' in td || 'error' in br || ('probes' in td && td.probes.some((p) => !p.ok));
-      return json({ build: BUILD_ID, twelveData: td, brevo: br }, { maxAge: failed ? 300 : 6 * 3600 });
+      return json({ build: BUILD_ID, twelveData: td, brevo: br, providers: publicSummary(health) }, { maxAge: failed ? 300 : 6 * 3600 });
     });
+  }
+
+  // Administrators: full integration health (plan and quota facts, redacted errors). Same per-deployment test run.
+  if (path === '/api/integrations/health') {
+    const refused = await requireAdmin(request, env);
+    if (refused) return refused;
+    return json({ build: BUILD_ID, providers: await healthOnce(env) }, { headers: { 'Cache-Control': 'private, no-store' } });
   }
 
   // ---------- Market data (Twelve Data) ----------

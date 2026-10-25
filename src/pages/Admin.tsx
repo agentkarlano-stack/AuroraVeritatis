@@ -10,6 +10,7 @@ import { PERIODS, type PeriodMonths } from '../lib/billing';
 import { isMissingFunction } from '../lib/sessions';
 import { OrganisationsAdmin } from '../components/admin/OrganisationsAdmin';
 import { AiAdmin } from '../components/admin/AiAdmin';
+import { IntegrationHealth } from '../components/admin/IntegrationHealth';
 
 interface Stats {
   users: number;
@@ -259,6 +260,7 @@ export default function Admin() {
       <ExpiringPanel />
       <OrganisationsAdmin />
       <AiAdmin />
+      <IntegrationHealth />
       <SessionPolicy />
       <SelfCheck
         onDone={() => {
