@@ -120,6 +120,10 @@ echo "News: $news"
 # AI providers: whether each is configured (true/false only; never a key) and whether usage controls are installed.
 ai=$(curl -sS -m 20 "$base/api/ai/status" 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); p=d.get("providers", {}); print("OpenAI key " + ("set" if p.get("openai") else "NOT set") + "; Workers AI " + ("bound" if p.get("workers-ai") else "not bound") + "; order " + ",".join(d.get("order", [])))' 2>/dev/null || echo "unavailable")
 echo "AI: $ai"
+# Providers: status per integration from the cached connection test (statuses and secret names only).
+prov=$(printf '%s' "$check_out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("; ".join(p["id"] + " " + p["status"] + ("" if p["authenticated"] is None else (" auth ok" if p["authenticated"] else " auth FAILED")) + (" [" + ",".join(p["secrets"]) + "]" if p["secrets"] else "") for p in d.get("providers", [])))' 2>/dev/null || echo "unavailable")
+echo "Providers: $prov"
+[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Providers::$prov"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=AI status::$ai"
 echo "Integrations: ${integ:-unavailable}"
 echo "Integration check: ${check_out:-unavailable}"
