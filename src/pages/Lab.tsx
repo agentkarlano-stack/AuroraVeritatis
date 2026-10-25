@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { FanChart, HistogramChart } from '../components/SvgCharts';
 import { BacktestTool } from '../components/BacktestTool';
 import { RiskTool } from '../components/RiskTool';
+import { VolatilityDragTool } from '../components/VolatilityDragTool';
 import { PageHeader, Panel, Unavailable } from '../components/ui';
 import { fmtNumber, fmtPct } from '../lib/format';
 import { MC_LIMITS, simulateGbm, type GbmParams, type GbmResult } from '../lib/montecarlo';
@@ -17,7 +18,7 @@ function num(v: string | null, fallback: number) {
 
 export default function Lab() {
   const [params, setParams] = useSearchParams();
-  const tool = params.get('tool') === 'backtest' ? 'backtest' : params.get('tool') === 'risk' ? 'risk' : 'mc';
+  const tool = (['backtest', 'risk', 'drag'] as const).find((t) => t === params.get('tool')) ?? 'mc';
   const label = params.get('label')?.slice(0, 40) ?? 'Hypothetical portfolio';
   const [form, setForm] = useState({
     s0: String(num(params.get('s0'), 10000)),
@@ -113,7 +114,7 @@ export default function Lab() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <PageHeader
         eyebrow="Quantitative Research Lab"
-        title={tool === 'backtest' ? 'Strategy backtesting' : tool === 'risk' ? 'Portfolio risk: VaR and expected shortfall' : 'Monte Carlo risk simulation'}
+        title={tool === 'backtest' ? 'Strategy backtesting' : tool === 'risk' ? 'Portfolio risk: VaR and expected shortfall' : tool === 'drag' ? 'Volatility drag: average return vs compound growth' : 'Monte Carlo risk simulation'}
         actions={
           <Link to="/lab/forecasts" className="btn-ghost text-xs">
             Prediction Research
@@ -122,16 +123,19 @@ export default function Lab() {
       >
         {tool === 'backtest'
           ? 'Test simple, transparent trading rules against buy-and-hold, after costs and without look-ahead bias.'
-          : tool === 'risk'
+          : tool === 'drag'
+            ? 'Two investments can have different average returns while their compounded outcomes differ the other way. Compare a calm and a volatile strategy on the same random numbers.'
+            : tool === 'risk'
             ? 'Measure how much a portfolio lost in bad periods, by three standard methods, see which holdings drive the risk and check whether the measure held up in the past.'
             : 'Simulate the range of future values under geometric Brownian motion. Results are model outputs that you can reproduce with the same seed. They are not forecasts or observed outcomes.'}
       </PageHeader>
-      <div className="mb-4 flex gap-1.5" role="tablist" aria-label="Research tools">
+      <div className="mb-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Research tools">
         {(
           [
             ['mc', 'Monte Carlo'],
             ['backtest', 'Backtest'],
             ['risk', 'Portfolio risk'],
+            ['drag', 'Volatility drag'],
           ] as const
         ).map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tool === k} aria-pressed={tool === k} className="chip" onClick={() => setParams(k === 'mc' ? {} : { tool: k })}>
@@ -144,7 +148,9 @@ export default function Lab() {
       </div>
 
 
-      {tool === 'risk' ? (
+      {tool === 'drag' ? (
+        <VolatilityDragTool />
+      ) : tool === 'risk' ? (
         <RiskTool />
       ) : tool === 'backtest' ? (
         <BacktestTool />

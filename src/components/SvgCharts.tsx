@@ -43,6 +43,18 @@ function Axes({ yTicks, y, xLabels }: { yTicks: number[]; y: (v: number) => numb
   );
 }
 
+/** Ticks at 1, 2 and 5 × powers of ten inside [min, max] (for a log axis). */
+function logTicks(min: number, max: number): number[] {
+  const out: number[] = [];
+  for (let e = Math.floor(Math.log10(min)); e <= Math.ceil(Math.log10(max)); e++) {
+    for (const m of [1, 2, 5]) {
+      const v = m * 10 ** e;
+      if (v >= min && v <= max) out.push(v);
+    }
+  }
+  return out.length > 7 ? out.filter((v) => Math.log10(v) % 1 === 0) : out;
+}
+
 /** Simple time-series line chart with hover readout, used for country indicator history. */
 export function LineChart({ points, format }: { points: { date: string; value: number }[]; format: (v: number) => string }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -91,20 +103,41 @@ export function LineChart({ points, format }: { points: { date: string; value: n
 }
 
 /** Percentile fan chart for Monte Carlo output, optionally overlaid with a second (scenario) fan in blue. */
-export function FanChart({ fan, s0, compare }: { fan: FanPoint[]; s0: number; compare?: FanPoint[] }) {
+export function FanChart({
+  fan,
+  s0,
+  compare,
+  xLabel = (d) => `d${d}`,
+  xTicks,
+  log = false,
+  ariaLabel,
+}: {
+  fan: FanPoint[];
+  s0: number;
+  compare?: FanPoint[];
+  xLabel?: (day: number) => string;
+  /** Explicit x tick positions (in days/steps); default: about six round values. */
+  xTicks?: number[];
+  /** Logarithmic value axis (positive values only), so wide and narrow distributions stay readable together. */
+  log?: boolean;
+  ariaLabel?: string;
+}) {
   const all = compare ? [...fan, ...compare] : fan;
-  const ymin = Math.min(...all.map((f) => f.p05));
-  const ymax = Math.max(...all.map((f) => f.p95));
-  const yt = ticks(ymin, ymax);
+  const ymin = Math.min(...all.map((f) => f.p05), s0);
+  const ymax = Math.max(...all.map((f) => f.p95), s0);
+  const useLog = log && ymin > 0;
+  const yt = useLog ? logTicks(ymin, ymax) : ticks(ymin, ymax);
   const maxDay = fan.at(-1)!.day;
   const x = scale(0, maxDay, PAD.l, W - PAD.r);
-  const y = scale(Math.min(ymin, yt[0] ?? ymin), Math.max(ymax, yt.at(-1) ?? ymax), H - PAD.b, PAD.t);
+  const y = useLog
+    ? ((ly) => (v: number) => ly(Math.log(v)))(scale(Math.log(ymin), Math.log(ymax), H - PAD.b, PAD.t))
+    : scale(Math.min(ymin, yt[0] ?? ymin), Math.max(ymax, yt.at(-1) ?? ymax), H - PAD.b, PAD.t);
   const band = (f0: FanPoint[], lo: keyof FanPoint, hi: keyof FanPoint) =>
     `${f0.map((f, i) => `${i ? 'L' : 'M'}${x(f.day)},${y(f[hi])}`).join('')}${[...f0].reverse().map((f) => `L${x(f.day)},${y(f[lo])}`).join('')}Z`;
   const median = (f0: FanPoint[]) => f0.map((f, i) => `${i ? 'L' : 'M'}${x(f.day)},${y(f.p50)}`).join('');
-  const xl = ticks(0, maxDay, 6).map((d) => ({ x: x(d), label: `d${d}` }));
+  const xl = (xTicks ?? ticks(0, maxDay, 6)).map((d) => ({ x: x(d), label: xLabel(d) }));
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={compare ? 'Baseline and scenario percentile fans' : 'Simulated value percentile fan chart'}>
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={ariaLabel ?? (compare ? 'Baseline and scenario percentile fans' : 'Simulated value percentile fan chart')}>
       <Axes yTicks={yt} y={y} xLabels={xl} />
       <path d={band(fan, 'p05', 'p95')} fill="rgba(201,163,90,0.12)" />
       <path d={band(fan, 'p25', 'p75')} fill="rgba(201,163,90,0.25)" />
