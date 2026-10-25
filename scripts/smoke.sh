@@ -123,7 +123,7 @@ voice=$(curl -sS -m 20 "$base/api/voice/status" 2>/dev/null | python3 -c 'import
 ai="$ai; natural voice $voice"
 echo "AI: $ai"
 # Providers: status per integration from the cached connection test (statuses and secret names only).
-prov=$(printf '%s' "$check_out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("; ".join(p["id"] + " " + p["status"] + ("" if p["authenticated"] is None else (" auth ok" if p["authenticated"] else " auth FAILED")) + (" [" + ",".join(p["secrets"]) + "]" if p["secrets"] else "") for p in d.get("providers", [])))' 2>/dev/null || echo "unavailable")
+prov=$(printf '%s' "$check_out" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("; ".join(p["id"] + " " + p["status"] + ("" if p["authenticated"] is None else (" auth ok" if p["authenticated"] else " auth FAILED")) + (" [" + ",".join(p["secrets"]) + "]" if p["secrets"] else "") + (" (" + p["reason"] + ")" if p.get("reason") else "") for p in d.get("providers", [])))' 2>/dev/null || echo "unavailable")
 echo "Providers: $prov"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Providers::$prov"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=AI status::$ai"
