@@ -126,6 +126,10 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   AV monogram = two separate bold geometric letters drawn as SVG paths (`components/Logo.tsx`: `Monogram`, `Wordmark`,
   `BrandLockup`); Montserrat 700 wordmark, Montserrat 500 tagline. Master files in `public/brand/` (SVG + PNG).
   No neon, gradients-as-decoration, 3D or heavy animation.
+- Dashboard hierarchy (owner reference video "De-AI your UI", 2026-10-25): one flat accent (gold), no decorative
+  gradients or glows; the number is the hero (no coloured icon tiles); one primary metric per view, the rest secondary;
+  shadows only on what floats (menus, popovers, overlays), never on cards; factual copy with context (period, source,
+  comparison basis) instead of greetings; changes carry a shape (▲/▼) as well as a colour.
 - Cloudflare: Worker name `auroraveritatis`; `wrangler.jsonc` has `keep_vars: true` so dashboard vars survive deploys.
   Do not add routes/custom domains to config. `build.command` + `assets.directory` are set so `wrangler deploy` and
   `wrangler versions upload` work with or without a dashboard build command (verified with `--dry-run` from a clean clone).
