@@ -66,7 +66,7 @@ export default function CountryDossier() {
             </Link>
           )}
           <button className={fav ? 'btn-primary' : 'btn-ghost'} onClick={() => toggleFavorite(code)} aria-pressed={fav}>
-            <Star className="h-4 w-4" fill={fav ? 'currentColor' : 'none'} /> {fav ? 'Favourite' : 'Add to favourites'}
+            <Star className="h-4 w-4" fill={fav ? 'currentColor' : 'none'} /> {fav ? 'Following in HQ' : 'Follow in HQ'}
           </button>
         </div>
       </div>

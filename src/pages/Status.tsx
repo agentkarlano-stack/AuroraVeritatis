@@ -11,10 +11,9 @@ const STATE: Record<State, { label: string; cls: string }> = {
 };
 
 const MODULES: { name: string; to?: string; state: State; note: string }[] = [
-  { name: 'Headquarters', to: '/hq', state: 'working', note: 'Widgets, watchlist, favourite countries, alerts and notes. Saved in your browser.' },
-  { name: 'Global Radar: natural hazards', to: '/radar', state: 'working', note: '2D map or 3D globe. USGS earthquakes of magnitude 4.5 and above, updated every 10 minutes. GDACS alerts for cyclones, floods, volcanoes, droughts and wildfires, updated every 30 minutes.' },
-  { name: 'Global Radar: geopolitical events', to: '/radar', state: 'demo', note: 'Simulated scenarios for now. Real, sourced conflict and news events are planned.' },
-  { name: 'Global Radar: timeline', to: '/radar', state: 'working', note: 'Daily event counts by category. Click a day to filter the map and the list.' },
+  { name: 'HQ', to: '/hq', state: 'working', note: 'Widgets, watchlist, favourite countries, alerts and notes. Saved in your browser.' },
+  { name: 'Global Radar: natural hazards', to: '/radar', state: 'working', note: 'Grayscale globe (2D maps and layers are in Map Explorer). USGS earthquakes of magnitude 4.5 and above, updated every 10 minutes. GDACS alerts for cyclones, floods, volcanoes, droughts and wildfires, updated every 30 minutes.' },
+  { name: 'Global Radar: briefing and Auto Tour', to: '/', state: 'working', note: 'Last 24 hours, 3 days or 7 days in about a minute, full screen: written, or narrated by EVE and KNOX (browser voices; natural voices for signed-in users). Reports of one event are merged. Auto Tour after inactivity can be switched off in Account.' },
   { name: 'News verification', to: '/news', state: 'working', note: 'Headlines from the GDELT Project grouped by story; independent publishers counted, syndicated copies and official sources marked. Headlines and links only.' },
   { name: 'Country dossiers', to: '/countries', state: 'working', note: '23 World Bank indicators for every economy, each with its reference year, and history charts from 1990.' },
   { name: 'Country comparison', to: '/countries/vs?c=DEU,FRA,USA', state: 'working', note: 'Up to four countries side by side across all 23 indicators.' },

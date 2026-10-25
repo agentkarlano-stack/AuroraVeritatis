@@ -1,603 +1,589 @@
-import { Expand, ExternalLink, Globe2, Map as MapIcon, Moon, Search, X } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
-import type { EventCategory, GeoEvent } from '../../shared/types';
-import { AddToBrain } from '../components/AddToBrain';
-import { EventTimeline } from '../components/EventTimeline';
-import { DemoNotice, ModuleLink, PageHeader, Panel, ProvenanceBadge } from '../components/ui';
-import { WorldMap, type WorldMapHandle } from '../components/WorldMap';
+import { BookOpen, ExternalLink, Headphones, Search, Tv, X } from 'lucide-react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
+import type { Story } from '../../shared/news';
+import type { GeoEvent } from '../../shared/types';
 import type { GeoMapHandle } from '../components/geo/GeoMap';
-import { useChoropleths } from '../components/geo/useChoropleths';
-import { countryByIso3, searchCountries } from '../lib/countries';
-import { CATEGORIES, GEO_LAYERS, LAYER_MAP, formatValue, type ChoroplethLayer } from '../lib/geo/layers';
-import { STYLES, type MapState } from '../lib/geo/state';
-import { hasWebGL2 } from '../lib/geo/webgl';
-import { INSTRUMENT_MAP } from '../data/instruments';
-import { CATEGORY_COLOR, CATEGORY_LABEL, REGIONS, regionOf, useEvents } from '../lib/events';
-import { fmtDate, plural, relativeTime } from '../lib/format';
+import { CountryPanel, type DossierSection } from '../components/hq/CountryPanel';
+import { Presentation, type ExitReason, type PresentationMode } from '../components/presentation/Presentation';
+import { SaveButton } from '../components/SaveButton';
+import { ProvenanceBadge } from '../components/ui';
+import { WorldMap } from '../components/WorldMap';
+import { useApi } from '../lib/api';
+import { countriesInText, countryByIso3 } from '../lib/countries';
+import { useEvents } from '../lib/events';
+import type { MapState, MapStyleId } from '../lib/geo/state';
+import { useAuth } from '../auth/AuthProvider';
+import { WINDOWS, buildPlan, buildTour, type Plan, type ReportingWindow } from '../lib/briefingPlan';
+import { age } from '../lib/radarLabels';
+import { audioNarrator, browserNarrator, prepareNaturalVoice, type Narrator } from '../lib/narration';
+import { useIdle } from '../lib/useIdle';
+import { normalizeIdle, usePrefs } from '../store/prefs';
 
 const GeoMap = lazy(() => import('../components/geo/GeoMap'));
 
-/** Base styles offered on the Radar globe (all from licensed or public-domain imagery; see the Map Explorer for more). */
-const GLOBE_STYLES = ['satellite', 'grayscale', 'dark'] as const;
-type GlobeStyle = (typeof GLOBE_STYLES)[number];
-/** Overlays: Map Explorer layers that work as a single background layer under the Radar's events. */
-const OVERLAYS = GEO_LAYERS.filter((l) => l.kind === 'choropleth' || (l.kind === 'gibs' && l.id !== 'blue-marble'));
-const VIEW_KEY = 'av-radar-view';
-
-/** Reads the shareable Radar view from the address (view, style, overlay, night shading, selected country). */
-function readUrl() {
-  const p = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
-  let saved: string | null = null;
+const PREF_KEY = 'av-hq';
+const STYLES: [MapStyleId, string][] = [
+  ['grayscale', 'Grayscale'],
+  ['dark', 'Dark'],
+  ['satellite', 'Satellite'],
+];
+interface Prefs {
+  style: MapStyleId;
+  panelWidth: number;
+}
+const DEFAULT_PREFS: Prefs = { style: 'grayscale', panelWidth: 460 };
+function loadPrefs(): Prefs {
   try {
-    saved = localStorage.getItem(VIEW_KEY);
+    const raw = JSON.parse(localStorage.getItem(PREF_KEY) ?? '{}') as Partial<Prefs>;
+    return {
+      style: STYLES.find(([s]) => s === raw.style)?.[0] ?? DEFAULT_PREFS.style,
+      panelWidth: typeof raw.panelWidth === 'number' ? Math.min(760, Math.max(360, raw.panelWidth)) : DEFAULT_PREFS.panelWidth,
+    };
   } catch {
-    /* storage unavailable */
+    return DEFAULT_PREFS;
   }
-  const webgl = hasWebGL2();
-  const asked = p.get('view') ?? saved;
-  const style = p.get('style') as GlobeStyle | null;
-  const overlay = p.get('overlay');
-  const country = p.get('k')?.toUpperCase() ?? null;
-  return {
-    webgl,
-    view: (webgl && asked !== '2d' ? '3d' : '2d') as '2d' | '3d',
-    style: style && (GLOBE_STYLES as readonly string[]).includes(style) ? style : ('satellite' as GlobeStyle),
-    overlay: overlay && OVERLAYS.some((l) => l.id === overlay) ? overlay : '',
-    night: p.get('night') === '1',
-    country: country && countryByIso3(country) ? country : null,
-  };
+}
+const webgl2 = () => {
+  try {
+    return !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    return false;
+  }
+};
+const SEVERITY_CLS = ['', 'bg-slate-dim', 'bg-info', 'bg-gold', 'bg-warn', 'bg-down'];
+
+/** True at the desktop breakpoint (lg, 1024 px), updated on resize. */
+function useDesktop(): boolean {
+  const query = '(min-width: 1024px)';
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(query).matches === true);
+  useEffect(() => {
+    const m = window.matchMedia?.(query);
+    if (!m) return;
+    const on = () => setMatch(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return match;
 }
 
-const WINDOWS = [
-  { label: '24h', days: 1 },
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: 'All', days: 3650 },
-];
+/** First country named in a headline, for focusing the map from a news story. */
+const countryIn = (text: string) => countriesInText(text)[0];
 
+/** Prepared natural-voice audio per briefing content version, so replays in this tab cost nothing. */
+const AUDIO_CACHE = new Map<string, Map<string, string>>();
+
+interface Showing {
+  mode: PresentationMode;
+  plan: Plan;
+  fullscreen: boolean;
+  narrator: Narrator | null;
+  audioNote: string | null;
+}
+
+/**
+ * Global Radar, the arrival view. Left: sourced signals and news; centre: the globe; right: the situation overview
+ * with the briefing launcher, the selected event or an integrated country dossier. Briefings and the Auto Tour run as
+ * a full-screen presentation on the same grayscale globe (`components/presentation/Presentation.tsx`).
+ */
 export default function Radar() {
-  const [initial] = useState(readUrl);
-  const [view, setView] = useState<'2d' | '3d'>(initial.view);
-  const [globeStyle, setGlobeStyle] = useState<GlobeStyle>(initial.style);
-  const [overlay, setOverlay] = useState(initial.overlay);
-  const [night, setNight] = useState(initial.night);
-  const [country, setCountry] = useState<string | null>(initial.country);
-  const [camera, setCamera] = useState<{ center: [number, number]; zoom: number }>({ center: [20, 25], zoom: 1.3 });
-  const [query, setQuery] = useState('');
-  const [nightAt, setNightAt] = useState(() => Date.now());
-  const [env] = useState(() => ({ today: new Date().toISOString().slice(0, 10), year: new Date().getUTCFullYear() - 2 }));
-  const globe = useRef<GeoMapHandle>(null);
-  const flat = useRef<WorldMapHandle>(null);
-  const frame = useRef<HTMLDivElement>(null);
-  const [fullscreen, setFullscreen] = useState(false);
-  useEffect(() => {
-    const on = () => setFullscreen(document.fullscreenElement === frame.current);
-    document.addEventListener('fullscreenchange', on);
-    return () => document.removeEventListener('fullscreenchange', on);
-  }, []);
-  const { demo, quakes, quakeStatus, quakeError, reloadQuakes, quakeStale, disasters, disasterStatus, reloadDisasters, disasterStale } = useEvents();
-  const [layers, setLayers] = useState({ demo: true, quakes: true, disasters: true });
-  const [cats, setCats] = useState<Set<EventCategory>>(new Set(Object.keys(CATEGORY_LABEL) as EventCategory[]));
-  const [minSeverity, setMinSeverity] = useState(1);
-  const [region, setRegion] = useState('all');
-  const [windowDays, setWindowDays] = useState(30);
+  const [params, setParams] = useSearchParams();
+  const [prefs, setPrefs] = useState<Prefs>(() => {
+    const p = loadPrefs();
+    const s = STYLES.find(([id]) => id === params.get('style'))?.[0];
+    return s ? { ...p, style: s } : p;
+  });
+  const savePrefs = (patch: Partial<Prefs>) =>
+    setPrefs((p) => {
+      const next = { ...p, ...patch };
+      try {
+        localStorage.setItem(PREF_KEY, JSON.stringify(next));
+      } catch {
+        /* storage unavailable */
+      }
+      return next;
+    });
+  const [env] = useState(() => ({ today: new Date().toISOString().slice(0, 10), year: new Date().getUTCFullYear() - 2, gl: webgl2() }));
+  const [now, setNow] = useState(() => Date.now());
+  const country = params.get('k') && countryByIso3(params.get('k')!) ? params.get('k')! : null;
+  const [section, setSection] = useState<DossierSection>('overview');
   const [selected, setSelected] = useState<GeoEvent | null>(null);
-  const [now] = useState(() => Date.now());
-  const [day, setDay] = useState<string | null>(null);
+  const [camera, setCamera] = useState<{ center: [number, number]; zoom: number }>({ center: [15, 28], zoom: 1.5 });
+  const before = useRef<{ center: [number, number]; zoom: number } | null>(null);
+  /** Country the camera was last fitted to (null after closing). */
+  const framed = useRef<string | null>(null);
+  const map = useRef<GeoMapHandle>(null);
+  const [feedTab, setFeedTab] = useState<'all' | 'signals' | 'news'>('all');
+  const [query, setQuery] = useState('');
+  const [mobileTab, setMobileTab] = useState<'feed' | 'details'>('details');
+  const [win, setWin] = useState<ReportingWindow>('24h');
+  const [showing, setShowing] = useState<Showing | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [summary, setSummary] = useState<Plan | null>(null);
+  const { session } = useAuth();
+  const idle = normalizeIdle(usePrefs((s) => s.idle));
 
-  const all = useMemo(
-    () => [...(layers.demo ? demo : []), ...(layers.quakes ? quakes : []), ...(layers.disasters ? disasters : [])],
-    [layers, demo, quakes, disasters],
+  const { quakes, disasters, quakeStale, disasterStale, quakeStatus, disasterStatus } = useEvents();
+  const news = useApi<{ stories: Story[]; articles: number; fetchedAt: string; partial?: string }>(`/api/news?t=${win}`);
+  const signals = useMemo(() => [...quakes, ...disasters].filter((e) => e.provenance !== 'simulated').sort((a, b) => Date.parse(b.time) - Date.parse(a.time)), [quakes, disasters]);
+  const minute = Math.floor(now / 60_000);
+  const isDesktop = useDesktop();
+  const last24 = useMemo(() => signals.filter((e) => minute * 60_000 - Date.parse(e.time) <= 86_400_000), [signals, minute]);
+  const quakes24 = useMemo(() => quakes.filter((e) => minute * 60_000 - Date.parse(e.time) <= 86_400_000).length, [quakes, minute]);
+
+  // Clock for ages (the interval callback, not the effect body, updates state).
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const panelPx = isDesktop ? prefs.panelWidth : 0;
+  const focusEvent = useCallback((e: GeoEvent) => {
+    setSelected(e);
+    map.current?.flyTo(e.lon, e.lat, 3.6);
+  }, []);
+
+  // Briefings and the tour: the plan is built once when they start and stays frozen while they run.
+  const countryOf = useCallback((text: string) => countryIn(text)?.iso3 ?? null, []);
+  const storiesNow = useMemo(() => (news.status === 'ready' ? news.data.stories : []), [news]);
+  const planFor = (w: ReportingWindow, mode: 'read' | 'play') => buildPlan({ window: w, now: Date.now(), events: signals, stories: storiesNow, countryOf, mode });
+  const startBriefing = async (mode: 'read' | 'play') => {
+    const plan = planFor(win, mode);
+    if (!plan.scenes.length) {
+      setSummary(plan);
+      return;
+    }
+    if (mode === 'read') {
+      setShowing({ mode, plan, fullscreen: true, narrator: null, audioNote: null });
+      return;
+    }
+    // Natural voices for signed-in users (prepared once per content version); otherwise the browser's voices.
+    let narrator: Narrator | null = null;
+    let audioNote: string | null = null;
+    const lines = [plan.intro, ...plan.scenes.flatMap((s) => s.lines)];
+    if (session) {
+      setPreparing(true);
+      try {
+        const clips = AUDIO_CACHE.get(plan.version) ?? (await prepareNaturalVoice(lines, session.access_token));
+        AUDIO_CACHE.set(plan.version, clips);
+        narrator = audioNarrator(clips);
+      } catch (err) {
+        audioNote = `Natural voice unavailable (${err instanceof Error ? err.message : 'error'}). Using the browser voice.`;
+      } finally {
+        setPreparing(false);
+      }
+    }
+    if (!narrator) {
+      narrator = browserNarrator();
+      if (!narrator) audioNote = 'This browser cannot speak text aloud, so the briefing runs with captions only.';
+    }
+    setShowing({ mode, plan, fullscreen: true, narrator, audioNote });
+  };
+  const startTour = useCallback(
+    (fullscreen: boolean) => {
+      const plan = buildTour({ now: Date.now(), events: signals, stories: storiesNow, countryOf });
+      if (plan.scenes.length) setShowing({ mode: 'tour', plan, fullscreen, narrator: null, audioNote: null });
+    },
+    [signals, storiesNow, countryOf],
   );
-  const windowed = useMemo(() => {
-    return all
-      .filter((e) => cats.has(e.category) && e.severity >= minSeverity && now - Date.parse(e.time) <= windowDays * 86_400_000)
-      .filter((e) => region === 'all' || regionOf(e.lat, e.lon) === region)
-      .sort((a, b) => b.severity - a.severity || Date.parse(b.time) - Date.parse(a.time));
-  }, [all, cats, minSeverity, region, windowDays, now]);
-  const filtered = useMemo(() => (day ? windowed.filter((e) => e.time.slice(0, 10) === day) : windowed), [windowed, day]);
+  const endShow = (reason: ExitReason) => {
+    if (showing && reason === 'done' && showing.mode !== 'tour') setSummary(showing.plan);
+    setShowing(null);
+  };
+  // Automatic Auto Tour after inactivity (profile switch; never while presenting, typing or in a dialog).
+  useIdle(idle.radar && !showing && !preparing, () => startTour(false));
 
-  // Overlay values for the globe (country statistics), loaded only when a statistics overlay is chosen in 3D.
-  const overlayLayer = overlay ? LAYER_MAP.get(overlay) : undefined;
-  const statLayers = useMemo(() => (view === '3d' && overlayLayer?.kind === 'choropleth' ? [overlayLayer] : []), [view, overlayLayer]);
-  const { values, years } = useChoropleths(statLayers, env.year);
+  const openCountry = (iso3: string | null) => {
+        if (!iso3) return;
+    if (!country) before.current = camera;
+    setSelected(null);
+    setSection('overview');
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      n.set('k', iso3);
+      return n;
+    });
+    setMobileTab('details');
+    framed.current = iso3;
+    requestAnimationFrame(() => map.current?.focusCountry(iso3, { top: 60, bottom: 40, left: 40, right: panelPx + 40 }));
+  };
+  const closeCountry = useCallback(() => {
+    framed.current = null;
+    setParams((p) => {
+      const n = new URLSearchParams(p);
+      n.delete('k');
+      return n;
+    });
+    const b = before.current;
+    if (b) map.current?.flyTo(b.center[0], b.center[1], b.zoom);
+    before.current = null;
+  }, [setParams]);
+  // A shared link with ?k= opens the dossier: frame that country once the (lazily loaded) map is ready.
+  useEffect(() => {
+    if (!country || framed.current === country) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      if (map.current?.focusCountry(country, { top: 60, bottom: 40, left: 40, right: panelPx + 40 }) || tries > 40) {
+        framed.current = country;
+        clearInterval(t);
+      }
+    }, 250);
+    return () => clearInterval(t);
+  }, [country, panelPx]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && country && !(e.target as HTMLElement | null)?.closest('input, textarea, select')) closeCountry();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [country, closeCountry]);
+
   const mapState: MapState = useMemo(
     () => ({
       mode: '3d',
-      style: globeStyle,
-      // Radar filters the events itself, so all three event layers stay on; the overlay goes underneath.
-      layers: [...(overlay ? [{ id: overlay, opacity: overlayLayer?.kind === 'gibs' ? 0.85 : 0.75 }] : []), { id: 'earthquakes', opacity: 1 }, { id: 'disasters', opacity: 1 }, { id: 'scenarios', opacity: 1 }],
+      style: prefs.style,
+      layers: [
+        { id: 'earthquakes', opacity: 1 },
+        { id: 'disasters', opacity: 1 },
+      ],
       center: camera.center,
       zoom: camera.zoom,
       date: env.today,
       year: env.year,
       country,
     }),
-    [globeStyle, overlay, overlayLayer, camera, env, country],
+    [prefs.style, camera, env, country],
   );
 
-  // Keep the view shareable and remember the user's 2D/3D choice on this device.
-  useEffect(() => {
-    const p = new URLSearchParams(location.search);
-    p.set('view', view);
-    if (view === '3d') p.set('style', globeStyle);
-    else p.delete('style');
-    if (overlay) p.set('overlay', overlay);
-    else p.delete('overlay');
-    if (night) p.set('night', '1');
-    else p.delete('night');
-    if (country) p.set('k', country);
-    else p.delete('k');
-    history.replaceState(history.state, '', `${location.pathname}?${p.toString()}`);
-    try {
-      localStorage.setItem(VIEW_KEY, view);
-    } catch {
-      /* storage unavailable */
-    }
-  }, [view, globeStyle, overlay, night, country]);
+  // Feed items.
+  const q = query.trim().toLowerCase();
+  const sigItems = signals.filter((e) => !q || `${e.title} ${e.region}`.toLowerCase().includes(q)).slice(0, 60);
+  const stories = news.status === 'ready' ? news.data.stories.filter((s) => !q || s.title.toLowerCase().includes(q)).slice(0, 40) : [];
 
-  // Night shading follows the clock while it is on.
-  useEffect(() => {
-    if (!night) return;
-    const t = setInterval(() => setNightAt(Date.now()), 5 * 60_000);
-    return () => clearInterval(t);
-  }, [night]);
-
-  const selectCountry = (iso3: string | null) => {
-    setCountry(iso3);
-    setSelected(null);
-    if (!iso3) return;
-    if (view === '3d') globe.current?.focusCountry(iso3);
-    else flat.current?.focusCountry(iso3);
+  const resizing = useRef(false);
+  const startResize = (ev: React.PointerEvent) => {
+    resizing.current = true;
+    const startX = ev.clientX;
+    const startW = prefs.panelWidth;
+    const move = (e: PointerEvent) => resizing.current && setPrefs((p) => ({ ...p, panelWidth: Math.min(760, Math.max(360, startW + (startX - e.clientX))) }));
+    const up = () => {
+      resizing.current = false;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      savePrefs({});
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   };
-  const switchView = (next: '2d' | '3d') => {
-    setView(next);
-    // Bring the selection into view in the new map once it has mounted.
-    setTimeout(() => {
-      if (country) (next === '3d' ? globe.current : flat.current)?.focusCountry(country);
-      else if (selected && next === '3d') globe.current?.flyTo(selected.lon, selected.lat, 3);
-      else if (selected) flat.current?.focus(selected.lat, selected.lon, 3);
-    }, next === '3d' ? 900 : 50);
-  };
-  const selectEvent = (e: GeoEvent) => {
-    setSelected(e);
-    if (view === '3d') globe.current?.flyTo(e.lon, e.lat, Math.max(camera.zoom, 3));
-  };
-  const matches = query.trim() ? searchCountries(query, 6) : [];
-  const countryRef = country ? countryByIso3(country) : undefined;
-  const overlayValue = country && overlayLayer?.kind === 'choropleth' ? values[overlayLayer.id]?.get(country) : undefined;
 
-  const toggleCat = (c: EventCategory) =>
-    setCats((s) => {
-      const n = new Set(s);
-      if (n.has(c)) n.delete(c);
-      else n.add(c);
-      return n;
-    });
-
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <PageHeader
-        eyebrow="Global Radar"
-        title="World events map"
-        actions={
-          <>
-            <Link className="btn-ghost" to={`/geo?m=3d&s=${globeStyle}&l=${overlay ? `${overlay},` : ''}earthquakes,disasters${country ? `&k=${country}` : ''}`}>
-              All layers in Map Explorer
-            </Link>
-            <Link className="btn-ghost" to="/briefing">
-              Guided briefing
-            </Link>
-          </>
-        }
-      >
-        Filter events by type, severity, region and date on a 3D globe or a flat map. Click a marker for details, or a country for its dossier and
-        briefing. Imagery is periodically updated satellite composites, not live observation.
-      </PageHeader>
-
-      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
-        <aside className="min-w-0 space-y-4">
-          <Panel title="Layers">
-            <div className="space-y-3 text-sm">
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.quakes} onChange={(e) => setLayers((l) => ({ ...l, quakes: e.target.checked }))} />
-                <span>
-                  Earthquakes M4.5+, past 7 days <ProvenanceBadge kind="confirmed" className="ml-1" />
-                  <span className="block text-xs text-slate-dim">
-                    USGS ·{' '}
-                    {quakeStatus === 'loading' ? 'loading…' : quakeStatus === 'error' ? 'unavailable' : plural(quakes.length, 'event')}
-                  </span>
-                  {quakeStale && <StaleNote stale={quakeStale} />}
-                  {quakeError && (
-                    <button className="min-h-6 text-xs text-gold hover:underline" onClick={reloadQuakes}>
-                      Retry feed
-                    </button>
-                  )}
-                </span>
-              </label>
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.disasters} onChange={(e) => setLayers((l) => ({ ...l, disasters: e.target.checked }))} />
-                <span>
-                  Disaster alerts <ProvenanceBadge kind="estimate" className="ml-1" />
-                  <span className="block text-xs text-slate-dim">
-                    GDACS · cyclones, floods, volcanoes, droughts, wildfires ·{' '}
-                    {disasterStatus === 'loading' ? 'loading…' : disasterStatus === 'error' ? 'unavailable' : plural(disasters.length, 'alert')}
-                  </span>
-                  {disasterStale && <StaleNote stale={disasterStale} />}
-                  {disasterStatus === 'error' && (
-                    <button className="min-h-6 text-xs text-gold hover:underline" onClick={reloadDisasters}>
-                      Retry feed
-                    </button>
-                  )}
-                </span>
-              </label>
-              <label className="flex items-start gap-2">
-                <input type="checkbox" className="mt-1 accent-[#c9a35a]" checked={layers.demo} onChange={(e) => setLayers((l) => ({ ...l, demo: e.target.checked }))} />
-                <span>
-                  Geopolitical scenarios <ProvenanceBadge kind="simulated" className="ml-1" />
-                  <span className="block text-xs text-slate-dim">Simulated events ({demo.length})</span>
-                </span>
-              </label>
-              <p className="border-t border-line pt-3 text-xs text-slate-dim">Planned: GDELT, UCDP, ReliefWeb, licensed ADS-B / AIS.</p>
-            </div>
-          </Panel>
-
-          <Panel title="Filters">
-            <div className="space-y-4">
-              <div>
-                <span className="label">Event type</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {(Object.keys(CATEGORY_LABEL) as EventCategory[]).map((c) => (
-                    <button key={c} className="chip" aria-pressed={cats.has(c)} onClick={() => toggleCat(c)}>
-                      <span className="h-2 w-2 rounded-full" style={{ background: CATEGORY_COLOR[c] }} />
-                      {CATEGORY_LABEL[c]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label" htmlFor="sev">
-                  Minimum severity: <span className="text-platinum">{minSeverity}</span>
-                </label>
-                <input id="sev" type="range" min={1} max={5} value={minSeverity} onChange={(e) => setMinSeverity(+e.target.value)} className="w-full accent-[#c9a35a]" />
-              </div>
-              <div>
-                <label className="label" htmlFor="region">
-                  Region
-                </label>
-                <select id="region" className="input" value={region} onChange={(e) => setRegion(e.target.value)}>
-                  <option value="all">All regions</option>
-                  {REGIONS.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <span className="label">Time window</span>
-                <div className="flex gap-1.5">
-                  {WINDOWS.map((w) => (
-                    <button
-                      key={w.label}
-                      className="chip"
-                      aria-pressed={windowDays === w.days}
-                      onClick={() => {
-                        setWindowDays(w.days);
-                        setDay(null);
-                      }}
-                    >
-                      {w.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Panel>
-        </aside>
-
-        <div className="min-w-0 space-y-4">
-          <DemoNotice>
-            Geopolitical markers (dashed outline) are <strong>simulated scenarios</strong> that demonstrate the interface. They are
-            not real events and contain no casualty figures. Earthquakes (U.S. Geological Survey) and disaster alerts (GDACS, modelled
-            impact estimates) are live public data.
-          </DemoNotice>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-md border border-line p-0.5" role="group" aria-label="Map view">
-              <button className="chip border-0" aria-pressed={view === '2d'} onClick={() => switchView('2d')}>
-                <MapIcon className="h-3.5 w-3.5" /> 2D Map
-              </button>
-              <button
-                className="chip border-0"
-                aria-pressed={view === '3d'}
-                disabled={!initial.webgl}
-                title={initial.webgl ? undefined : 'This device or browser does not support WebGL 2, which the globe needs.'}
-                onClick={() => switchView('3d')}
-              >
-                <Globe2 className="h-3.5 w-3.5" /> 3D Globe
-              </button>
-            </div>
-            {view === '3d' && (
-              <>
-                <select className="input h-9 w-auto" value={globeStyle} onChange={(e) => setGlobeStyle(e.target.value as GlobeStyle)} aria-label="Globe style">
-                  {GLOBE_STYLES.map((id) => (
-                    <option key={id} value={id}>
-                      {STYLES[id].label}
-                    </option>
-                  ))}
-                </select>
-                <select className="input h-9 w-auto max-w-[16rem]" value={overlay} onChange={(e) => setOverlay(e.target.value)} aria-label="Information layer">
-                  <option value="">No information layer</option>
-                  {CATEGORIES.map((c) => {
-                    const items = OVERLAYS.filter((l) => l.category === c);
-                    return items.length ? (
-                      <optgroup key={c} label={c}>
-                        {items.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null;
-                  })}
-                </select>
-                <button className="chip" aria-pressed={night} onClick={() => setNight((n) => !n)} title="Shade the night side of the Earth for the current time">
-                  <Moon className="h-3.5 w-3.5" /> Day and night
-                </button>
-              </>
-            )}
-            <div className="relative ml-auto min-w-0 flex-1 sm:max-w-64">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-dim" />
-              <input
-                className="input h-9 pl-8"
-                placeholder="Find a country"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && matches[0]) {
-                    selectCountry(matches[0].iso3);
-                    setQuery('');
-                  }
-                }}
-                aria-label="Find a country"
-              />
-              {matches.length > 0 && (
-                <ul className="absolute z-30 mt-1 w-full overflow-hidden rounded-md border border-line bg-ink-900 text-sm shadow-xl" role="listbox" aria-label="Countries">
-                  {matches.map((m) => (
-                    <li key={m.iso3}>
-                      <button
-                        className="block min-h-8 w-full px-3 py-1.5 text-left hover:bg-ink-800"
-                        role="option"
-                        aria-selected={false}
-                        onClick={() => {
-                          selectCountry(m.iso3);
-                          setQuery('');
-                        }}
-                      >
-                        {m.name}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <button
-              className="btn-ghost h-9 text-xs"
-              onClick={() => (document.fullscreenElement ? void document.exitFullscreen() : void frame.current?.requestFullscreen?.())}
-              aria-label="Full screen"
-            >
-              <Expand className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <div ref={frame} className="relative bg-ink-950">
-            {view === '3d' ? (
-              <div className={`w-full border border-line ${fullscreen ? 'h-screen' : 'aspect-[96/50] min-h-[380px]'}`}>
-                <Suspense fallback={<div className="grid h-full place-items-center text-sm text-slate-dim">Loading the globe…</div>}>
-                  <GeoMap
-                    ref={globe}
-                    state={mapState}
-                    today={env.today}
-                    events={filtered}
-                    values={values}
-                    nightAt={night ? nightAt : null}
-                    selectedEventId={selected?.id ?? null}
-                    onView={setCamera}
-                    onCountry={(iso3) => {
-                      setCountry(iso3);
-                      setSelected(null);
-                    }}
-                    onEvent={(e) => {
-                      setSelected(e);
-                      setCountry(null);
-                    }}
-                    onTileError={() => undefined}
-                  />
-                </Suspense>
-              </div>
-            ) : (
-              <WorldMap
-                ref={flat}
-                events={filtered}
-                selectedEventId={selected?.id}
-                highlightIso3={country ? [country] : []}
-                onEventClick={(e) => {
-                  setSelected(e);
-                  setCountry(null);
-                }}
-                onCountryClick={(iso3) => {
-                  setCountry(iso3);
-                  setSelected(null);
-                }}
-                className="aspect-[96/50] w-full border border-line"
-              />
-            )}
-            {selected && <EventDrawer event={selected} onClose={() => setSelected(null)} />}
-            {!selected && country && (
-              <CountryCard
-                iso3={country}
-                name={countryRef?.name ?? country}
-                overlay={overlayLayer?.kind === 'choropleth' ? { layer: overlayLayer, value: overlayValue, year: years[overlayLayer.id]?.get(country) ?? (overlayLayer.latest ? undefined : env.year) } : null}
-                onClose={() => setCountry(null)}
-              />
-            )}
-          </div>
-          <p className="text-[11px] text-slate-dim">
-            {view === '3d'
-              ? `Globe imagery: ${STYLES[globeStyle].description}${overlayLayer && overlayLayer.kind !== 'planned' ? ` Layer: ${overlayLayer.name} (${overlayLayer.provider}).` : ''}${night ? ' Night shading is computed from the sun\'s position now.' : ''}`
-              : 'Flat map (Natural Earth projection). Drag to move, scroll or pinch to zoom.'}
-          </p>
-
-          <Panel title="Timeline" eyebrow="Historical view">
-            <EventTimeline events={windowed} days={Math.min(windowDays, 60)} now={now} selectedDay={day} onSelectDay={setDay} />
-          </Panel>
-
-          <Panel title={`Events (${filtered.length})`} bodyClass="max-h-96 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <p className="p-4 text-sm text-slate-dim">No events match the current filters.</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {filtered.map((e) => (
-                  <li key={e.id}>
-                    <button
-                      className={`flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-ink-800/60 ${selected?.id === e.id ? 'bg-ink-800/60' : ''}`}
-                      onClick={() => selectEvent(e)}
-                    >
-                      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[e.category] }} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm text-platinum">{e.title}</span>
-                        <span className="text-xs text-slate-dim">
-                          {CATEGORY_LABEL[e.category]} · {e.region} · {relativeTime(e.time)}
-                        </span>
-                      </span>
-                      <span className="num shrink-0 text-xs text-mist">S{e.severity}</span>
-                      <ProvenanceBadge kind={e.provenance} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
-      </div>
+  const strip = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-mist">
+      <span className="eyebrow !text-[10px]">Last 24 hours</span>
+      <span>
+        <span className="num text-platinum">{quakes24}</span> earthquakes M4.5+
+      </span>
+      <span>
+        <span className="num text-platinum">{last24.length}</span> hazard signals
+      </span>
+      {news.status === 'ready' && (
+        <span>
+          <span className="num text-platinum">{news.data.stories.length}</span> news stories,{' '}
+          <span className="num text-platinum">{news.data.stories.filter((s) => s.status !== 'unverified').length}</span> confirmed or corroborated
+        </span>
+      )}
+      {(quakeStale || disasterStale) && <span className="text-warn">Some feeds show a saved copy</span>}
     </div>
   );
-}
 
-function EventDrawer({ event: e, onClose }: { event: GeoEvent; onClose: () => void }) {
-  const external = e.source.url.startsWith('http');
-  return (
-    <div className="absolute inset-x-2 bottom-2 z-20 max-h-[85%] overflow-y-auto rounded-lg border border-line bg-ink-900/97 p-4 shadow-2xl sm:inset-x-auto sm:left-2 sm:top-2 sm:bottom-auto sm:w-96">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <ProvenanceBadge kind={e.provenance} />
-          <span className="text-xs" style={{ color: CATEGORY_COLOR[e.category] }}>
-            {CATEGORY_LABEL[e.category]}
-          </span>
-          <span className="text-xs text-mist">Severity {e.severity}/5</span>
+  const feed = (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="space-y-2 border-b border-line p-3">
+        <div className="flex gap-1" role="tablist" aria-label="Feed">
+          {(
+            [
+              ['all', 'All'],
+              ['signals', 'Signals'],
+              ['news', 'News'],
+            ] as const
+          ).map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={feedTab === id} aria-pressed={feedTab === id} className="chip text-[11px]" onClick={() => setFeedTab(id)}>
+              {label}
+            </button>
+          ))}
         </div>
-        <button className="btn-quiet -mr-2 -mt-1" aria-label="Close details" onClick={onClose}>
-          <X className="h-4 w-4" />
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-dim" aria-hidden />
+          <input className="input h-8 pl-8 text-xs" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the feed" aria-label="Search the feed" />
+        </label>
+      </div>
+      <ul className="min-h-0 flex-1 divide-y divide-line/60 overflow-y-auto" data-scroll-panel>
+        {feedTab !== 'news' &&
+          sigItems.map((e) => (
+            <li key={e.id}>
+              <button
+                className={`block w-full px-3 py-2 text-left hover:bg-ink-900 ${selected?.id === e.id ? 'bg-ink-900' : ''}`}
+                onClick={() => {
+                                    if (country) closeCountry();
+                  focusEvent(e);
+                  setMobileTab('details');
+                }}
+              >
+                <div className="flex items-start gap-2">
+                  <span aria-hidden className={`mt-1 h-2 w-2 shrink-0 rounded-full ${SEVERITY_CLS[e.severity]}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs text-platinum">{e.title}</span>
+                    <span className="block text-[10px] text-slate-dim">
+                      {e.source.name} · {age(e.time, now)} · severity {e.severity}/5
+                    </span>
+                  </span>
+                </div>
+              </button>
+            </li>
+          ))}
+        {feedTab !== 'signals' &&
+          stories.map((s) => {
+            const c = countryIn(s.title);
+            const first = s.articles[0];
+            return (
+              <li key={s.id} className="px-3 py-2">
+                <div className="text-xs text-platinum">{s.title}</div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] text-slate-dim">
+                  <span className={s.status === 'confirmed' ? 'text-up' : s.status === 'corroborated' ? 'text-info' : 'text-warn'}>{s.status}</span>
+                  <span>
+                    {s.independent.length} {s.independent.length === 1 ? 'publisher' : 'publishers'} · {age(s.first, now)}
+                  </span>
+                  {c && (
+                    <button className="text-gold hover:underline" onClick={() => openCountry(c.iso3)}>
+                      Focus {c.name}
+                    </button>
+                  )}
+                  {first && (
+                    <a href={first.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-0.5 text-mist hover:text-gold-soft">
+                      source <ExternalLink className="h-2.5 w-2.5" aria-hidden />
+                    </a>
+                  )}
+                  {first && <SaveButton kind="story" title={s.title} url={first.url} className="tap inline-flex items-center gap-0.5 text-mist hover:text-gold-soft" label={false} />}
+                </div>
+              </li>
+            );
+          })}
+        {feedTab !== 'news' && quakeStatus === 'loading' && disasterStatus === 'loading' && <li className="p-3 text-xs text-slate-dim">Loading signals…</li>}
+        {feedTab !== 'signals' && news.status === 'loading' && <li className="p-3 text-xs text-slate-dim">Loading news…</li>}
+        {feedTab !== 'signals' && news.status === 'error' && <li className="p-3 text-xs text-warn">News is unavailable right now.</li>}
+      </ul>
+    </div>
+  );
+
+  const launcher = (
+    <div className="space-y-3 rounded-md border border-line p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="eyebrow">Briefing</span>
+        <div className="flex gap-1" role="radiogroup" aria-label="Briefing period">
+          {(Object.keys(WINDOWS) as ReportingWindow[]).map((w) => (
+            <button key={w} role="radio" aria-checked={win === w} className="chip text-[11px]" aria-pressed={win === w} onClick={() => setWin(w)}>
+              {w}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button className="btn-primary justify-center text-xs" onClick={() => void startBriefing('read')} disabled={preparing}>
+          <BookOpen className="h-3.5 w-3.5" aria-hidden /> Read Briefing
+        </button>
+        <button className="btn-ghost justify-center text-xs" onClick={() => void startBriefing('play')} disabled={preparing}>
+          <Headphones className="h-3.5 w-3.5" aria-hidden /> {preparing ? 'Preparing voices…' : 'Play AI Briefing'}
         </button>
       </div>
-      <h3 className="mt-2 text-base font-semibold leading-snug">{e.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-mist">{e.summary}</p>
-      <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-slate-dim">Time</dt>
-        <dd>{fmtDate(e.time)} ({relativeTime(e.time)})</dd>
-        <dt className="text-slate-dim">Location</dt>
-        <dd className="num">
-          {e.region} · {e.lat.toFixed(2)}, {e.lon.toFixed(2)}
-        </dd>
-        <dt className="text-slate-dim">Source</dt>
-        <dd>
-          {external ? (
-            <a className="inline-flex items-center gap-1 text-gold hover:underline" href={e.source.url} target="_blank" rel="noreferrer">
-              {e.source.name} <ExternalLink className="h-3 w-3" />
+      <button className="btn-ghost w-full justify-center text-xs" onClick={() => startTour(true)} disabled={!signals.length && !storiesNow.length}>
+        <Tv className="h-3.5 w-3.5" aria-hidden /> Auto Tour
+      </button>
+      <p className="text-[10px] leading-relaxed text-slate-dim">
+        {WINDOWS[win].label}: about one minute, full screen. EVE presents economy, markets, trade and energy; KNOX security, geopolitics and hazards. Lines are
+        built from the sources shown, not generated per viewer. {idle.radar ? 'The tour also starts after a period of inactivity (Account › Idle presentations).' : ''}
+      </p>
+    </div>
+  );
+
+  const summaryPanel = summary && (
+    <div className="h-full space-y-3 overflow-y-auto p-4" data-scroll-panel>
+      <div className="flex items-center justify-between gap-2">
+        <span className="eyebrow">Briefing summary · {WINDOWS[summary.window].label}</span>
+        <span className="flex-1" />
+        {summary.scenes.length > 0 && (
+          <SaveButton
+            kind="briefing"
+            title={`Briefing, ${WINDOWS[summary.window].label.toLowerCase()}, ${new Date().toUTCString().slice(5, 16)}`}
+            href={`/#briefing-${summary.version}`}
+            meta={{ version: summary.version, stories: summary.scenes.map((s) => s.title).slice(0, 8) }}
+          />
+        )}
+        <button className="chip min-h-8 px-2" onClick={() => setSummary(null)} aria-label="Close summary">
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      </div>
+      {summary.scenes.length === 0 ? (
+        <p className="text-sm text-mist">No significant, located developments in this period yet. Try a longer period.</p>
+      ) : (
+        <ol className="space-y-3">
+          {summary.scenes.map((s, i) => (
+            <li key={s.id} className="border-b border-line/60 pb-3">
+              <div className="text-[10px] text-slate-dim">
+                {i + 1}. {s.kind === 'news' ? 'News' : 'Signal'} · {new Date(s.date).toUTCString().replace(/:\d\d GMT$/, ' UTC')}
+              </div>
+              <h3 className="text-sm font-semibold text-platinum">{s.title}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-mist">{s.explanation}</p>
+              <div className="mt-1 flex flex-wrap gap-x-3 text-[11px]">
+                {s.sources.slice(0, 3).map((src) => (
+                  <a key={src.url} href={src.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-0.5 text-gold hover:underline">
+                    {src.name} <ExternalLink className="h-2.5 w-2.5" aria-hidden />
+                  </a>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="text-[10px] text-slate-dim">Content version {summary.version}. Multiple reports of one event are merged and are not counted as independent confirmation.</p>
+    </div>
+  );
+
+  const situation = (
+    <div className="h-full space-y-4 overflow-y-auto p-4" data-scroll-panel>
+      {selected ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="eyebrow">Selected event</span>
+            <ProvenanceBadge kind={selected.provenance} />
+          </div>
+          <h2 className="text-lg font-semibold text-platinum">{selected.title}</h2>
+          <p className="text-xs text-slate-dim">
+            {new Date(selected.time).toUTCString().replace(' GMT', ' UTC')} · {age(selected.time, now)} · severity {selected.severity}/5 · {selected.region}
+          </p>
+          {selected.summary && <p className="text-sm leading-relaxed text-mist">{selected.summary}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={selected.source.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs text-gold hover:underline">
+              {selected.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
-          ) : (
-            <Link className="text-gold hover:underline" to={e.source.url}>
-              {e.source.name}
-            </Link>
-          )}
-        </dd>
-      </dl>
-      <AddToBrain
-        className="mt-3"
-        event={e}
-        entity={{
-          kind: e.provenance === 'simulated' ? 'scenario' : 'event',
-          label: e.title,
-          date: e.time.slice(0, 10),
-          notes: `${e.provenance === 'simulated' ? 'Simulated scenario. Not a real event. ' : ''}${e.summary}`.slice(0, 5000),
-          ref: { type: 'event', id: e.id },
-          sources: e.source.url.startsWith('http') ? [{ title: e.source.name, url: e.source.url, date: e.time.slice(0, 10) }] : [],
-        }}
-      />
-      {e.provenance !== 'simulated' && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <ModuleLink to={`/lab/forecasts?event=${encodeURIComponent(e.id)}&q=${encodeURIComponent(`Will ${e.title} …`)}`}>Make a forecast</ModuleLink>
-          <ModuleLink to={`/impact?event=${encodeURIComponent(e.id)}`}>Commodity exposure</ModuleLink>
+            <SaveButton kind="event" title={selected.title} url={selected.source.url} meta={{ time: selected.time, lat: selected.lat, lon: selected.lon }} />
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div className="eyebrow">Situation overview</div>
+          <h2 className="mt-1 text-lg font-semibold text-platinum">The last 24 hours</h2>
+          <p className="mt-1 text-sm text-mist">
+            {last24.length} hazard signals from USGS and GDACS{news.status === 'ready' ? ` and ${news.data.stories.length} news stories grouped from ${news.data.articles} headlines` : ''}. Select an
+            event or a country on the map, or start a briefing below.
+          </p>
         </div>
       )}
-      {e.marketLinks && e.marketLinks.length > 0 && (
-        <div className="mt-4 border-t border-line pt-3">
-          <div className="eyebrow mb-1">Potential market exposure</div>
-          <p className="mb-2 text-[11px] text-slate-dim">
-            A research hypothesis, not a forecast.{' '}
-            <Link to="/impact" className="text-gold hover:underline">
-              How these links work
-            </Link>
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {e.marketLinks.map((s) => (
-              <Link key={s} className="chip" to={`/markets?symbol=${encodeURIComponent(s)}`}>
-                {INSTRUMENT_MAP.get(s)?.name ?? s}
-              </Link>
+      {launcher}
+      <nav aria-label="Modules" className="grid grid-cols-2 gap-2 text-xs">
+        {[
+          ['/countries', 'Countries'],
+          ['/markets', 'Markets'],
+          ['/lab', 'Quant Research'],
+          ['/brain', 'Brain'],
+          ['/news', 'News verification'],
+          ['/geo', 'Map Explorer'],
+          ['/hq', 'HQ'],
+        ].map(([to, label]) => (
+          <Link key={to} to={to!} className="rounded-md border border-line px-3 py-2 text-mist hover:border-gold-dim hover:text-gold-soft">
+            {label}
+          </Link>
+        ))}
+      </nav>
+      <p className="text-[10px] text-slate-dim">
+        Signals: USGS earthquakes M4.5+ and GDACS disaster alerts; news: GDELT and UN News headlines. Times are when the source published.{' '}
+        <Link to="/overview" className="underline hover:text-mist">
+          About the platform
+        </Link>
+      </p>
+    </div>
+  );
+
+  const mapView = env.gl ? (
+    <Suspense fallback={<div className="grid h-full place-items-center text-sm text-slate-dim">Loading the globe…</div>}>
+      <GeoMap
+        ref={map}
+        state={mapState}
+        today={env.today}
+        events={signals}
+        values={{}}
+        selectedEventId={selected?.id ?? null}
+        onView={setCamera}
+        onCountry={(iso3) => openCountry(iso3)}
+        onEvent={(e) => {
+                    if (country) closeCountry();
+          setSelected(e);
+          setMobileTab('details');
+        }}
+        onTileError={() => undefined}
+      />
+    </Suspense>
+  ) : (
+    <WorldMap events={signals} selectedEventId={selected?.id} onEventClick={(e) => setSelected(e)} onCountryClick={(iso3) => openCountry(iso3)} className="h-full" />
+  );
+
+  return (
+    <div className="flex flex-col lg:h-[calc(100dvh-4rem)]">
+      <div className="border-b border-line px-4 py-2">{strip}</div>
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        {isDesktop && (
+          <aside className="w-80 shrink-0 border-r border-line" aria-label="Intelligence feed">
+            {feed}
+          </aside>
+        )}
+        <div className="relative h-[55dvh] min-w-0 shrink-0 lg:h-auto lg:flex-1 lg:shrink">
+          {mapView}
+          <div className="absolute left-2 top-2 z-10 flex gap-1" role="group" aria-label="Map style">
+            {STYLES.map(([id, label]) => (
+              <button key={id} className="chip bg-ink-950/80 text-[11px]" aria-pressed={prefs.style === id} onClick={() => savePrefs({ style: id })}>
+                {label}
+              </button>
             ))}
           </div>
+          {/* Desktop: dossier or situation panel docked over the right side of the map. */}
+          {isDesktop && (
+          <section
+            className="absolute inset-y-0 right-0 z-20 border-l border-line bg-ink-950/95 backdrop-blur"
+            style={{ width: prefs.panelWidth }}
+            aria-label={country ? 'Country dossier' : 'Situation'}
+          >
+            <div
+              className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize hover:bg-gold/30"
+              onPointerDown={startResize}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize panel"
+            />
+            {country ? <CountryPanel iso3={country} onClose={closeCountry} section={section} onSection={setSection} /> : (summaryPanel ?? situation)}
+          </section>
+          )}
         </div>
-      )}
-    </div>
-  );
-}
-
-function StaleNote({ stale }: { stale: { since: string | null; reason: string } }) {
-  return (
-    <span className="block text-xs text-warn" role="status">
-      Source not responding. Showing the last saved copy{stale.since ? ` from ${stale.since.slice(0, 16).replace('T', ' ')} UTC` : ''}.
-    </span>
-  );
-}
-
-function CountryCard({ iso3, name, overlay, onClose }: { iso3: string; name: string; overlay: { layer: ChoroplethLayer; value: number | undefined; year: number | undefined } | null; onClose: () => void }) {
-  return (
-    <div className="absolute inset-x-2 bottom-2 z-20 rounded-lg border border-line bg-ink-900/97 p-4 shadow-2xl sm:inset-x-auto sm:left-2 sm:top-2 sm:bottom-auto sm:w-80">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="eyebrow">Country</div>
-          <h3 className="text-base font-semibold">{name}</h3>
+        {/* Below desktop: one panel at a time under the map. */}
+        {!isDesktop && (
+        <div className="border-t border-line">
+          <div className="flex gap-1 p-2" role="tablist" aria-label="Panels">
+            {(
+              [
+                ['details', country ? 'Dossier' : 'Situation'],
+                ['feed', 'Feed'],
+              ] as const
+            ).map(([id, label]) => (
+              <button key={id} role="tab" aria-selected={mobileTab === id} aria-pressed={mobileTab === id} className="chip text-xs" onClick={() => setMobileTab(id)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="max-h-[70dvh] min-h-[40dvh] overflow-hidden">
+            {mobileTab === 'feed' ? feed : country ? <CountryPanel iso3={country} onClose={closeCountry} section={section} onSection={setSection} /> : (summaryPanel ?? situation)}
+          </div>
         </div>
-        <button className="btn-quiet -mr-2 -mt-1" aria-label="Close country details" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </button>
+        )}
       </div>
-      {overlay && (
-        <p className="mt-2 text-sm">
-          <span className="text-mist">{overlay.layer.name}: </span>
-          <span className="num text-platinum">{overlay.value === undefined ? 'No data' : formatValue(overlay.value, overlay.layer.format)}</span>
-          {overlay.year !== undefined && overlay.value !== undefined && <span className="text-slate-dim"> ({overlay.year})</span>}
-        </p>
-      )}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <Link className="btn-primary h-8 text-xs" to={`/countries/${iso3}`}>
-          Country dossier
-        </Link>
-        <Link className="btn-ghost h-8 text-xs" to="/briefing">
-          World Briefing
-        </Link>
-        <Link className="btn-ghost h-8 text-xs" to={`/currency?c=${iso3}`}>
-          Currency
-        </Link>
-      </div>
+      {showing && <Presentation key={showing.plan.version + showing.mode} plan={showing.plan} mode={showing.mode} events={signals} narrator={showing.narrator} audioNote={showing.audioNote} fullscreen={showing.fullscreen} onExit={endShow} />}
     </div>
   );
 }

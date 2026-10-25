@@ -34,7 +34,8 @@ setWorkerUrl(workerUrl);
 export interface GeoMapHandle {
   /** PNG of the current view with a source footer, or null when the browser refuses (e.g. tainted canvas). */
   exportPng: (footer: string) => Promise<Blob | null>;
-  flyTo: (lon: number, lat: number, zoom: number) => void;
+  /** `padding` (px) keeps the point clear of panels drawn over the map. */
+  flyTo: (lon: number, lat: number, zoom: number, padding?: { top: number; right: number; bottom: number; left: number }) => void;
   /**
    * Fits the view to a country; false when the country is not on the map. `padding` (px) keeps it clear of panels
    * drawn over the map, e.g. `{ right: 480 }` for a side dossier.
@@ -162,6 +163,8 @@ interface Props {
   nightAt?: number | null;
   /** Event drawn with a highlighted outline. */
   selectedEventId?: string | null;
+  /** false: the camera is controlled by the app only (presentations); dragging, zooming and clicks are ignored. */
+  interactive?: boolean;
 }
 
 /** MapLibre style for the current state. Rebuilt on every change and applied with `setStyle(…, { diff: true })`. */
@@ -355,8 +358,13 @@ function buildStyle(
           ? feeds.has("disasters")
           : false,
   );
+  // Nearby events are clustered (count shown on hover; a click zooms in), so dense areas stay readable.
   sources.events = {
     type: "geojson",
+    cluster: true,
+    clusterRadius: 36,
+    clusterMaxZoom: 6,
+    clusterProperties: { maxSeverity: ["max", ["get", "severity"]], selected: ["max", ["get", "selected"]] },
     data: {
       type: "FeatureCollection",
       features: shown.map((e) => ({
@@ -380,9 +388,23 @@ function buildStyle(
         (LAYER_MAP.get(l.id) as { feed: string }).feed === feed,
     )?.opacity ?? 1;
   layers.push({
+    id: "event-clusters",
+    type: "circle",
+    source: "events",
+    filter: ["has", "point_count"],
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["get", "point_count"], 2, 9, 10, 14, 50, 20],
+      "circle-color": "#c9a35a",
+      "circle-opacity": 0.28,
+      "circle-stroke-color": ["case", ["==", ["get", "selected"], 1], "#f1f0ec", "#c9a35a"],
+      "circle-stroke-width": ["case", ["==", ["get", "selected"], 1], 2.5, 1.4],
+    },
+  });
+  layers.push({
     id: "events",
     type: "circle",
     source: "events",
+    filter: ["!", ["has", "point_count"]],
     paint: {
       "circle-radius": [
         "interpolate",
@@ -445,6 +467,7 @@ export default function GeoMap({
   onHover,
   nightAt = null,
   selectedEventId = null,
+  interactive = true,
 }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -455,9 +478,11 @@ export default function GeoMap({
     onTileError,
     onHover,
     events,
+    interactive,
   });
   useEffect(() => {
     handlers.current = {
+      interactive,
       onView,
       onCountry,
       onEvent,
@@ -481,10 +506,8 @@ export default function GeoMap({
       cooperativeGestures: false,
     });
     mapRef.current = map;
-    map.addControl(
-      new NavigationControl({ visualizePitch: false }),
-      "top-right",
-    );
+    // Presentations move the camera themselves: no zoom buttons.
+    if (handlers.current.interactive) map.addControl(new NavigationControl({ visualizePitch: false }), "top-right");
     map.on("moveend", () => {
       const c = map.getCenter();
       handlers.current.onView({ center: [c.lng, c.lat], zoom: map.getZoom() });
@@ -498,6 +521,15 @@ export default function GeoMap({
       else if (sourceId === "base") handlers.current.onTileError("blue-marble");
     });
     map.on("click", (e: MapMouseEvent) => {
+      if (!handlers.current.interactive) return;
+      const cluster = map.queryRenderedFeatures(e.point, { layers: ["event-clusters"] })[0];
+      if (cluster) {
+        const src = map.getSource("events") as unknown as { getClusterExpansionZoom: (id: number) => Promise<number> };
+        void src.getClusterExpansionZoom(cluster.properties?.cluster_id as number).then((z) =>
+          map.easeTo({ center: (cluster.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: Math.min(z + 0.5, 9) }),
+        );
+        return;
+      }
       const hit = map.queryRenderedFeatures(e.point, { layers: ["events"] })[0];
       if (hit) {
         const ev = handlers.current.events.find(
@@ -515,6 +547,13 @@ export default function GeoMap({
       );
     });
     map.on("mousemove", (e: MapMouseEvent) => {
+      if (!handlers.current.interactive) return;
+      const cl = map.queryRenderedFeatures(e.point, { layers: ["event-clusters"] })[0];
+      if (cl) {
+        map.getCanvas().style.cursor = "pointer";
+        handlers.current.onHover?.(`${cl.properties?.point_count} events here: click to zoom in`);
+        return;
+      }
       const ev = map.queryRenderedFeatures(e.point, { layers: ["events"] })[0];
       const c = ev
         ? null
@@ -549,6 +588,17 @@ export default function GeoMap({
     map.setStyle(buildStyle(styleState.current, today, events, values, { nightAt, selectedEventId }), { diff: true });
   }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values, nightAt, selectedEventId]);
 
+  // Presentations control the camera alone.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const h = [map.dragPan, map.scrollZoom, map.boxZoom, map.dragRotate, map.keyboard, map.doubleClickZoom, map.touchZoomRotate];
+    for (const x of h) {
+      if (interactive) x.enable();
+      else x.disable();
+    }
+  }, [interactive]);
+
   // Follow camera changes that come from outside (shared links, search, saved views).
   useEffect(() => {
     const map = mapRef.current;
@@ -564,14 +614,15 @@ export default function GeoMap({
   }, [state.center, state.zoom]);
 
   useImperativeHandle(ref, () => ({
-    flyTo: (lon, lat, zoom) => {
+    flyTo: (lon, lat, zoom, padding) => {
       const reduced = window.matchMedia?.(
         "(prefers-reduced-motion: reduce)",
       ).matches;
       mapRef.current?.[reduced ? "jumpTo" : "flyTo"]({
         center: [lon, lat],
         zoom,
-        ...(reduced ? {} : { duration: 1400 }),
+        ...(padding ? { padding } : {}),
+        ...(reduced ? {} : { duration: 1600, essential: true }),
       });
     },
     focusCountry: (iso3, padding = 40) => {

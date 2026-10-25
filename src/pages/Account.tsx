@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { Loading, PageHeader, Panel, Unavailable } from '../components/ui';
 import { TIERS } from '../data/tiers';
 import { limitOf, useTier } from '../lib/entitlements';
-import { usePrefs } from '../store/prefs';
+import { normalizeIdle, usePrefs } from '../store/prefs';
 import { useSyncStatus } from '../store/syncStatus';
 import { useEntitlements } from '../store/entitlements';
 import { useChartLibrary } from '../store/chartLibrary';
@@ -211,6 +211,7 @@ export default function Account() {
         {status === 'signed-in' && <OrganisationCard />}
 
         <IntroPreferences />
+        <IdlePreferences />
 
         {status === 'signed-in' && <DeleteAccount />}
 
@@ -369,6 +370,30 @@ function IntroPreferences() {
         Introductions are silent, can always be skipped (button or Esc) and never play when your device asks for reduced motion, on reloads or when you
         move between pages. With data saver on, the brand intro replaces the film.
       </p>
+    </Panel>
+  );
+}
+
+/**
+ * Automatic idle presentations (store/prefs.ts `idle`, synced): only areas that have one are listed. Switching one off
+ * stops automatic entry; the presentation can still be started by hand.
+ */
+function IdlePreferences() {
+  const idle = normalizeIdle(usePrefs((s) => s.idle));
+  const setIdle = usePrefs((s) => s.setIdle);
+  return (
+    <Panel title="Idle presentations" eyebrow="Preferences">
+      <p className="mb-3 text-xs text-slate-dim">
+        After a short period without activity, an area can show a full-screen presentation. Any click, tap or Esc returns to exactly where you were. It never
+        starts while you type, and never plays sound on its own.
+      </p>
+      <label className="flex items-center justify-between gap-3 py-1.5 text-sm text-mist">
+        <span>
+          Global Radar: tour of current events
+          <span className="block text-[11px] text-slate-dim">You can always start it with the Auto Tour button.</span>
+        </span>
+        <input type="checkbox" className="h-5 w-5 accent-[#c9a35a]" checked={idle.radar} onChange={(e) => setIdle({ radar: e.target.checked })} aria-label="Automatic idle tour in Global Radar" />
+      </label>
     </Panel>
   );
 }

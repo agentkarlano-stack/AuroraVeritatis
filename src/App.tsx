@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { PrefsSync } from './auth/PrefsSync';
+import { SavedSync } from './auth/SavedSync';
 import { EntitlementsSync } from './auth/EntitlementsSync';
 import { SessionGuard } from './auth/SessionGuard';
 import { IntroSplash } from './components/IntroSplash';
@@ -10,7 +11,6 @@ import { AppLoading } from './components/ui';
 import Home from './pages/Home';
 
 const Headquarters = lazy(() => import('./pages/Headquarters'));
-const IntelHQ = lazy(() => import('./pages/IntelHQ'));
 const Radar = lazy(() => import('./pages/Radar'));
 const Countries = lazy(() => import('./pages/Countries'));
 const CountryDossier = lazy(() => import('./pages/CountryDossier'));
@@ -24,7 +24,6 @@ const Tension = lazy(() => import('./pages/Tension'));
 const Positioning = lazy(() => import('./pages/Positioning'));
 const Macro = lazy(() => import('./pages/Macro'));
 const Currency = lazy(() => import('./pages/Currency'));
-const Briefing = lazy(() => import('./pages/Briefing'));
 const GeoExplorer = lazy(() => import('./pages/GeoExplorer'));
 const Newsletter = lazy(() => import('./pages/Newsletter'));
 const Commodities = lazy(() => import('./pages/Commodities'));
@@ -49,6 +48,7 @@ export function App() {
   return (
     <AuthProvider>
       <PrefsSync />
+      <SavedSync />
       <EntitlementsSync />
       <SessionGuard />
       <IntroSplash />
@@ -56,11 +56,11 @@ export function App() {
         <Routes>
           <Route path="share/card" element={<Lazy><ShareCard /></Lazy>} />
           <Route element={<Layout />}>
-            <Route index element={<Lazy><IntelHQ /></Lazy>} />
+            <Route index element={<Lazy><Radar /></Lazy>} />
             <Route path="overview" element={<Home />} />
             <Route path="hq" element={<Lazy><Headquarters /></Lazy>} />
             <Route path="radar" element={<Lazy><Radar /></Lazy>} />
-            <Route path="briefing" element={<Lazy><Briefing /></Lazy>} />
+            <Route path="briefing" element={<Navigate to="/" replace />} />
             <Route path="geo" element={<Lazy><GeoExplorer /></Lazy>} />
             <Route path="newsletter" element={<Lazy><Newsletter /></Lazy>} />
             <Route path="business" element={<Lazy><Business /></Lazy>} />

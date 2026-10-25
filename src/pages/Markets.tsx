@@ -1,4 +1,5 @@
 import { Star, X } from 'lucide-react';
+import { SaveButton } from '../components/SaveButton';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ChartEditor } from '../components/chart/ChartEditor';
@@ -107,6 +108,7 @@ export default function Markets() {
         title="Market analysis"
         actions={
           <>
+            <SaveButton kind="chart" title={`${symbol} chart`} href={`/markets?symbol=${encodeURIComponent(symbol)}`} className="btn-ghost text-xs" />
             <Link to="/markets/commodities" className="btn-ghost text-xs">
               Commodity &amp; Energy Monitor
             </Link>

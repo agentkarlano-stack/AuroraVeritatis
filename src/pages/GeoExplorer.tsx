@@ -1,4 +1,5 @@
 import { Bookmark, Camera, ChevronLeft, ChevronRight, Expand, ExternalLink, Globe2, Layers, Link2, Map as MapIcon, Pause, Play, Search, Star, X } from 'lucide-react';
+import { useSaved } from '../store/saved';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { GeoEvent } from '../../shared/types';
@@ -113,8 +114,11 @@ export default function GeoExplorer() {
     const next = [{ name: name.slice(0, 80), query: encodeState(state) }, ...saved.filter((s) => s.name !== name)].slice(0, 20);
     setSaved(next);
     writeJson(SAVED_KEY, next);
+    // Also in HQ › Saved intelligence (synced with the account when signed in).
+    const href = `/geo?${encodeState(state)}`;
+    if (!useSaved.getState().items.some((i) => i.kind === 'map' && i.href === href)) useSaved.getState().toggle({ kind: 'map', title: name.slice(0, 80), href });
     setViewName('');
-    flash('View saved in this browser.');
+    flash('View saved. It is also listed in HQ.');
   };
   const openSaved = (q: string) => setState(decodeState(q, state, { today: env.yesterday, minYear: env.minYear, maxYear: env.maxYear }));
   const exportImage = async () => {
@@ -616,7 +620,7 @@ function EventPanel({ event, onClose }: { event: GeoEvent; onClose: () => void }
               {event.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
             </a>
           )}
-          <Link className="btn-ghost h-8 text-xs" to="/briefing">
+          <Link className="btn-ghost h-8 text-xs" to="/">
             World Briefing
           </Link>
           <AddToBrain
