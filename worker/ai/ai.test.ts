@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CountryProfile } from '../../shared/types';
 import { buildMessages, checkCitations, numberSources } from './grounding';
-import { aiAsk, gatherSources, parseAsk } from './handler';
+import { aiAsk, aiModels, gatherSources, parseAsk } from './handler';
 import { costCents, estimateCents, providerOrder, route } from './providers';
 
 const okOpenAi = () =>
@@ -14,8 +14,8 @@ describe('providers', () => {
     expect(providerOrder({ OPENAI_API_KEY: 'k', AI: { run: async () => ({}) }, AI_PROVIDERS: 'workers-ai,openai' })).toEqual(['workers-ai', 'openai']);
   });
   it('prices known models and falls back to the most expensive price for unknown ones', () => {
-    expect(costCents('gpt-4o-mini', 1e6, 0)).toBeCloseTo(0.15 * 0.92 * 100);
-    expect(costCents('mystery', 1e6, 0)).toBeCloseTo(2.5 * 0.92 * 100);
+    expect(costCents('gpt-4o-mini', 1e6, 0)).toBeCloseTo(0.15 * 100);
+    expect(costCents('mystery', 1e6, 0)).toBeCloseTo(2.5 * 100);
     expect(estimateCents({ OPENAI_API_KEY: 'k' }, [{ role: 'user', content: 'x'.repeat(4000) }], 500)).toBeGreaterThan(0);
   });
   it('falls back to Workers AI when OpenAI fails, without leaking the key', async () => {
@@ -25,6 +25,13 @@ describe('providers', () => {
     expect(result.provider).toBe('workers-ai');
     expect(failures[0]).toMatch(/^openai: openai responded 503/);
     expect(JSON.stringify(failures)).not.toContain('sk-secret');
+  });
+  it('tries the free provider first when asked to (budget 80 % used)', async () => {
+    const fetchImpl = vi.fn(async () => okOpenAi()) as unknown as typeof fetch;
+    const env = { OPENAI_API_KEY: 'k', AI: { run: async () => ({ response: 'Free answer', usage: { prompt_tokens: 1, completion_tokens: 1 } }) } };
+    const { result } = await route(env, [{ role: 'user', content: 'q' }], { maxTokens: 50, timeoutMs: 1000, fetchImpl, preferFree: true });
+    expect(result.provider).toBe('workers-ai');
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
   it('reports a combined failure when every provider fails', async () => {
     const env = { AI: { run: async () => ({ response: '' }) } };
@@ -119,5 +126,69 @@ describe('request handling', () => {
     const res = await aiAsk(req({ assistant: 'knox', question: 'Explain value at risk' }), env, { ...deps, fetchImpl });
     expect(res.status).toBe(502);
     expect(bodies[0]).toMatchObject({ request: 'r2', ok: false });
+  });
+  it('serves a repeated question from the cache without calling the provider, but never caches notes', async () => {
+    const store = new Map<string, string>();
+    const cache = { get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v) };
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      calls.push(u.split('/').pop()!);
+      if (u.endsWith('/ai_begin')) return new Response(JSON.stringify({ allowed: true, request_id: 'r3', level: 'normal' }));
+      if (u.endsWith('/ai_finish')) return new Response('{}');
+      if (u.endsWith('/my_ai_usage')) return new Response(JSON.stringify({ enabled: true }));
+      return okOpenAi();
+    }) as unknown as typeof fetch;
+    const q = { assistant: 'knox', question: 'What is expected shortfall?' };
+    expect((await aiAsk(req(q), env, { ...deps, fetchImpl, cache })).status).toBe(200);
+    const again = await aiAsk(req({ ...q, question: '  what is EXPECTED shortfall? ' }), env, { ...deps, fetchImpl, cache });
+    expect(((await again.json()) as { cached?: boolean }).cached).toBe(true);
+    expect(calls.filter((c) => c === 'completions')).toHaveLength(1);
+    await aiAsk(req({ ...q, notes: [{ title: 'n', text: 'private' }] }), env, { ...deps, fetchImpl, cache });
+    expect(store.size).toBe(1);
+  });
+  it('shares one provider call between identical questions arriving together', async () => {
+    let completions = 0;
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.endsWith('/ai_begin')) return new Response(JSON.stringify({ allowed: true, request_id: 'r4' }));
+      if (u.endsWith('/ai_finish')) return new Response('{}');
+      completions++;
+      await new Promise((r) => setTimeout(r, 20));
+      return okOpenAi();
+    }) as unknown as typeof fetch;
+    const q = { assistant: 'eve', question: 'Same question at the same time' };
+    const [a, b] = await Promise.all([aiAsk(req(q), env, { ...deps, fetchImpl }), aiAsk(req(q), env, { ...deps, fetchImpl })]);
+    expect([a.status, b.status]).toEqual([200, 200]);
+    expect(completions).toBe(1);
+  });
+  it('uses shorter answers and the free provider first once the budget is 80 % used', async () => {
+    const run = vi.fn(async (_model: string, _input: unknown) => ({ response: "Short [S1]", usage: { prompt_tokens: 1, completion_tokens: 1 } }));
+    const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.endsWith('/ai_begin')) return new Response(JSON.stringify({ allowed: true, request_id: 'r5', level: 'restricted' }));
+      return new Response('{}');
+    }) as unknown as typeof fetch;
+    const res = await aiAsk(req({ assistant: 'eve', question: 'Restricted mode question' }), { ...env, AI: { run } }, { ...deps, fetchImpl });
+    expect(((await res.json()) as { provider: string }).provider).toBe('workers-ai');
+    expect(run.mock.calls[0]![1]).toMatchObject({ max_tokens: 300 });
+  });
+});
+
+describe('model check', () => {
+  const env = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'anon', OPENAI_API_KEY: 'sk-secret' };
+  const get = () => new Request('https://aurorav.app/api/ai/models', { headers: { Authorization: `Bearer ${'eyJ'.padEnd(40, 'a')}` } });
+  it('is for administrators only and never returns the key', async () => {
+    const notAdmin = vi.fn(async () => new Response('{}', { status: 403 })) as unknown as typeof fetch;
+    expect((await aiModels(get(), env, notAdmin)).status).toBe(403);
+    const admin = vi.fn(async (url: string | URL | Request) =>
+      String(url).includes('openai.com')
+        ? new Response(JSON.stringify({ data: [{ id: 'gpt-4o-mini' }, { id: 'whisper-1' }, { id: 'gpt-4.1' }] }))
+        : new Response('[]'),
+    ) as unknown as typeof fetch;
+    const res = await aiModels(get(), env, admin);
+    const text = await res.text();
+    expect(JSON.parse(text)).toMatchObject({ key: 'accepted', models: ['gpt-4.1', 'gpt-4o-mini'], configured: 'gpt-4o-mini', configuredAvailable: true });
+    expect(text).not.toContain('sk-secret');
   });
 });

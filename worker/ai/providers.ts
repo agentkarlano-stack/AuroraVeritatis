@@ -13,7 +13,7 @@ export interface AiCompletion {
   model: string;
   tokensIn: number;
   tokensOut: number;
-  /** Estimated cost in euro cents from the price table below (list prices, converted at ~0.92 EUR/USD). */
+  /** Estimated cost in US dollar cents from the price table below (list prices). */
   costCents: number;
 }
 
@@ -48,11 +48,10 @@ const PRICES_USD: Record<string, [number, number]> = {
   '@cf/meta/llama-3.1-8b-instruct': [0.28, 0.83],
 };
 const FALLBACK_PRICE: [number, number] = [2.5, 10];
-const EUR_PER_USD = 0.92;
-
+/** Cost in US dollar cents (OpenAI bills in dollars; Aurora's AI budget is in dollar cents). */
 export function costCents(model: string, tokensIn: number, tokensOut: number): number {
   const [pin, pout] = PRICES_USD[model] ?? FALLBACK_PRICE;
-  return ((tokensIn * pin + tokensOut * pout) / 1e6) * EUR_PER_USD * 100;
+  return ((tokensIn * pin + tokensOut * pout) / 1e6) * 100;
 }
 
 export const modelOf = (env: AiEnv, id: ProviderId) => (id === 'openai' ? env.OPENAI_MODEL : env.WORKERS_AI_MODEL) || DEFAULT_MODELS[id];
@@ -73,6 +72,8 @@ export function providerOrder(env: AiEnv): ProviderId[] {
 
 export interface CallOptions {
   maxTokens: number;
+  /** Try the free provider (Workers AI) first; used once the monthly budget is 80 % used. */
+  preferFree?: boolean;
   timeoutMs: number;
   fetchImpl?: typeof fetch;
 }
@@ -112,7 +113,9 @@ export async function callProvider(env: AiEnv, id: ProviderId, messages: AiMessa
  */
 export async function route(env: AiEnv, messages: AiMessage[], o: CallOptions): Promise<{ result: AiCompletion; failures: string[] }> {
   const failures: string[] = [];
-  for (const id of providerOrder(env)) {
+  const order = providerOrder(env);
+  if (o.preferFree) order.sort((a, b) => Number(b === 'workers-ai') - Number(a === 'workers-ai'));
+  for (const id of order) {
     try {
       return { result: await callProvider(env, id, messages, o), failures };
     } catch (e) {

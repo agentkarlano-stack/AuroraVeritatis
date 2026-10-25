@@ -2,7 +2,7 @@ import type { PublicConfig } from '../shared/types';
 import { cotHistory, cotOverview } from './cftc';
 import { macroHistory, macroOverview } from './ecb';
 import { error, json } from './http';
-import { aiAsk, aiStatus, type AiGatewayEnv } from './ai/handler';
+import { aiAsk, aiModels, aiStatus, type AiGatewayEnv } from './ai/handler';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
@@ -103,6 +103,17 @@ async function cached(request: Request, ctx: ExecutionContext, produce: () => Pr
   return json({ ...body, stale: { since: last.headers.get('X-Aurora-Saved'), reason } }, { maxAge: 60 });
 }
 
+/** AI answers cached at the edge for 6 hours, keyed by a hash of assistant, question and sources (never notes). */
+const answerCache = {
+  async get(key: string) {
+    const r = await caches.default.match(`https://ai-cache.aurora.internal/${key}`);
+    return r ? r.text() : null;
+  },
+  async put(key: string, value: string) {
+    await caches.default.put(`https://ai-cache.aurora.internal/${key}`, new Response(value, { headers: { 'Cache-Control': 'max-age=21600' } }));
+  },
+};
+
 export async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.replace(/\/+$/, '');
@@ -112,7 +123,11 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   if (request.method === 'POST' && path.startsWith('/api/newsletter/')) return newsletterPost(request, env, url, path, ip0);
   if (request.method === 'POST' && path === '/api/business/quote') return quotePost(request, env, url, ip0);
   if (request.method === 'POST' && path === '/api/ai/ask') {
-    return aiAsk(request, env, { countryProfile, events: async () => [...(await earthquakes().catch(() => [])), ...(await disasters().catch(() => []))] });
+    return aiAsk(request, env, {
+      countryProfile,
+      events: async () => [...(await earthquakes().catch(() => [])), ...(await disasters().catch(() => []))],
+      cache: answerCache,
+    });
   }
   if (request.method !== 'GET') return error(405, 'Method not allowed');
 
@@ -125,6 +140,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   }
 
   if (path === '/api/ai/status') return aiStatus(env);
+  if (path === '/api/ai/models') return aiModels(request, env);
 
   if (path === '/api/config') {
     return json(publicConfig(env, url), { maxAge: 300 });
