@@ -58,3 +58,15 @@ export function countryByName(name: string | null | undefined): CountryRef | und
   const lower = n.toLowerCase();
   return COUNTRIES.find((c) => c.name.toLowerCase() === lower);
 }
+
+/** Countries named in a headline, in order of first mention (names of four letters or more, whole words). */
+export function countriesInText(text: string): CountryRef[] {
+  const t = ` ${text.toLowerCase().replace(/[^\p{L}\s]/gu, ' ')} `;
+  const hits: { c: CountryRef; at: number }[] = [];
+  for (const c of COUNTRIES) {
+    if (c.name.length <= 3) continue;
+    const at = t.indexOf(` ${c.name.toLowerCase()} `);
+    if (at >= 0) hits.push({ c, at });
+  }
+  return hits.sort((a, b) => a.at - b.at || b.c.name.length - a.c.name.length).map((h) => h.c);
+}

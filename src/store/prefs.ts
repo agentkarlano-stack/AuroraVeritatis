@@ -19,21 +19,33 @@ export function normalizeIdle(v: unknown): IdlePrefs {
 }
 import { DEFAULT_BRIEFING_PREFS, normalizeBriefingPrefs, type BriefingPrefs } from '../lib/worldBriefing';
 import { DEFAULT_SETTINGS, normalizeSettings, type ChartSettings } from '../lib/chart/workspace';
+import type { Region } from '../lib/events';
+import { normalizeRecent, normalizeRegions, recordVisit, type RecentItem } from '../lib/hq';
 
-export type WidgetId = 'briefing' | 'tension' | 'events' | 'markets' | 'watchlist' | 'countries' | 'notes' | 'alerts' | 'brain' | 'freshness';
+export type WidgetId = 'resume' | 'following' | 'saved' | 'quick' | 'watchlist' | 'countries' | 'markets' | 'tension' | 'alerts' | 'notes' | 'brain' | 'preferences';
 
-export const WIDGETS: { id: WidgetId; title: string }[] = [
-  { id: 'briefing', title: 'Daily Briefing' },
-  { id: 'tension', title: 'World Tension Index' },
-  { id: 'events', title: 'Priority Events' },
-  { id: 'markets', title: 'Market Overview' },
-  { id: 'watchlist', title: 'Watchlist' },
-  { id: 'countries', title: 'Favourite Countries' },
-  { id: 'alerts', title: 'Price Alerts' },
-  { id: 'notes', title: 'Saved Research' },
-  { id: 'brain', title: 'Brain' },
-  { id: 'freshness', title: 'Data Freshness' },
+/** HQ widgets in their default order, with their default width (columns of three). */
+export const WIDGETS: { id: WidgetId; title: string; size: WidgetSize }[] = [
+  { id: 'resume', title: 'Continue where you left off', size: 2 },
+  { id: 'following', title: 'Following: changes since your last visit', size: 1 },
+  { id: 'saved', title: 'Saved intelligence', size: 2 },
+  { id: 'quick', title: 'Quick access', size: 1 },
+  { id: 'watchlist', title: 'Instrument watchlist', size: 1 },
+  { id: 'countries', title: 'Followed countries', size: 1 },
+  { id: 'notes', title: 'Research notes', size: 1 },
+  { id: 'alerts', title: 'Price alerts', size: 1 },
+  { id: 'brain', title: 'Brain', size: 1 },
+  { id: 'markets', title: 'Market overview', size: 1 },
+  { id: 'tension', title: 'World Tension Index', size: 1 },
+  { id: 'preferences', title: 'Preferences', size: 1 },
 ];
+export type WidgetSize = 1 | 2 | 3;
+export function normalizeSizes(v: unknown): Partial<Record<WidgetId, WidgetSize>> {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const out: Partial<Record<WidgetId, WidgetSize>> = {};
+  for (const w of WIDGETS) if (o[w.id] === 1 || o[w.id] === 2 || o[w.id] === 3) out[w.id] = o[w.id] as WidgetSize;
+  return out;
+}
 
 export interface Note {
   id: string;
@@ -94,6 +106,22 @@ interface PrefsState {
   removeDrawing: (symbol: string, id: string) => void;
   clearDrawings: (symbol: string) => void;
   moveWidget: (id: WidgetId, to: number) => void;
+  /** HQ widget widths chosen by the user (defaults in WIDGETS); read via normalizeSizes. Synced. */
+  widgetSize?: unknown;
+  setWidgetSize: (id: WidgetId, size: WidgetSize) => void;
+  /** Recently opened work (lib/hq.ts), newest first; read via normalizeRecent. Synced. */
+  recent?: unknown;
+  addRecent: (item: Omit<RecentItem, 'at' | 'count'>) => void;
+  clearRecent: () => void;
+  /** Followed regions (countries are `favorites`, instruments `watchlist`); read via normalizeRegions. Synced. */
+  followRegions?: unknown;
+  toggleRegion: (r: Region) => void;
+  /** When HQ was last opened (ISO), for "since your last visit". Synced. */
+  hqSeenAt?: string | null;
+  /** Start of the comparison window shown in HQ: the previous visit (a visit = HQ opened after 30 minutes away). */
+  hqSince?: string | null;
+  /** Marks an HQ visit; returns the time changes are shown from (null on the first visit). */
+  visitHq: () => string | null;
   toggleWidget: (id: WidgetId) => void;
   resetLayout: () => void;
   /** Returns false when adding would exceed `max`. */
@@ -125,7 +153,8 @@ export function normalizeLayout(raw: unknown): WidgetId[] {
   return layout;
 }
 const DEFAULT_WATCHLIST = ['GLB-EQ.D', 'CRUDE.D', 'GOLD.D', 'EURUSD.D'];
-const DEFAULT_FAVORITES = ['DEU', 'USA', 'JPN'];
+// Nothing is followed until the user chooses (HQ explains how).
+const DEFAULT_FAVORITES: string[] = [];
 export const uid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Math.random()).slice(2));
 
 /** Device-local preferences. Synced to Supabase once accounts are enabled (Phase 2). */
@@ -165,9 +194,31 @@ export const usePrefs = create<PrefsState>()(
           order.splice(Math.max(0, Math.min(order.length, to)), 0, id);
           return { layout: order };
         }),
+      setWidgetSize: (id, size) => set((s) => ({ widgetSize: { ...normalizeSizes(s.widgetSize), [id]: size } })),
+      recent: [],
+      addRecent: (item) => set((s) => ({ recent: recordVisit(normalizeRecent(s.recent), item, new Date().toISOString()) })),
+      clearRecent: () => set({ recent: [] }),
+      followRegions: [],
+      toggleRegion: (r) =>
+        set((s) => {
+          const list = normalizeRegions(s.followRegions);
+          return { followRegions: list.includes(r) ? list.filter((x) => x !== r) : [...list, r] };
+        }),
+      hqSeenAt: null,
+      hqSince: null,
+      visitHq: () => {
+        const { hqSeenAt, hqSince } = get();
+        const now = new Date().toISOString();
+        if (hqSeenAt && Date.parse(now) - Date.parse(hqSeenAt) < 30 * 60_000) {
+          set({ hqSeenAt: now });
+          return hqSince ?? null;
+        }
+        set({ hqSeenAt: now, hqSince: hqSeenAt ?? null });
+        return hqSeenAt ?? null;
+      },
       toggleWidget: (id) =>
         set((s) => ({ hidden: s.hidden.includes(id) ? s.hidden.filter((w) => w !== id) : [...s.hidden, id] })),
-      resetLayout: () => set({ layout: DEFAULT_LAYOUT, hidden: [] }),
+      resetLayout: () => set({ layout: DEFAULT_LAYOUT, hidden: [], widgetSize: {} }),
       toggleWatch: (symbol, max = 100) => {
         const { watchlist } = get();
         if (watchlist.includes(symbol)) {
@@ -198,6 +249,11 @@ export const usePrefs = create<PrefsState>()(
           chart: DEFAULT_SETTINGS,
           drawings: {},
           briefing: DEFAULT_BRIEFING_PREFS,
+          widgetSize: {},
+          recent: [],
+          followRegions: [],
+          hqSeenAt: null,
+          hqSince: null,
         }),
       addAlert: (rule, max = 100) => {
         if (get().alerts.length >= max) return false;

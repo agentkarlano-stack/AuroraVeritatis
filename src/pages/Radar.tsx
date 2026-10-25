@@ -6,10 +6,11 @@ import type { GeoEvent } from '../../shared/types';
 import type { GeoMapHandle } from '../components/geo/GeoMap';
 import { CountryPanel, type DossierSection } from '../components/hq/CountryPanel';
 import { Presentation, type ExitReason, type PresentationMode } from '../components/presentation/Presentation';
+import { SaveButton } from '../components/SaveButton';
 import { ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
 import { useApi } from '../lib/api';
-import { COUNTRIES, countryByIso3 } from '../lib/countries';
+import { countriesInText, countryByIso3 } from '../lib/countries';
 import { useEvents } from '../lib/events';
 import type { MapState, MapStyleId } from '../lib/geo/state';
 import { useAuth } from '../auth/AuthProvider';
@@ -67,16 +68,7 @@ function useDesktop(): boolean {
 }
 
 /** First country named in a headline, for focusing the map from a news story. */
-function countryIn(text: string) {
-  const t = ` ${text.toLowerCase().replace(/[^\p{L}\s]/gu, ' ')} `;
-  let best: { c: (typeof COUNTRIES)[number]; at: number } | null = null;
-  for (const c of COUNTRIES) {
-    if (c.name.length <= 3) continue;
-    const at = t.indexOf(` ${c.name.toLowerCase()} `);
-    if (at >= 0 && (!best || at < best.at || (at === best.at && c.name.length > best.c.name.length))) best = { c, at };
-  }
-  return best?.c;
-}
+const countryIn = (text: string) => countriesInText(text)[0];
 
 /** Prepared natural-voice audio per briefing content version, so replays in this tab cost nothing. */
 const AUDIO_CACHE = new Map<string, Map<string, string>>();
@@ -371,6 +363,7 @@ export default function Radar() {
                       source <ExternalLink className="h-2.5 w-2.5" aria-hidden />
                     </a>
                   )}
+                  {first && <SaveButton kind="story" title={s.title} url={first.url} className="tap inline-flex items-center gap-0.5 text-mist hover:text-gold-soft" label={false} />}
                 </div>
               </li>
             );
@@ -416,6 +409,15 @@ export default function Radar() {
     <div className="h-full space-y-3 overflow-y-auto p-4" data-scroll-panel>
       <div className="flex items-center justify-between gap-2">
         <span className="eyebrow">Briefing summary · {WINDOWS[summary.window].label}</span>
+        <span className="flex-1" />
+        {summary.scenes.length > 0 && (
+          <SaveButton
+            kind="briefing"
+            title={`Briefing, ${WINDOWS[summary.window].label.toLowerCase()}, ${new Date().toUTCString().slice(5, 16)}`}
+            href={`/#briefing-${summary.version}`}
+            meta={{ version: summary.version, stories: summary.scenes.map((s) => s.title).slice(0, 8) }}
+          />
+        )}
         <button className="chip min-h-8 px-2" onClick={() => setSummary(null)} aria-label="Close summary">
           <X className="h-3.5 w-3.5" aria-hidden />
         </button>
@@ -459,9 +461,12 @@ export default function Radar() {
             {new Date(selected.time).toUTCString().replace(' GMT', ' UTC')} · {age(selected.time, now)} · severity {selected.severity}/5 · {selected.region}
           </p>
           {selected.summary && <p className="text-sm leading-relaxed text-mist">{selected.summary}</p>}
-          <a href={selected.source.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs text-gold hover:underline">
-            {selected.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={selected.source.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs text-gold hover:underline">
+              {selected.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
+            </a>
+            <SaveButton kind="event" title={selected.title} url={selected.source.url} meta={{ time: selected.time, lat: selected.lat, lon: selected.lon }} />
+          </div>
         </div>
       ) : (
         <div>

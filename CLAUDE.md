@@ -98,8 +98,13 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   returns with exact arithmetic mean/volatility, monthly paths, common random numbers, log-scale fan.
 - Owner messages: verbatim copies of directives are in the Knowledge repo `OWNER-MESSAGES/`; the plan of record is
   `CONSOLIDATED-ROADMAP.md` there. Earlier messages can be recovered from the session event log (list_events, kinds user).
+- HQ (`pages/Headquarters.tsx`, `/hq`, second in the nav): personal workspace, no globe or general feed. Widgets in
+  `components/hq/widgets.tsx` (resume, following, saved, quick access, preferences) plus watchlist, countries, notes,
+  alerts, brain, markets, tension; logic in `lib/hq.ts` (recent visits, updates since last visit) and `lib/saved.ts`
+  (saved items, collections, merge/diff, Supabase backend); `store/saved.ts` + `auth/SavedSync.tsx` (table `saved_items`,
+  migration `20261025000200`, test `supabase/tests/saved.sql`). Zustand selectors must not return new arrays (React #185).
 - Global Radar (`pages/Radar.tsx`, routes `/` and `/radar`; `/briefing` redirects to `/`; `/overview` is the platform
-  overview; `/hq` is HQ: saved work, no globe): left feed (USGS/GDACS signals + GDELT/UN News stories, search), centre `GeoMap`
+  overview): left feed (USGS/GDACS signals + GDELT/UN News stories, search), centre `GeoMap`
   globe, right panel = situation + briefing launcher, selected event, briefing summary or `components/hq/CountryPanel.tsx`
   (`?k=ISO3`, `focusCountry` with panel padding, Esc restores the camera). Briefings and the Auto Tour run in
   `components/presentation/Presentation.tsx` (modes read | play | tour) from a frozen plan (`lib/briefingPlan.ts`:

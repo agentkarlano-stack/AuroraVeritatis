@@ -33,6 +33,15 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
   (`lib/useIdle.ts`; profile switch `prefs.idle.radar`, synced), never while typing, in a dialog or presenting; any click,
   tap or key exits and the click is consumed. GDACS episodes merged per event, 0,0 placeholders rejected (Pacific hotspot),
   event clustering in `GeoMap`. Browser verification 28/28 (1440 and 390 px, mocked feeds).
+  **HQ correction (owner, same day):** HQ stays as the personal workspace, second in the navigation (`/hq`). Widgets:
+  Continue where you left off (`prefs.recent`, recorded in `Layout` via `lib/hq.ts#visitFor`, links keep settings),
+  Following (countries = `favorites`, regions = `followRegions`; real signals and verified news since the previous visit,
+  `hqSeenAt`/`hqSince`; conflicts and companies shown as not connected), Saved intelligence (collections and notes;
+  `store/saved.ts`, synced per row to `saved_items`, migration `20261025000200` pending owner, local until then), Quick
+  access (most used, saved map views/charts), Preferences (same store as Account). Customise: reorder, width, hide, reset
+  (`widgetSize`). Removed from HQ: daily briefing, priority events and data freshness (they duplicated Radar/Status).
+  New users follow nothing by default. Save buttons: Radar event/story/briefing summary, dossier panel (plus follow star),
+  Markets chart, Map Explorer saved views. Browser verification 19/19 (1440 and 390 px).
   Not yet done: Market idle heatmap, Countries discovery, coats of arms, progressive labels (needs self-hosted glyphs),
   infrastructure layers, aviation/maritime modes, AI-written scripts, trade/military agreement modes.
 - **2026-10-25 (consolidated product directive, increment 1):** map-first Intelligence Headquarters at `/` (feed, globe,

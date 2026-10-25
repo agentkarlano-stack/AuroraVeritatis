@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { PrefsSync } from './auth/PrefsSync';
+import { SavedSync } from './auth/SavedSync';
 import { EntitlementsSync } from './auth/EntitlementsSync';
 import { SessionGuard } from './auth/SessionGuard';
 import { IntroSplash } from './components/IntroSplash';
@@ -47,6 +48,7 @@ export function App() {
   return (
     <AuthProvider>
       <PrefsSync />
+      <SavedSync />
       <EntitlementsSync />
       <SessionGuard />
       <IntroSplash />

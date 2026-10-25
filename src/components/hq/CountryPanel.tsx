@@ -1,4 +1,6 @@
 import { ExternalLink, X } from 'lucide-react';
+import { FollowButton } from '../FollowButton';
+import { SaveButton } from '../SaveButton';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { INDICATORS } from '../../../shared/indicators';
@@ -64,6 +66,8 @@ export function CountryPanel({ iso3, onClose, section, onSection }: { iso3: stri
             {[p?.region, p?.incomeLevel, p?.capital ? `Capital: ${p.capital}` : null].filter(Boolean).join(' · ') || (profile.status === 'loading' ? 'Loading…' : iso3)}
           </p>
         </div>
+        <FollowButton iso3={iso3} />
+        <SaveButton kind="country" title={p?.name ?? ref?.name ?? iso3} href={`/countries/${iso3}`} className="btn-quiet" label={false} />
         <button className="btn-quiet" onClick={onClose} aria-label="Close dossier (Esc)" title="Close (Esc)">
           <X className="h-4 w-4" />
         </button>

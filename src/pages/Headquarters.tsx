@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Network, Pencil, Play, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Network, Pencil, Plus, RotateCcw, Settings2, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -9,21 +9,39 @@ import { INSTRUMENTS, INSTRUMENT_MAP } from '../data/instruments';
 import { countryByIso3, searchCountries } from '../lib/countries';
 import { demoBars, lastQuote } from '../lib/demoMarket';
 import { limitOf, useTier } from '../lib/entitlements';
-import { CATEGORY_COLOR, CATEGORY_LABEL, useEvents } from '../lib/events';
+import { useEvents } from '../lib/events';
 import { fmtDate, fmtNumber, plural, relativeTime } from '../lib/format';
 import { listGraphs, type GraphSummary } from '../lib/brainStore';
 import { annualisedVol } from '../lib/technical';
-import { buildBriefing } from '../lib/briefing';
 import { tensionBand, worldTension } from '../lib/tension';
-import { WIDGETS, normalizeLayout, usePrefs, type WidgetId } from '../store/prefs';
+import { FollowingWidget, PreferencesWidget, QuickWidget, ResumeWidget, SavedWidget } from '../components/hq/widgets';
+import { WIDGETS, normalizeLayout, normalizeSizes, usePrefs, type WidgetId, type WidgetSize } from '../store/prefs';
 
-const WIDE: WidgetId[] = ['tension', 'events'];
-const FULL: WidgetId[] = ['briefing'];
+const SPAN: Record<WidgetSize, string> = { 1: '', 2: 'md:col-span-2', 3: 'md:col-span-2 xl:col-span-3' };
+const SIZE_LABEL: Record<WidgetSize, string> = { 1: 'Narrow', 2: 'Wide', 3: 'Full width' };
 
+/** Previous HQ visit to compare against (pure: the visit itself is recorded in an effect). */
+function sinceFor(seen: string | null | undefined, since: string | null | undefined): string | null {
+  if (seen && Date.now() - Date.parse(seen) < 30 * 60_000) return since ?? null;
+  return seen ?? null;
+}
+
+/**
+ * HQ, the personal workspace: what the user follows, what changed since the last visit, and where to resume work.
+ * No globe and no general feed (both are in Global Radar); every widget has an action, and empty states say how to fill it.
+ */
 export default function Headquarters() {
-  const { layout: rawLayout, hidden, moveWidget, toggleWidget, resetLayout } = usePrefs();
+  const { layout: rawLayout, hidden, moveWidget, toggleWidget, resetLayout, setWidgetSize } = usePrefs();
+  const sizes = normalizeSizes(usePrefs((s) => s.widgetSize));
   const layout = normalizeLayout(rawLayout);
   const { status } = useAuth();
+  const [since] = useState(() => {
+    const st = usePrefs.getState();
+    return sinceFor(st.hqSeenAt, st.hqSince);
+  });
+  useEffect(() => {
+    usePrefs.getState().visitHq();
+  }, []);
   const [editing, setEditing] = useState(false);
   const [dragging, setDragging] = useState<WidgetId | null>(null);
   const visible = layout.filter((w) => !hidden.includes(w));
@@ -34,13 +52,13 @@ export default function Headquarters() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       {hasBackground && <ProfileBanner className="mb-6" />}
       <PageHeader
-        eyebrow={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        title="My dashboard"
+        eyebrow="HQ · your workspace"
+        title="What you follow, what changed, where to resume"
         actions={
           <>
             {editing && (
               <button className="btn-ghost" onClick={resetLayout}>
-                <RotateCcw className="h-4 w-4" /> Reset
+                <RotateCcw className="h-4 w-4" /> Reset layout
               </button>
             )}
             <button className={editing ? 'btn-primary' : 'btn-ghost'} onClick={() => setEditing((e) => !e)} aria-pressed={editing}>
@@ -49,12 +67,13 @@ export default function Headquarters() {
           </>
         }
       >
-        Your personal dashboard. {status === 'signed-in' ? 'Your layout is saved on this device and synced to your account.' : 'Your layout, watchlist and notes are saved in this browser.'}
+        {since ? `Last visit ${relativeTime(since)}. ` : ''}
+        {status === 'signed-in' ? 'Your layout, follows and saved items are kept with your account.' : 'Saved in this browser; sign in to keep your workspace with your account.'}
       </PageHeader>
 
       {editing && (
         <p className="mb-4 rounded-lg border border-line bg-ink-900 px-3 py-2 text-xs text-mist">
-          Drag widgets by the handle or use the arrows to reorder. Use the eye icon to show or hide a widget.
+          Drag widgets by the handle or use the arrows to reorder; choose a width; use the eye icon to hide a widget. Reset layout restores the default.
         </p>
       )}
 
@@ -62,10 +81,11 @@ export default function Headquarters() {
         {shown.map((id, index) => {
           const meta = WIDGETS.find((w) => w.id === id)!;
           const isHidden = hidden.includes(id);
+          const size = sizes[id] ?? meta.size;
           return (
             <div
               key={id}
-              className={`min-w-0 ${FULL.includes(id) ? 'md:col-span-2 xl:col-span-3' : WIDE.includes(id) ? 'xl:col-span-2' : ''} ${isHidden ? 'opacity-45' : ''} ${dragging === id ? 'opacity-60' : ''}`}
+              className={`min-w-0 ${SPAN[size]} ${isHidden ? 'opacity-45' : ''} ${dragging === id ? 'opacity-60' : ''}`}
               draggable={editing}
               onDragStart={(e) => {
                 setDragging(id);
@@ -88,6 +108,18 @@ export default function Headquarters() {
                       <span className="cursor-grab text-slate-dim" aria-hidden>
                         <GripVertical className="h-4 w-4" />
                       </span>
+                      <select
+                        className="input h-7 w-auto py-0 text-[11px]"
+                        value={size}
+                        onChange={(e) => setWidgetSize(id, Number(e.target.value) as WidgetSize)}
+                        aria-label={`Width of ${meta.title}`}
+                      >
+                        {([1, 2, 3] as const).map((n) => (
+                          <option key={n} value={n}>
+                            {SIZE_LABEL[n]}
+                          </option>
+                        ))}
+                      </select>
                       <button className="btn-quiet" aria-label={`Move ${meta.title} up`} disabled={index === 0} onClick={() => moveWidget(id, index - 1)}>
                         <ArrowUp className="h-3.5 w-3.5" />
                       </button>
@@ -101,7 +133,7 @@ export default function Headquarters() {
                   ) : undefined
                 }
               >
-                <Widget id={id} />
+                <Widget id={id} since={since} />
               </Panel>
             </div>
           );
@@ -114,14 +146,20 @@ export default function Headquarters() {
   );
 }
 
-function Widget({ id }: { id: WidgetId }) {
+function Widget({ id, since }: { id: WidgetId; since: string | null }) {
   switch (id) {
-    case 'briefing':
-      return <BriefingWidget />;
+    case 'resume':
+      return <ResumeWidget />;
+    case 'following':
+      return <FollowingWidget since={since} />;
+    case 'saved':
+      return <SavedWidget />;
+    case 'quick':
+      return <QuickWidget />;
+    case 'preferences':
+      return <PreferencesWidget />;
     case 'tension':
       return <TensionWidget />;
-    case 'events':
-      return <EventsWidget />;
     case 'markets':
       return <MarketsWidget />;
     case 'watchlist':
@@ -134,77 +172,7 @@ function Widget({ id }: { id: WidgetId }) {
       return <NotesWidget />;
     case 'brain':
       return <BrainWidget />;
-    case 'freshness':
-      return <FreshnessWidget />;
   }
-}
-
-function BriefingWidget() {
-  const { demo, quakes, disasters } = useEvents();
-  const watchlist = usePrefs((s) => s.watchlist);
-  const [now] = useState(() => Date.now());
-  const [copied, setCopied] = useState(false);
-  const briefing = useMemo(() => {
-    const closes = demoBars('GLB-EQ.D').map((b) => b.close);
-    const events = [...demo, ...quakes, ...disasters];
-    const movers = watchlist.flatMap((symbol) => {
-      const q = lastQuote(symbol);
-      const inst = INSTRUMENT_MAP.get(symbol);
-      return q && inst ? [{ symbol, name: inst.name, changePct: q.changePct }] : [];
-    });
-    return buildBriefing({
-      now,
-      events,
-      tensionNow: worldTension(events, annualisedVol(closes.slice(-22)), now).value,
-      tensionWeekAgo: worldTension(events, annualisedVol(closes.slice(-27, -5)), now - 7 * 86_400_000).value,
-      movers,
-    });
-  }, [demo, quakes, disasters, watchlist, now]);
-
-  const copy = async () => {
-    const text = [`Aurora Veritatis daily briefing, ${briefing.date}`, briefing.headline, ...briefing.sections.flatMap((s) => [`\n${s.title}`, ...s.items.map((i) => `• ${i.text} [${i.provenance}]`)])].join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  };
-
-  return (
-    <div>
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-platinum">{briefing.headline}</p>
-        <button className="btn-quiet shrink-0 text-xs" onClick={copy}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-      <div className="mt-3 grid gap-4 md:grid-cols-3">
-        {briefing.sections.map((sec) => (
-          <div key={sec.title}>
-            <div className="eyebrow mb-1.5">{sec.title}</div>
-            <ul className="space-y-2">
-              {sec.items.map((it, i) => (
-                <li key={i} className="text-xs leading-relaxed text-mist">
-                  <Link to={it.to} className="hover:text-platinum">
-                    {it.text}
-                  </Link>{' '}
-                  <ProvenanceBadge kind={it.provenance} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] text-slate-dim">Generated from platform data for {briefing.date}. Rule-based, no AI. Each line shows how reliable its inputs are.</p>
-        <Link to="/" className="btn-ghost h-8 text-xs">
-          <Play className="h-3.5 w-3.5" aria-hidden /> Guided World Briefing
-        </Link>
-      </div>
-    </div>
-  );
 }
 
 function TensionWidget() {
@@ -258,38 +226,6 @@ function TensionWidget() {
             calibrated against historical data before any production use.
           </p>
         )}
-      </div>
-    </div>
-  );
-}
-
-function EventsWidget() {
-  const { demo, quakes, quakeStatus, disasters } = useEvents();
-  const top = useMemo(
-    () => [...demo, ...quakes, ...disasters].sort((a, b) => b.severity - a.severity || Date.parse(b.time) - Date.parse(a.time)).slice(0, 6),
-    [demo, quakes, disasters],
-  );
-  return (
-    <div>
-      <ul className="divide-y divide-line/60">
-        {top.map((e) => (
-          <li key={e.id} className="flex items-start gap-3 py-2">
-            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: CATEGORY_COLOR[e.category] }} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm text-platinum">{e.title}</div>
-              <div className="text-xs text-slate-dim">
-                {CATEGORY_LABEL[e.category]} · S{e.severity} · {relativeTime(e.time)}
-              </div>
-            </div>
-            <ProvenanceBadge kind={e.provenance} />
-          </li>
-        ))}
-      </ul>
-      <div className="mt-3 flex justify-between text-xs">
-        <span className="text-slate-dim">Live feeds: {quakeStatus === 'ready' ? plural(quakes.length, 'earthquake') : quakeStatus === 'loading' ? 'loading…' : 'earthquakes unavailable'} · {plural(disasters.length, 'disaster alert')}</span>
-        <Link to="/radar" className="text-gold hover:underline">
-          Open Global Radar →
-        </Link>
       </div>
     </div>
   );
@@ -386,6 +322,7 @@ function CountriesWidget() {
   const results = searchCountries(q, 5).filter((c) => !favorites.includes(c.iso3));
   return (
     <div>
+      {favorites.length === 0 && <p className="mb-2 text-sm text-slate-dim">Follow a country here or with the star in a dossier; its new signals and verified news then appear under Following.</p>}
       <ul className="space-y-1">
         {favorites.map((iso3) => (
           <li key={iso3} className="flex items-center justify-between gap-2">
@@ -616,37 +553,3 @@ function BrainWidget() {
 }
 
 /** Whether the live feeds behind Headquarters are current, stale (last saved copy) or unavailable. */
-function FreshnessWidget() {
-  const { quakes, quakeStatus, quakeStale, disasters, disasterStatus, disasterStale } = useEvents();
-  const rows: { name: string; status: string; count: number; stale: { since: string | null } | null; note: string }[] = [
-    { name: 'USGS earthquakes (M4.5+, 7 days)', status: quakeStatus, count: quakes.length, stale: quakeStale, note: 'Updated every 10 minutes' },
-    { name: 'GDACS disaster alerts (30 days)', status: disasterStatus, count: disasters.length, stale: disasterStale, note: 'Updated every 30 minutes' },
-  ];
-  return (
-    <div className="space-y-2 text-xs">
-      <ul className="space-y-2">
-        {rows.map((r) => (
-          <li key={r.name}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-platinum">{r.name}</span>
-              <span className={r.status === 'error' ? 'text-down' : r.stale ? 'text-warn' : r.status === 'ready' ? 'text-up' : 'text-slate-dim'}>
-                {r.status === 'loading' ? 'Loading' : r.status === 'error' ? 'Unavailable' : r.stale ? 'Last saved copy' : 'Live'}
-              </span>
-            </div>
-            <div className="text-slate-dim">
-              {r.status === 'ready' && `${plural(r.count, 'event')} · `}
-              {r.stale?.since ? `saved ${relativeTime(r.stale.since)} · ` : ''}
-              {r.note}
-            </div>
-          </li>
-        ))}
-      </ul>
-      <p className="text-slate-dim">
-        Market prices on Aurora are simulated (instruments ending in .D). ECB and World Bank data are official.{' '}
-        <Link to="/status" className="text-gold hover:underline">
-          All sources
-        </Link>
-      </p>
-    </div>
-  );
-}

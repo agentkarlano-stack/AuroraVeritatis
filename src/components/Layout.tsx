@@ -2,7 +2,9 @@ import { BarChart3, Globe2, Landmark, LayoutDashboard, Menu, Search, UserRound, 
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { visitFor } from '../lib/hq';
 import { useRouteMeta } from '../lib/useMeta';
+import { usePrefs } from '../store/prefs';
 const loadPalette = () => import('./CommandPalette');
 /** Quick search is loaded on first use (or when the browser is idle), keeping its country and instrument lists out of the initial page load. */
 const CommandPalette = lazy(() => loadPalette().then((m) => ({ default: m.CommandPalette })));
@@ -11,12 +13,12 @@ import { Wordmark } from './Logo';
 
 const NAV = [
   { to: '/', label: 'Global Radar' },
+  { to: '/hq', label: 'HQ' },
   { to: '/geo', label: 'Map Explorer' },
   { to: '/countries', label: 'Countries' },
   { to: '/markets', label: 'Markets' },
   { to: '/lab', label: 'Quant Research' },
   { to: '/brain', label: 'Brain' },
-  { to: '/hq', label: 'HQ' },
 ];
 
 const LEGAL = [
@@ -32,8 +34,13 @@ const LEGAL = [
 ] as const;
 
 export function Layout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   useRouteMeta();
+  // HQ "Continue where you left off": remember dossiers, charts, map views and tools with their settings (query string).
+  useEffect(() => {
+    const item = visitFor(pathname, search, (iso3) => iso3);
+    if (item) usePrefs.getState().addRecent(item);
+  }, [pathname, search]);
   // The menu remembers the path it was opened on, so navigating closes it without an effect.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const open = openAt === pathname;

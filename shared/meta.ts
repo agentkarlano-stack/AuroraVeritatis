@@ -22,7 +22,7 @@ export interface PageMeta {
 
 const STATIC: Record<string, { title: string; description: string; noindex?: boolean }> = {
   '/': { title: SITE.defaultTitle, description: SITE.defaultDescription },
-  '/hq': { title: 'My dashboard', description: 'Your personal dashboard: a daily briefing, events, the World Tension Index, markets, a watchlist, alerts and saved research.' },
+  '/hq': { title: 'HQ', description: 'Your workspace: resume recent dossiers, charts and map views, follow countries and regions, and keep saved intelligence in collections with notes.' },
   '/overview': { title: 'Platform overview', description: 'What Aurora Veritatis offers: global events, country intelligence, markets, quantitative research and a personal research graph.' },
   '/briefing': { title: 'World Briefing', description: 'The World Briefing now opens from Global Radar: the last 24 hours, 3 or 7 days in about a minute, written or narrated.', noindex: true },
   '/radar': { title: 'Global Radar', description: 'A grayscale globe of earthquakes, disaster alerts and verified news, with country dossiers, a one-minute briefing and an Auto Tour. Every item links to its source.' },
