@@ -10,12 +10,13 @@ import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
 import { TIMESPANS, cleanQuery, newsSearch, type Timespan } from './gdelt';
+import { gnewsEnabled, gnewsSearch, type GnewsEnv } from './gnews';
 import { quoteEmail, validateQuote } from '../shared/businessQuote';
 import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, sendQuoteRequest, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries, latestValues } from './worldbank';
 
-export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, VoiceEnv {
+export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, VoiceEnv {
   ASSETS: Fetcher;
   /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
   CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
@@ -191,7 +192,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     const t = (TIMESPANS as readonly string[]).includes(url.searchParams.get('t') ?? '') ? (url.searchParams.get('t') as Timespan) : '24h';
     return cached(request, ctx, async () => {
       try {
-        return json(await newsSearch(q, t), { maxAge: 1800 });
+        return json(await newsSearch(q, t, gnewsEnabled(env) ? { name: 'GNews', search: () => gnewsSearch(env, q, t) } : undefined), { maxAge: 1800 });
       } catch (e) {
         return error(502, 'News source unavailable', (e as Error).message);
       }
