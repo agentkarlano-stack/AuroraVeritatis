@@ -85,6 +85,19 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   off by default, global monthly budget + daily requests per plan; admin panel `components/admin/AiAdmin.tsx`).
   Client `/assistant` (`pages/Assistant.tsx`, `lib/assistant.ts`); read-aloud via browser speech synthesis. Local
   preview runs with `remoteBindings: false` (no Workers AI locally).
+- Integration health (`worker/health.ts`, admin panel `components/admin/IntegrationHealth.tsx`): finds provider secrets
+  by name pattern (names only, never values), runs one minimal authenticated test per provider once per deployment
+  (free endpoints or one small request), statuses CONNECTED / TESTED / LICENSED / LIVE / PENDING / BLOCKED. Public
+  `/api/integrations/check` has statuses only; `/api/integrations/health` (admins) adds facts and redacted errors; smoke
+  prints a "Providers" line. OpenSky OAuth2 token flow: `openskyToken`; AISStream server WebSocket probe: `aisProbe`.
+- GNews (`worker/gnews.ts`): joins GDELT + UN News in `/api/news` only when `GNEWS_DISPLAY=licensed`; daily budget.
+- Natural voice (`worker/voice.ts`, `POST /api/voice/speak`, `GET /api/voice/status`): ElevenLabs Flash v2.5, signed-in
+  users, 10 % reserve of the plan's character balance, per-user daily limit, 30-day edge audio cache, `ELEVENLABS_ENABLED=off`
+  switch; the Assistant's read-aloud falls back to browser speech. CSP needs `media-src 'self' blob:` for it.
+- Volatility drag (`lib/volatilityDrag.ts`, `components/VolatilityDragTool.tsx`, `/lab?tool=drag`): log-normal annual
+  returns with exact arithmetic mean/volatility, monthly paths, common random numbers, log-scale fan.
+- Owner messages: verbatim copies of directives are in the Knowledge repo `OWNER-MESSAGES/`; the plan of record is
+  `CONSOLIDATED-ROADMAP.md` there. Earlier messages can be recovered from the session event log (list_events, kinds user).
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and
