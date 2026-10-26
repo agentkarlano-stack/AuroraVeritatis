@@ -4,15 +4,20 @@ import { Link, useSearchParams } from 'react-router';
 import type { Story } from '../../shared/news';
 import type { GeoEvent } from '../../shared/types';
 import type { GeoMapHandle } from '../components/geo/GeoMap';
+import { formatLngLat } from '../lib/geo/coords';
 import { CountryPanel, type DossierSection } from '../components/hq/CountryPanel';
 import { Presentation, type ExitReason, type PresentationMode } from '../components/presentation/Presentation';
 import { SaveButton } from '../components/SaveButton';
 import { ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
 import { useApi } from '../lib/api';
-import { countriesInText, countryByIso3 } from '../lib/countries';
+import { countriesInText, countryByIso3, countryByName } from '../lib/countries';
+import { countryNameOf } from '../lib/worldBriefing';
 import { useEvents } from '../lib/events';
-import type { MapState, MapStyleId } from '../lib/geo/state';
+import { LayerPanel } from '../components/geo/LayerPanel';
+import { useChoropleths } from '../components/geo/useChoropleths';
+import { LAYER_MAP, type ChoroplethLayer } from '../lib/geo/layers';
+import { MAX_LAYERS, type LayerState, type MapState, type MapStyleId } from '../lib/geo/state';
 import { useAuth } from '../auth/AuthProvider';
 import { WINDOWS, buildPlan, buildTour, type Plan, type ReportingWindow } from '../lib/briefingPlan';
 import { age } from '../lib/radarLabels';
@@ -31,14 +36,24 @@ const STYLES: [MapStyleId, string][] = [
 interface Prefs {
   style: MapStyleId;
   panelWidth: number;
+  layers: LayerState[];
 }
-const DEFAULT_PREFS: Prefs = { style: 'grayscale', panelWidth: 460 };
+/** Radar shows real hazard signals by default; more layers come from the Layers panel (simulated scenarios excluded). */
+const DEFAULT_LAYERS: LayerState[] = [
+  { id: 'earthquakes', opacity: 1 },
+  { id: 'disasters', opacity: 1 },
+];
+const RADAR_EXCLUDE = ['scenarios'];
+const DEFAULT_PREFS: Prefs = { style: 'grayscale', panelWidth: 460, layers: DEFAULT_LAYERS };
 function loadPrefs(): Prefs {
   try {
     const raw = JSON.parse(localStorage.getItem(PREF_KEY) ?? '{}') as Partial<Prefs>;
     return {
       style: STYLES.find(([s]) => s === raw.style)?.[0] ?? DEFAULT_PREFS.style,
       panelWidth: typeof raw.panelWidth === 'number' ? Math.min(760, Math.max(360, raw.panelWidth)) : DEFAULT_PREFS.panelWidth,
+      layers: Array.isArray(raw.layers)
+        ? raw.layers.filter((l): l is LayerState => !!l && typeof l.id === 'string' && LAYER_MAP.has(l.id) && !RADAR_EXCLUDE.includes(l.id)).slice(0, MAX_LAYERS)
+        : DEFAULT_LAYERS,
     };
   } catch {
     return DEFAULT_PREFS;
@@ -69,6 +84,32 @@ function useDesktop(): boolean {
 
 /** First country named in a headline, for focusing the map from a news story. */
 const countryIn = (text: string) => countriesInText(text)[0];
+
+/** Country (ISO3) an event is located in, from the source's place name; null at sea or when unknown. */
+const eventIso3 = (e: GeoEvent) => countryByName(countryNameOf(e))?.iso3 ?? null;
+
+function EventDetail({ event, now }: { event: GeoEvent; now: number }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="eyebrow">Selected event</span>
+        <ProvenanceBadge kind={event.provenance} />
+      </div>
+      <h2 className="text-lg font-semibold text-platinum">{event.title}</h2>
+      <p className="text-xs text-slate-dim">
+        {new Date(event.time).toUTCString().replace(' GMT', ' UTC')} · {age(event.time, now)} · severity {event.severity}/5 · {event.region}
+      </p>
+      <p className="num text-[11px] text-slate-dim">{formatLngLat(event.lon, event.lat)}</p>
+      {event.summary && <p className="text-sm leading-relaxed text-mist">{event.summary}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <a href={event.source.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs text-gold hover:underline">
+          {event.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
+        </a>
+        <SaveButton kind="event" title={event.title} url={event.source.url} meta={{ time: event.time, lat: event.lat, lon: event.lon }} />
+      </div>
+    </div>
+  );
+}
 
 /** Prepared natural-voice audio per briefing content version, so replays in this tab cost nothing. */
 const AUDIO_CACHE = new Map<string, Map<string, string>>();
@@ -138,6 +179,12 @@ export default function Radar() {
   }, []);
 
   const panelPx = isDesktop ? prefs.panelWidth : 0;
+  // The selected country's own developments: located signals and grouped news naming it.
+  const countryEvents = useMemo(() => (country ? signals.filter((e) => eventIso3(e) === country) : []), [signals, country]);
+  const countryStories = useMemo(
+    () => (country && news.status === 'ready' ? news.data.stories.filter((st) => countriesInText(st.title).some((c) => c.iso3 === country)) : []),
+    [news, country],
+  );
   const focusEvent = useCallback((e: GeoEvent) => {
     setSelected(e);
     map.current?.flyTo(e.lon, e.lat, 3.6);
@@ -205,7 +252,7 @@ export default function Radar() {
     });
     setMobileTab('details');
     framed.current = iso3;
-    requestAnimationFrame(() => map.current?.focusCountry(iso3, { top: 60, bottom: 40, left: 40, right: panelPx + 40 }));
+    requestAnimationFrame(() => map.current?.focusCountry(iso3, 40));
   };
   const closeCountry = useCallback(() => {
     framed.current = null;
@@ -218,43 +265,58 @@ export default function Radar() {
     if (b) map.current?.flyTo(b.center[0], b.center[1], b.zoom);
     before.current = null;
   }, [setParams]);
+  /** Event inside the open country: keep the country context. Elsewhere: leave the country first. */
+  const selectEvent = (e: GeoEvent) => {
+    if (country && eventIso3(e) !== country) closeCountry();
+    focusEvent(e);
+    setMobileTab('details');
+  };
+  const backToCountry = useCallback(() => {
+    setSelected(null);
+    if (country) map.current?.focusCountry(country, 40);
+  }, [country]);
   // A shared link with ?k= opens the dossier: frame that country once the (lazily loaded) map is ready.
   useEffect(() => {
     if (!country || framed.current === country) return;
     let tries = 0;
     const t = setInterval(() => {
       tries++;
-      if (map.current?.focusCountry(country, { top: 60, bottom: 40, left: 40, right: panelPx + 40 }) || tries > 40) {
+      if (map.current?.focusCountry(country, 40) || tries > 40) {
         framed.current = country;
         clearInterval(t);
       }
     }, 250);
     return () => clearInterval(t);
-  }, [country, panelPx]);
+  }, [country]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && country && !(e.target as HTMLElement | null)?.closest('input, textarea, select')) closeCountry();
+      if (e.key !== 'Escape' || !country || (e.target as HTMLElement | null)?.closest('input, textarea, select')) return;
+      if (selected) backToCountry();
+      else closeCountry();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [country, closeCountry]);
+  }, [country, closeCountry, selected, backToCountry]);
 
   const mapState: MapState = useMemo(
     () => ({
       mode: '3d',
       style: prefs.style,
-      layers: [
-        { id: 'earthquakes', opacity: 1 },
-        { id: 'disasters', opacity: 1 },
-      ],
+      layers: prefs.layers,
       center: camera.center,
       zoom: camera.zoom,
       date: env.today,
       year: env.year,
       country,
     }),
-    [prefs.style, camera, env, country],
+    [prefs.style, prefs.layers, camera, env, country],
   );
+  // Country statistics layers chosen in the Layers panel.
+  const choroLayers = useMemo(
+    () => prefs.layers.map((l) => LAYER_MAP.get(l.id)).filter((l): l is ChoroplethLayer => l?.kind === 'choropleth'),
+    [prefs.layers],
+  );
+  const { values: choroValues } = useChoropleths(choroLayers, env.year);
 
   // Feed items.
   const q = query.trim().toLowerCase();
@@ -323,11 +385,7 @@ export default function Radar() {
             <li key={e.id}>
               <button
                 className={`block w-full px-3 py-2 text-left hover:bg-ink-900 ${selected?.id === e.id ? 'bg-ink-900' : ''}`}
-                onClick={() => {
-                                    if (country) closeCountry();
-                  focusEvent(e);
-                  setMobileTab('details');
-                }}
+                onClick={() => selectEvent(e)}
               >
                 <div className="flex items-start gap-2">
                   <span aria-hidden className={`mt-1 h-2 w-2 shrink-0 rounded-full ${SEVERITY_CLS[e.severity]}`} />
@@ -448,26 +506,28 @@ export default function Radar() {
     </div>
   );
 
+  const countryName = country ? (countryByIso3(country)?.name ?? country) : '';
+  const countryView = !country ? null : selected ? (
+    <div className="h-full overflow-y-auto p-4" data-scroll-panel>
+      <button className="chip mb-3 text-[11px]" onClick={backToCountry}>
+        ← Back to {countryName}
+      </button>
+      <EventDetail event={selected} now={now} />
+    </div>
+  ) : (
+    <CountryPanel
+      iso3={country}
+      onClose={closeCountry}
+      section={section}
+      onSection={setSection}
+      developments={{ events: countryEvents, stories: countryStories, now, onEvent: selectEvent }}
+    />
+  );
+
   const situation = (
     <div className="h-full space-y-4 overflow-y-auto p-4" data-scroll-panel>
       {selected ? (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="eyebrow">Selected event</span>
-            <ProvenanceBadge kind={selected.provenance} />
-          </div>
-          <h2 className="text-lg font-semibold text-platinum">{selected.title}</h2>
-          <p className="text-xs text-slate-dim">
-            {new Date(selected.time).toUTCString().replace(' GMT', ' UTC')} · {age(selected.time, now)} · severity {selected.severity}/5 · {selected.region}
-          </p>
-          {selected.summary && <p className="text-sm leading-relaxed text-mist">{selected.summary}</p>}
-          <div className="flex flex-wrap items-center gap-3">
-            <a href={selected.source.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-xs text-gold hover:underline">
-              {selected.source.name} <ExternalLink className="h-3 w-3" aria-hidden />
-            </a>
-            <SaveButton kind="event" title={selected.title} url={selected.source.url} meta={{ time: selected.time, lat: selected.lat, lon: selected.lon }} />
-          </div>
-        </div>
+        <EventDetail event={selected} now={now} />
       ) : (
         <div>
           <div className="eyebrow">Situation overview</div>
@@ -510,20 +570,18 @@ export default function Radar() {
         state={mapState}
         today={env.today}
         events={signals}
-        values={{}}
+        values={choroValues}
         selectedEventId={selected?.id ?? null}
         onView={setCamera}
         onCountry={(iso3) => openCountry(iso3)}
-        onEvent={(e) => {
-                    if (country) closeCountry();
-          setSelected(e);
-          setMobileTab('details');
-        }}
+        onEvent={selectEvent}
         onTileError={() => undefined}
+        padding={{ top: 0, right: panelPx, bottom: 0, left: 0 }}
+        coordinates
       />
     </Suspense>
   ) : (
-    <WorldMap events={signals} selectedEventId={selected?.id} onEventClick={(e) => setSelected(e)} onCountryClick={(iso3) => openCountry(iso3)} className="h-full" />
+    <WorldMap events={signals} selectedEventId={selected?.id} onEventClick={selectEvent} onCountryClick={(iso3) => openCountry(iso3)} className="h-full" />
   );
 
   return (
@@ -537,12 +595,15 @@ export default function Radar() {
         )}
         <div className="relative h-[55dvh] min-w-0 shrink-0 lg:h-auto lg:flex-1 lg:shrink">
           {mapView}
-          <div className="absolute left-2 top-2 z-10 flex gap-1" role="group" aria-label="Map style">
+          <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
+            <LayerPanel active={prefs.layers} onChange={(layers) => savePrefs({ layers })} defaults={DEFAULT_LAYERS} exclude={RADAR_EXCLUDE} />
+            <div className="flex gap-1" role="group" aria-label="Map style">
             {STYLES.map(([id, label]) => (
               <button key={id} className="chip bg-ink-950/80 text-[11px]" aria-pressed={prefs.style === id} onClick={() => savePrefs({ style: id })}>
                 {label}
               </button>
             ))}
+            </div>
           </div>
           {/* Desktop: dossier or situation panel docked over the right side of the map. */}
           {isDesktop && (
@@ -558,7 +619,7 @@ export default function Radar() {
               aria-orientation="vertical"
               aria-label="Resize panel"
             />
-            {country ? <CountryPanel iso3={country} onClose={closeCountry} section={section} onSection={setSection} /> : (summaryPanel ?? situation)}
+            {countryView ?? summaryPanel ?? situation}
           </section>
           )}
         </div>
@@ -578,7 +639,7 @@ export default function Radar() {
             ))}
           </div>
           <div className="max-h-[70dvh] min-h-[40dvh] overflow-hidden">
-            {mobileTab === 'feed' ? feed : country ? <CountryPanel iso3={country} onClose={closeCountry} section={section} onSection={setSection} /> : (summaryPanel ?? situation)}
+            {mobileTab === 'feed' ? feed : (countryView ?? summaryPanel ?? situation)}
           </div>
         </div>
         )}
