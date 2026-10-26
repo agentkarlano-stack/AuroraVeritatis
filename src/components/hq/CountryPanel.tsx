@@ -4,11 +4,12 @@ import { SaveButton } from '../SaveButton';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { INDICATORS } from '../../../shared/indicators';
-import type { CountryProfile, IndicatorValue } from '../../../shared/types';
+import type { Story } from '../../../shared/news';
+import type { CountryProfile, GeoEvent, IndicatorValue } from '../../../shared/types';
 import { useApi } from '../../lib/api';
 import { countryByIso3 } from '../../lib/countries';
 import { fmtNumber } from '../../lib/format';
-import { flagEmoji } from '../../lib/radarLabels';
+import { age, flagEmoji } from '../../lib/radarLabels';
 
 const SECTIONS = [
   ['overview', 'Overview'],
@@ -44,7 +45,67 @@ function fmtIndicator(v: IndicatorValue): string {
  * Country dossier docked beside the map: identity, World Bank indicators by section and sources. The map stays visible
  * and interactive; closing returns to the previous view (handled by the parent).
  */
-export function CountryPanel({ iso3, onClose, section, onSection }: { iso3: string; onClose: () => void; section: DossierSection; onSection: (s: DossierSection) => void }) {
+export interface CountryDevelopments {
+  events: GeoEvent[];
+  stories: Story[];
+  now: number;
+  onEvent: (e: GeoEvent) => void;
+}
+
+/** Concise list of the country's located signals and grouped news, newest first; events focus the map. */
+function Developments({ d, name }: { d: CountryDevelopments; name: string }) {
+  const events = [...d.events].sort((a, b) => Date.parse(b.time) - Date.parse(a.time)).slice(0, 6);
+  const stories = d.stories.slice(0, 4);
+  return (
+    <section className="mb-4" aria-label={`Developments in ${name}`}>
+      <div className="eyebrow mb-1.5 !text-[10px]">Developments</div>
+      {events.length === 0 && stories.length === 0 ? (
+        <p className="text-xs text-slate-dim">No located hazard signals or grouped news naming {name} in the current feeds. That is not evidence of stability: coverage is limited to USGS, GDACS, GDELT and UN News.</p>
+      ) : (
+        <ul className="divide-y divide-line/60 rounded-md border border-line">
+          {events.map((e) => (
+            <li key={e.id}>
+              <button className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-ink-900" onClick={() => d.onEvent(e)}>
+                <span aria-hidden className={`mt-1 h-2 w-2 shrink-0 rounded-full ${SEVERITY_CLS[e.severity]}`} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs text-platinum">{e.title}</span>
+                  <span className="block text-[10px] text-slate-dim">
+                    {e.source.name} · {age(e.time, d.now)} · severity {e.severity}/5 · show on map
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+          {stories.map((st) => (
+            <li key={st.id} className="px-3 py-2">
+              <a href={st.articles[0]?.url ?? '/news'} target="_blank" rel="noreferrer noopener" className="block text-xs text-platinum hover:text-gold-soft">
+                {st.title}
+              </a>
+              <span className="block text-[10px] text-slate-dim">
+                News · {st.status} · {st.independent.length} {st.independent.length === 1 ? 'publisher' : 'publishers'} · {age(st.last, d.now)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+const SEVERITY_CLS = ['', 'bg-slate-dim', 'bg-info', 'bg-gold', 'bg-warn', 'bg-down'];
+
+export function CountryPanel({
+  iso3,
+  onClose,
+  section,
+  onSection,
+  developments,
+}: {
+  iso3: string;
+  onClose: () => void;
+  section: DossierSection;
+  onSection: (s: DossierSection) => void;
+  developments?: CountryDevelopments;
+}) {
   const ref = countryByIso3(iso3);
   const profile = useApi<CountryProfile>(`/api/countries/${iso3}`);
   const [showAll, setShowAll] = useState(false);
@@ -82,6 +143,7 @@ export function CountryPanel({ iso3, onClose, section, onSection }: { iso3: stri
       <div className="min-h-0 flex-1 overflow-y-auto p-4" data-scroll-panel>
         {profile.status === 'error' && <p className="text-sm text-down">Country data is unavailable right now ({profile.error}).</p>}
         {profile.status === 'loading' && <p className="text-sm text-slate-dim">Loading World Bank indicators…</p>}
+        {developments && section === 'overview' && <Developments d={developments} name={p?.name ?? ref?.name ?? iso3} />}
         {p && section !== 'sources' && (
           <>
             {list.length === 0 ? (

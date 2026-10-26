@@ -20,6 +20,12 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-26 (consolidated implementation prompt, increment 1, branch `claude/radar-phase-b`):** requirement matrix
+  `docs/REQUIREMENTS-2026-10-26.md` (phases A–G, honest status). Phase B: globe centred beside the panel (camera padding),
+  cursor coordinates, country developments list with return-to-country flow, Layers button and searchable panel with
+  planned layers listed. Phase D: written briefing direct 24h/3d/7d; AI briefing plays the latest 07:00/19:00 Budapest
+  edition, about two minutes, one grounded EVE–KNOX exchange per story, transcript; spinning sweep and tick removed;
+  Comfort Mode after 5 minutes. Browser checks: Phase B 13/13, Phase D 12/12.
 - **2026-10-25 (corrective directive, increment 1, branch `claude/radar-landing`):** Global Radar is the landing page
   (`/` and `/radar`, same page; `/briefing` redirects to `/`; canonical `/`). The former HQ globe moved into Radar (one
   shared `GeoMap`; old `Radar.tsx`, `Briefing.tsx`, `BriefingGlobe.tsx` removed); HQ (`/hq`) keeps saved work with no globe.

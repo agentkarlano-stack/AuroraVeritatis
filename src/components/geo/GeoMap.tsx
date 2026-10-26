@@ -28,6 +28,7 @@ import {
 } from "../../lib/geo/layers";
 import type { MapState } from "../../lib/geo/state";
 import { nightPolygon } from "../../lib/geo/terminator";
+import { formatLngLat } from "../../lib/geo/coords";
 
 setWorkerUrl(workerUrl);
 
@@ -165,7 +166,15 @@ interface Props {
   selectedEventId?: string | null;
   /** false: the camera is controlled by the app only (presentations); dragging, zooming and clicks are ignored. */
   interactive?: boolean;
+  /**
+   * Area covered by panels drawn over the map (px). The camera centres in the remaining visible canvas, so the globe is
+   * not displaced behind a side panel. Camera calls without their own padding keep this.
+   */
+  padding?: { top: number; right: number; bottom: number; left: number };
+  /** Show the geographic coordinates under the cursor (not the camera centre). */
+  coordinates?: boolean;
 }
+
 
 /** MapLibre style for the current state. Rebuilt on every change and applied with `setStyle(…, { diff: true })`. */
 function buildStyle(
@@ -468,8 +477,16 @@ export default function GeoMap({
   nightAt = null,
   selectedEventId = null,
   interactive = true,
+  padding,
+  coordinates = false,
 }: Props) {
   const box = useRef<HTMLDivElement>(null);
+  const coordBox = useRef<HTMLDivElement>(null);
+  /** Persistent panel padding; camera calls add their own margin to it (MapLibre replaces padding per call). */
+  const basePad = useRef({ top: 0, right: 0, bottom: 0, left: 0 });
+  useEffect(() => {
+    basePad.current = padding ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  });
   const mapRef = useRef<MlMap | null>(null);
   const handlers = useRef({
     onView,
@@ -547,6 +564,8 @@ export default function GeoMap({
       );
     });
     map.on("mousemove", (e: MapMouseEvent) => {
+      // Cursor position, written straight to the readout (no React render per mouse move).
+      if (coordBox.current) coordBox.current.textContent = formatLngLat(e.lngLat.lng, e.lngLat.lat);
       if (!handlers.current.interactive) return;
       const cl = map.queryRenderedFeatures(e.point, { layers: ["event-clusters"] })[0];
       if (cl) {
@@ -567,7 +586,10 @@ export default function GeoMap({
         : ((c?.properties?.name as string | undefined) ?? null);
       handlers.current.onHover?.(label);
     });
-    map.on("mouseout", () => handlers.current.onHover?.(null));
+    map.on("mouseout", () => {
+      handlers.current.onHover?.(null);
+      if (coordBox.current) coordBox.current.textContent = "";
+    });
     return () => {
       map.remove();
       mapRef.current = null;
@@ -587,6 +609,16 @@ export default function GeoMap({
     if (!map) return;
     map.setStyle(buildStyle(styleState.current, today, events, values, { nightAt, selectedEventId }), { diff: true });
   }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values, nightAt, selectedEventId]);
+
+  // Keep the camera centred in the canvas left visible by overlaid panels.
+  const padKey = padding ? `${padding.top},${padding.right},${padding.bottom},${padding.left}` : "";
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !padKey) return;
+    const [top, right, bottom, left] = padKey.split(",").map(Number) as [number, number, number, number];
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    map.easeTo({ padding: { top, right, bottom, left }, duration: reduced ? 0 : 300 });
+  }, [padKey]);
 
   // Presentations control the camera alone.
   useEffect(() => {
@@ -621,7 +653,7 @@ export default function GeoMap({
       mapRef.current?.[reduced ? "jumpTo" : "flyTo"]({
         center: [lon, lat],
         zoom,
-        ...(padding ? { padding } : {}),
+        padding: padding ?? basePad.current,
         ...(reduced ? {} : { duration: 1600, essential: true }),
       });
     },
@@ -637,7 +669,19 @@ export default function GeoMap({
           [b[0], b[1]],
           [b[2], b[3]],
         ],
-        { padding, maxZoom: 6, duration: reduced ? 0 : 1200 },
+        {
+          padding:
+            typeof padding === "number"
+              ? {
+                  top: basePad.current.top + padding,
+                  right: basePad.current.right + padding,
+                  bottom: basePad.current.bottom + padding,
+                  left: basePad.current.left + padding,
+                }
+              : padding,
+          maxZoom: 6,
+          duration: reduced ? 0 : 1200,
+        },
       );
       return true;
     },
@@ -675,11 +719,21 @@ export default function GeoMap({
   }));
 
   return (
-    <div
-      ref={box}
-      className={`h-full w-full ${state.mode === "3d" ? "av-starfield" : ""}`}
-      role="region"
-      aria-label="Interactive map. Drag to move, scroll or pinch to zoom, click a country or event for details."
-    />
+    <div className="relative h-full w-full">
+      <div
+        ref={box}
+        className={`h-full w-full ${state.mode === "3d" ? "av-starfield" : ""}`}
+        role="region"
+        aria-label="Interactive map. Drag to move, scroll or pinch to zoom, click a country or event for details."
+      />
+      {coordinates && (
+        <div
+          ref={coordBox}
+          className="num pointer-events-none absolute bottom-2 z-10 rounded bg-ink-950/80 px-2 py-0.5 text-[11px] text-mist empty:hidden"
+          style={{ left: (padding?.left ?? 0) + 8 }}
+          aria-hidden
+        />
+      )}
+    </div>
   );
 }

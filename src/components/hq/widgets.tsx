@@ -416,12 +416,12 @@ export function PreferencesWidget() {
     <div className="space-y-3 text-sm">
       <label className="flex items-center justify-between gap-3 text-mist">
         <span>
-          Idle tour in Global Radar
-          <span className="block text-[11px] text-slate-dim">Full screen after inactivity; any click returns.</span>
+          Comfort Mode in Global Radar
+          <span className="block text-[11px] text-slate-dim">A passive tour after five minutes without activity; any click or Esc returns.</span>
         </span>
         <input type="checkbox" className="h-5 w-5 accent-[#c9a35a]" checked={idle.radar} onChange={(e) => setIdle({ radar: e.target.checked })} aria-label="Automatic idle tour in Global Radar" />
       </label>
-      <p className="text-[11px] text-slate-dim">Markets and Countries idle presentations: not available yet.</p>
+      <p className="text-[11px] text-slate-dim">Comfort Mode for Markets and Countries: not available yet. It never plays sound on its own.</p>
       <label className="block text-mist">
         Introduction
         <select className="input mt-1 text-xs" value={intro ?? 'auto'} onChange={(e) => setIntro(e.target.value === 'auto' ? null : (e.target.value as IntroExperience))}>

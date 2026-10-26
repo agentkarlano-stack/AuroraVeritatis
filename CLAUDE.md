@@ -108,8 +108,12 @@ Owner benchmarks, platform map, what to learn from each and data-licence notes: 
   globe, right panel = situation + briefing launcher, selected event, briefing summary or `components/hq/CountryPanel.tsx`
   (`?k=ISO3`, `focusCountry` with panel padding, Esc restores the camera). Briefings and the Auto Tour run in
   `components/presentation/Presentation.tsx` (modes read | play | tour) from a frozen plan (`lib/briefingPlan.ts`:
-  `buildPlan`, `buildTour`, content `version`); clock in `lib/presentation.ts`; voices in `lib/narration.ts`; idle entry in
-  `lib/useIdle.ts` (90 s, `prefs.idle`). Requirements ledger with AV-* IDs: Knowledge `REQUIREMENTS-LEDGER.md`.
+  `buildPlan`, `buildTour`, content `version`; about 2 minutes voiced, one EVE–KNOX exchange per story from
+  `lib/briefingDialogue.ts`, answers only from source facts); voiced editions 07:00/19:00 Europe/Budapest in `lib/edition.ts`;
+  clock in `lib/presentation.ts`; voices in `lib/narration.ts`; Comfort Mode entry in `lib/useIdle.ts` (5 min, `prefs.idle`).
+  Layers button: `components/geo/LayerPanel.tsx` + `lib/geo/layerFinder.ts` (spec categories, aliases, search); camera
+  padding prop on `GeoMap` keeps the globe centred beside panels; cursor coordinates (`lib/geo/coords.ts`).
+  Current specification and its requirement matrix: `docs/REQUIREMENTS-2026-10-26.md`. Requirements ledger with AV-* IDs: Knowledge `REQUIREMENTS-LEDGER.md`.
 - Currency & purchasing power: `shared/currency.ts` (formulas), `worker/worldbank.ts#currencyProfile`, `pages/Currency.tsx`.
 - Map Explorer (`pages/GeoExplorer.tsx`, route `/geo`): MapLibre GL (BSD-3, lazy chunk; worker emitted via
   `maplibre-gl-worker.mjs?url` + `setWorkerUrl`) in `components/geo/GeoMap.tsx`; one map switches 2D (mercator) and

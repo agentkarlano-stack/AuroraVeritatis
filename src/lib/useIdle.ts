@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-/** Internal inactivity delay before the Auto Tour starts (not a user setting). */
-export const IDLE_MS = 90_000;
+/** Inactivity before Comfort Mode starts: a documented five-minute default (not a user setting). */
+export const IDLE_MS = 5 * 60_000;
 
 /** True while the user is typing, a dialog is open, the page is hidden or something is in full screen. */
 export function idleBlocked(doc: Document = document): boolean {
