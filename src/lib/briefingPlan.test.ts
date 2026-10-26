@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Story } from '../../shared/news';
 import type { GeoEvent } from '../../shared/types';
-import { buildPlan, leadFor, storylines, validLocation } from './briefingPlan';
+import { BUDGET_MS, buildPlan, leadFor, OVERRUN_MS, storylines, validLocation } from './briefingPlan';
+import { exchange, quakeFacts, storyTurns } from './briefingDialogue';
 import { dedupeEvents } from './worldBriefing';
 
 const now = Date.parse('2026-10-25T12:00:00Z');
@@ -48,7 +49,7 @@ describe('briefing plan', () => {
     expect(storylines(items)[0]!.items).toHaveLength(3);
   });
 
-  it('builds a frozen plan within one minute, never using simulated events or 0,0 locations', () => {
+  it('builds a frozen plan near two minutes, never using simulated events or 0,0 locations', () => {
     const events = [
       ev('usgs-1'),
       ev('usgs-2', { time: ago(5), severity: 3 }),
@@ -65,9 +66,39 @@ describe('briefing plan', () => {
     expect(p7.scenes.some((s) => s.title === 'Flood Bangladesh')).toBe(true);
     expect(p7.scenes.some((s) => /Bad|Scenario|Old/.test(s.title))).toBe(false);
     const total = p7.scenes.reduce((t, s) => t + s.speakMs, 0);
-    expect(total).toBeLessThanOrEqual(58_000);
+    expect(total).toBeLessThanOrEqual(BUDGET_MS + OVERRUN_MS);
     // Same content, same version; the plan does not change between calls.
     expect(buildPlan({ window: '7d', now, events, stories, countryOf, mode: 'play' }).version).toBe(p7.version);
+  });
+
+  it('gives every story one grounded EVE–KNOX exchange without repeating a question', () => {
+    const events = [ev('usgs-1'), ev('usgs-5', { lat: -20, lon: -70, region: 'Tarapaca, Chile', title: 'Quake Chile', summary: 'Magnitude 5.5 earthquake at 110 km depth.' })];
+    const stories = [story('s1', 'Germany cuts gas price forecast as energy market eases'), story('s2', 'Japan confirms new defence budget', { status: 'confirmed' })];
+    const p = buildPlan({ window: '24h', now, events, stories, countryOf: (t) => (/japan/i.test(t) ? 'JPN' : /germany/i.test(t) ? 'DEU' : null), mode: 'play' });
+    expect(p.scenes.length).toBe(4);
+    const questions = p.scenes.map((sc) => sc.lines[1]!.text);
+    for (const sc of p.scenes) {
+      expect(sc.lines).toHaveLength(3);
+      expect(sc.lines[1]!.speaker).not.toBe(sc.lead);
+      expect(sc.lines[2]!.speaker).toBe(sc.lead);
+    }
+    expect(new Set(questions).size).toBe(questions.length);
+    // Answers use only source facts: the Chilean quake's depth comes from its summary.
+    expect(p.scenes.find((sc) => sc.title === 'Quake Chile')!.lines[2]!.text).toContain('110 kilometres');
+  });
+
+  it('reads magnitude, depth and tsunami flag from the USGS summary and rotates phrasings', () => {
+    expect(quakeFacts('Magnitude 6.4 earthquake at 15 km depth. USGS tsunami flag set — check official warning centres.')).toEqual({ magnitude: 6.4, depthKm: 15, tsunami: true });
+    const used = new Set<string>();
+    const a = exchange('eve', storyTurns('Oil exports fall', 'corroborated', 3, 'eve'), used);
+    const b = exchange('eve', storyTurns('Gas tariffs rise', 'corroborated', 2, 'eve'), used);
+    expect(a[0]!.text).not.toBe(b[0]!.text);
+    expect(a[0]!.speaker).toBe('knox');
+  });
+
+  it('covers only the edition period when an end time is given', () => {
+    const p = buildPlan({ window: '24h', now, until: now - 6 * 3_600_000, events: [ev('usgs-1'), ev('usgs-2', { time: ago(10), title: 'Earlier', region: 'Atacama, Chile', lat: -27, lon: -70 })], stories: [], countryOf, mode: 'play' });
+    expect(p.scenes.map((sc) => sc.title)).toEqual(['Earlier']);
   });
 
   it('assigns economic stories to EVE and security or hazard stories to KNOX, with viewer questions only where sources answer them', () => {

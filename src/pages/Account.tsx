@@ -382,14 +382,14 @@ function IdlePreferences() {
   const idle = normalizeIdle(usePrefs((s) => s.idle));
   const setIdle = usePrefs((s) => s.setIdle);
   return (
-    <Panel title="Idle presentations" eyebrow="Preferences">
+    <Panel title="Comfort Mode" eyebrow="Preferences">
       <p className="mb-3 text-xs text-slate-dim">
-        After a short period without activity, an area can show a full-screen presentation. Any click, tap or Esc returns to exactly where you were. It never
+        After five minutes without activity, an area can show a passive full-screen presentation. Any click, tap or Esc returns to exactly where you were. It never
         starts while you type, and never plays sound on its own.
       </p>
       <label className="flex items-center justify-between gap-3 py-1.5 text-sm text-mist">
         <span>
-          Global Radar: tour of current events
+          Global Radar: tour of current developments
           <span className="block text-[11px] text-slate-dim">You can always start it with the Auto Tour button.</span>
         </span>
         <input type="checkbox" className="h-5 w-5 accent-[#c9a35a]" checked={idle.radar} onChange={(e) => setIdle({ radar: e.target.checked })} aria-label="Automatic idle tour in Global Radar" />

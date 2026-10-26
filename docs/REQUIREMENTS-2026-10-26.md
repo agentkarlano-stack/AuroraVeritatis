@@ -28,16 +28,16 @@ behaviour → verification. Items below state the essential criterion; full chec
 
 | ID | Requirement (§) | Status | Notes / acceptance |
 |---|---|---|---|
-| B-1 | Globe centred in the visible map area after panel open/close and resize (§5) | missing → this phase | camera padding equals the panel width |
+| B-1 | Globe centred in the visible map area after panel open/close and resize (§5) | done (PR, browser-tested) | persistent camera padding = panel width; country fits and event focus add their margin to it |
 | B-2 | Overview: grayscale base, subtle country situation shading, compact typed event symbols, persistent vs recent distinguishable (§5, §6) | partial | grayscale + clustered dots; no type icons, no shading |
-| B-3 | Country click → frame country → dossier + concise country event list → event icons in country → select event focuses → close returns to country → leave restores overview (§5) | partial | frame + dossier + camera restore done; country event list and return-to-country missing → this phase |
+| B-3 | Country click → frame country → dossier + concise country event list → event icons in country → select event focuses → close returns to country → leave restores overview (§5) | partial (PR) | all steps done and browser-tested except typed event icons (needs B-9 icon vocabulary) |
 | B-4 | No unsolicited tour during manual exploration; no camera reset on refresh (§5) | working | tour only via button or idle |
-| B-5 | Cursor coordinate readout (geographic, not camera centre) (§5) | missing → this phase | |
+| B-5 | Cursor coordinate readout (geographic, not camera centre) (§5) | done (PR, browser-tested) | `lib/geo/coords.ts` |
 | B-6 | Ocean events stay genuine points; approximate locations get uncertainty area and label (§5) | partial | 0,0 rejected; no uncertainty areas |
 | B-7 | Canonical event merge, crisis grouping, clustering by zoom (§5) | partial | GDACS episodes merged, cross-source dedupe, clustering; crisis grouping missing |
 | B-8 | Severity scale documented: recent intensity vs persistent crisis vs coverage; evidence, last assessment, uncertainty (§6) | missing | needs crisis registry with sources |
 | B-9 | Event-type icon vocabulary; area/route/status treatments for persistent crises (§6) | missing | |
-| B-10 | Visible Layers button, one-click panel, search with aliases, categories, active count, chips, info, source/freshness, reset, presets, favourites, opacity (§7) | partial | Map Explorer has a layer list (long, no categories/search); Radar has none → Radar Layers panel this phase, Explorer redesign next |
+| B-10 | Visible Layers button, one-click panel, search with aliases, categories, active count, chips, info, source/freshness, reset, presets, favourites, opacity (§7) | partial (PR) | Radar: done except saved presets; Map Explorer still uses its long list (next) |
 | B-11 | Progressive labels, regional/local detail, collision handling (§8) | blocked | needs self-hosted glyphs and vector tiles (free sources exist: OpenMapTiles/Natural Earth; build pipeline needed) |
 | B-12 | Map Explorer specialist layers: aviation, maritime, infrastructure, connectivity, territory, agreements (§8) | partial/blocked | OpenSky reachable only from GitHub runners; AISStream terms; agreements dataset to be curated |
 | B-13 | WebGL failure fallback: event list, country search, report view (§8) | partial | SVG fallback in Explorer; Radar shows message only |
@@ -62,16 +62,16 @@ behaviour → verification. Items below state the essential criterion; full chec
 
 | ID | Requirement (§) | Status | Notes |
 |---|---|---|---|
-| D-1 | Written Briefing: direct 24h/3d/7d buttons; frozen snapshot; offer new updates after (§13) | partial → this phase | window chips + one button today |
-| D-2 | AI Briefing: direct play of latest voiced 24 h edition with edition time and coverage (§13) | partial → this phase | plays on demand from live data; edition label added this phase |
+| D-1 | Written Briefing: direct 24h/3d/7d buttons; frozen snapshot; offer new updates after (§13) | partial (PR) | direct buttons and frozen snapshot done; "new updates since you started" prompt missing |
+| D-2 | AI Briefing: direct play of latest voiced 24 h edition with edition time and coverage (§13) | partial (PR) | edition times (07:00/19:00 Budapest, DST-tested) define the period for every viewer; the plan is built in the browser from the live feeds, so two viewers can differ if a feed changed; server-stored editions are D-3 |
 | D-3 | Scheduled editions 07:00 and 19:00 Europe/Budapest (DST-aware), idempotent, shared, 30-day archive, no regeneration on replay (§13, §14, §25) | missing | needs storage for editions (Supabase table or Workers KV/R2) and a cron trigger; edition logic built so it can move server-side |
-| D-4 | About two minutes, modest overrun; every story an EVE–KNOX exchange; no filler; grounded (§13) | partial → this phase | budget 120 s, exchange per story |
+| D-4 | About two minutes, modest overrun; every story an EVE–KNOX exchange; no filler; grounded (§13) | done (PR, unit + browser-tested) | 120 s budget + 15 s overrun, whole stories only; `lib/briefingDialogue.ts` answers only from source facts, rotating phrasings |
 | D-5 | Natural voice: evaluated candidates, pronunciation handling, loudness, licensed voices (§13) | partial | ElevenLabs Flash v2.5 for signed-in users; guests get browser voices (disclosed); evaluation script pending |
-| D-6 | Captions with speakers and full transcript (§13) | partial → this phase | captions exist; transcript added |
+| D-6 | Captions with speakers and full transcript (§13) | done (PR) | transcript panel during playback and in the summary |
 | D-7 | Choreography: region → highlight → travel → precise marker + connected callout; imagery/chart only when useful (§14) | partial | travel + card; connected callout missing |
-| D-8 | Remove central spinning radar; reticle only during movement, fading (§14) | missing → this phase | |
+| D-8 | Remove central spinning radar; reticle only during movement, fading (§14) | done (PR) | brackets for the first 1.8 s of each scene; interface tick sound removed until sound preferences exist |
 | D-9 | Controls: pause/resume, prev/next, seek, exit; synchronised; controls never exit (§14) | working | browser-tested 28/28 |
-| D-10 | Auto Tour separate from Comfort Mode; Comfort Mode manual + per-module inactivity (5 min default), exit consumes click, never during tutorials/editing/dialogs/briefing (§15) | partial → this phase | idle tour exists at 90 s; becomes Comfort Mode at 5 min |
+| D-10 | Auto Tour separate from Comfort Mode; Comfort Mode manual + per-module inactivity (5 min default), exit consumes click, never during tutorials/editing/dialogs/briefing (§15) | partial (PR) | Radar: Auto Tour button + Comfort Mode after 5 min (switch in Account/HQ); Markets and Countries Comfort Mode missing |
 | D-11 | Sound preferences: voices, music, interface, alerts; ducking (§15) | missing | music unavailable until rights cleared (no tracks used) |
 
 ## Phase E: market, screener, quant, risk, private workspace

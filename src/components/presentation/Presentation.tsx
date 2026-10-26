@@ -1,4 +1,4 @@
-import { ExternalLink, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
+import { ExternalLink, FileText, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoEvent } from '../../../shared/types';
 import { ANALYSTS, WINDOWS, type Line, type Plan, type Scene } from '../../lib/briefingPlan';
@@ -22,6 +22,8 @@ interface Props {
   audioNote?: string | null;
   /** Ask the browser for full screen (only when the user started the presentation). */
   fullscreen: boolean;
+  /** Period label shown in the corner, e.g. the voiced edition and the time it covers. */
+  subtitle?: string;
   onExit: (reason: ExitReason) => void;
 }
 
@@ -53,31 +55,14 @@ function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
   return [intro, ...plan.scenes];
 }
 
-/** Short, quiet tick on scene changes (narrated briefings only). */
-function tick(ctx: AudioContext | null) {
-  if (!ctx) return;
-  try {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.03, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
-    o.connect(g).connect(ctx.destination);
-    o.start();
-    o.stop(ctx.currentTime + 0.13);
-  } catch {
-    /* audio unavailable: silent */
-  }
-}
-
 /**
  * Full-screen presentation on the grayscale globe, shared by the written briefing (`read`), the narrated briefing
  * (`play`) and the passive Auto Tour (`tour`). The plan is frozen by the caller; nothing here regenerates or reorders
  * it. One clock drives everything: pausing freezes the timeline, the narration and the atmosphere, and moving to a
  * scene restores its camera, card, captions and audio from the start of that scene.
  */
-export function Presentation({ plan, mode, events, narrator = null, audioNote = null, fullscreen, onExit }: Props) {
+export function Presentation({ plan, mode, events, narrator = null, audioNote = null, fullscreen, subtitle, onExit }: Props) {
+  const [transcript, setTranscript] = useState(false);
   const scenes = useMemo(() => scenesFor(plan, mode), [plan, mode]);
   const timeline = useMemo(() => ({ durations: scenes.map((s) => (mode === 'play' ? s.speakMs : s.readMs)) }), [scenes, mode]);
   const [clock] = useState(() => new Clock());
@@ -92,7 +77,6 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   const userPaused = useRef(false);
   const pendingSpeech = useRef(false);
   const exited = useRef(false);
-  const audio = useRef<AudioContext | null>(null);
   const [desktop] = useState(() => window.matchMedia?.('(min-width: 1024px)').matches ?? true);
   const pad = useMemo(() => (desktop ? { top: 80, bottom: 120, left: 60, right: 480 } : { top: 60, bottom: 320, left: 30, right: 30 }), [desktop]);
   const tour = mode === 'tour';
@@ -158,10 +142,9 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       narrator?.cancel();
       speaking.current = false;
       frame(s);
-      if (mode === 'play') tick(audio.current);
       speak(s);
     },
-    [scenes, narrator, frame, speak, mode],
+    [scenes, narrator, frame, speak],
   );
 
   const seek = useCallback(
@@ -194,13 +177,6 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
 
   // Start, and drive the timeline from one clock.
   useEffect(() => {
-    if (mode === 'play') {
-      try {
-        audio.current = new AudioContext();
-      } catch {
-        audio.current = null;
-      }
-    }
     clock.seek(0);
     clock.play();
     let raf = 0;
@@ -243,7 +219,6 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     return () => {
       cancelAnimationFrame(raf);
       narrator?.cancel();
-      void audio.current?.close().catch(() => undefined);
     };
   }, [clock, timeline, enter, exit, narrator, tour, mode]);
 
@@ -378,11 +353,13 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         )}
       </div>
 
-      {/* Atmosphere: faint sweep and brackets around the framed area. */}
+      {/* Sensor reticle around the framed point while the camera travels; it fades once the scene settles. */}
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ paddingRight: desktop ? 440 : 0, paddingBottom: desktop ? 0 : 300 }}>
         <div className="relative h-full w-full">
-          <div className="av-sweep absolute left-1/2 top-1/2 h-[70vmin] w-[70vmin] -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2">
+          <div
+            className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-500"
+            style={{ opacity: scene?.id !== 'intro' && state.offset < 1800 ? 1 : 0 }}
+          >
             <span className="av-bracket left-0 top-0 border-l border-t" />
             <span className="av-bracket right-0 top-0 border-r border-t" />
             <span className="av-bracket bottom-0 left-0 border-b border-l" />
@@ -393,7 +370,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
 
       <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-3 text-[11px] text-mist">
         <span className="eyebrow !text-[10px]">{tour ? 'Auto Tour' : mode === 'play' ? 'AI briefing' : 'Briefing'}</span>
-        <span>{WINDOWS[plan.window].label}</span>
+        <span>{subtitle ?? WINDOWS[plan.window].label}</span>
         <span className="num">
           {state.index + 1}/{scenes.length}
         </span>
@@ -441,7 +418,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       )}
 
       {/* Captions (narrated briefing). */}
-      {mode === 'play' && line && (
+      {mode === 'play' && line && !transcript && (
         <div className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 text-center ${desktop ? 'bottom-24 w-[min(720px,calc(100%-560px))]' : 'top-14 w-[calc(100%-24px)]'}`}>
           <p className="inline rounded bg-ink-950/85 px-3 py-1.5 text-sm leading-relaxed">
             <span className={line.speaker === 'eve' ? 'text-gold' : 'text-platinum'}>{ANALYSTS[line.speaker].name}:</span> {line.text}
@@ -480,11 +457,36 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
               </li>
             ))}
           </ol>
+          <button className="chip min-h-10 px-3" onClick={() => setTranscript((t) => !t)} aria-pressed={transcript} aria-label="Transcript">
+            <FileText className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Transcript</span>
+          </button>
           <button className="chip min-h-10 px-3" onClick={() => exit('user')} aria-label="Exit briefing">
             <X className="h-4 w-4" aria-hidden />
             <span className="hidden sm:inline">Exit</span>
           </button>
         </div>
+      )}
+      {transcript && !tour && (
+        <section
+          className={`absolute z-20 overflow-y-auto border border-line bg-ink-950/95 p-4 text-sm backdrop-blur ${desktop ? 'bottom-20 left-6 top-14 w-[380px] rounded-xl' : 'inset-x-3 bottom-20 top-14 rounded-xl'}`}
+          aria-label="Transcript"
+          data-scroll-panel
+        >
+          <div className="eyebrow mb-2">Transcript</div>
+          <ol className="space-y-3">
+            {scenes.map((sc, i) => (
+              <li key={sc.id} className={i === state.index ? 'text-platinum' : 'text-mist'}>
+                <div className="text-[10px] uppercase tracking-wider text-slate-dim">{sc.title}</div>
+                {sc.lines.map((l, j) => (
+                  <p key={j} className="mt-1 leading-relaxed">
+                    <span className={l.speaker === 'eve' ? 'text-gold' : 'text-platinum'}>{ANALYSTS[l.speaker].name}:</span> {l.text}
+                  </p>
+                ))}
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
       {mode === 'play' && !line && audioNote && <p className="absolute bottom-16 left-4 text-[11px] text-warn">{audioNote}</p>}
     </div>

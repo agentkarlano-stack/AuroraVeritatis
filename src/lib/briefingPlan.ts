@@ -7,11 +7,12 @@
  *   independent confirmation.
  * - News: grouped stories that name a country (so the map can frame it), confirmed or corroborated first.
  * - Every scene has a lead analyst (EVE: economy, markets, trade, energy; KNOX: security, defence, geopolitics and
- *   hazards) and short lines built only from the source facts. The plan keeps the whole presentation within about
- *   one minute by dropping lower-ranked stories, never by shortening text.
+ *   hazards) and one short EVE–KNOX exchange built only from the source facts (`briefingDialogue.ts`). The plan keeps
+ *   the presentation near two minutes by selecting fewer stories, never by shortening or speeding up speech.
  */
 import type { CoverageStatus, Story } from '../../shared/news';
 import type { GeoEvent, SourceRef } from '../../shared/types';
+import { eventTurns, exchange, storyTurns, type Analyst, type Line } from './briefingDialogue';
 import { countryNameOf, dedupeEvents, type BriefingItem } from './worldBriefing';
 
 export type ReportingWindow = '24h' | '3d' | '7d';
@@ -20,16 +21,12 @@ export const WINDOWS: Record<ReportingWindow, { label: string; hours: number }> 
   '3d': { label: 'Last 3 days', hours: 72 },
   '7d': { label: 'Last 7 days', hours: 168 },
 };
-export type Analyst = 'eve' | 'knox';
+export type { Analyst, Line } from './briefingDialogue';
 export const ANALYSTS: Record<Analyst, { name: string; role: string }> = {
   eve: { name: 'EVE', role: 'Economy and markets' },
   knox: { name: 'KNOX', role: 'Security and geopolitics' },
 };
 
-export interface Line {
-  speaker: Analyst;
-  text: string;
-}
 
 export interface Scene {
   id: string;
@@ -107,7 +104,7 @@ export function storylines(items: BriefingItem[]): Storyline[] {
   return out;
 }
 
-function eventScene(s: Storyline, rank: number): Scene {
+function eventScene(s: Storyline, used: Set<string>): Scene {
   const e = s.lead.event;
   // One entry per report; repeated publisher names are numbered so each link stays distinguishable.
   const seen = new Map<string, number>();
@@ -118,24 +115,10 @@ function eventScene(s: Storyline, rank: number): Scene {
   });
   const latest = s.items.reduce((m, i) => (Date.parse(i.event.time) > Date.parse(m) ? i.event.time : m), e.time);
   const lead = leadFor(`${e.title} ${e.summary}`);
-  const other: Analyst = lead === 'eve' ? 'knox' : 'eve';
   const more = s.items.length > 1 ? ` ${s.items.length - 1} related ${s.items.length === 2 ? 'report follows' : 'reports follow'} the same storyline.` : '';
   const explanation = `${summaryLead(e.summary) || e.title}${more}`.trim();
-  const lines: Line[] = [{ speaker: lead, text: `${e.title}. ${explanation}` }];
-  // A viewer's question only where the sources answer it, and only for the two most important stories.
-  if (rank < 2 && e.severity >= 4) {
-    const gdacs = s.items.find((i) => i.event.id.startsWith('gdacs-'))?.event;
-    const usgs = s.items.find((i) => i.event.id.startsWith('usgs-'))?.event;
-    if (gdacs) {
-      const level = gdacs.severity >= 5 ? 'red, its highest level' : 'orange, a medium level';
-      lines.push({ speaker: other, text: 'Why does this matter?' }, { speaker: lead, text: `GDACS rates the modelled humanitarian impact as ${level}.` });
-    } else if (usgs) {
-      lines.push(
-        { speaker: other, text: 'What should we watch next?' },
-        { speaker: lead, text: 'Official damage reports and any tsunami messages from the regional warning centre.' },
-      );
-    }
-  }
+  const updates = Number(e.summary.match(/(\d+) GDACS updates/)?.[1] ?? 1);
+  const lines: Line[] = [{ speaker: lead, text: `${e.title}. ${explanation}` }, ...exchange(lead, eventTurns(e, s.items.length - 1, updates), used)];
   return {
     id: `ev:${e.id}`,
     kind: 'event',
@@ -155,17 +138,11 @@ function eventScene(s: Storyline, rank: number): Scene {
 
 const STATUS_WORD: Record<CoverageStatus, string> = { confirmed: 'Confirmed by an official source', corroborated: 'Corroborated', unverified: 'Not yet verified' };
 
-function newsScene(st: Story, iso3: string, rank: number): Scene {
+function newsScene(st: Story, iso3: string, used: Set<string>): Scene {
   const lead = leadFor(st.title);
-  const other: Analyst = lead === 'eve' ? 'knox' : 'eve';
   const n = st.independent.length;
   const explanation = `${STATUS_WORD[st.status]}: ${n} independent ${n === 1 ? 'publisher' : 'publishers'}.`;
-  const lines: Line[] = [{ speaker: lead, text: `${st.title}. ${explanation}` }];
-  if (rank < 2 && lead === 'eve' && /\b(oil|gas|lng|energy|electricity)\b/i.test(st.title)) {
-    lines.push({ speaker: other, text: 'Could this affect energy prices?' }, { speaker: lead, text: 'The reports do not say yet. Watch the benchmark prices in the Commodity Monitor.' });
-  } else if (rank < 2 && st.status !== 'confirmed') {
-    lines.push({ speaker: other, text: 'How solid is this?' }, { speaker: lead, text: 'Several outlets report it, but no official source yet. Treat details as provisional.' });
-  }
+  const lines: Line[] = [{ speaker: lead, text: `${st.title}. ${explanation}` }, ...exchange(lead, storyTurns(st.title, st.status, n, lead), used)];
   const sources: SourceRef[] = st.articles.slice(0, 3).map((a) => ({ name: a.domain, url: a.url, license: '' }));
   return {
     id: `news:${st.id}`,
@@ -190,39 +167,50 @@ export interface PlanInput {
   stories: Story[];
   /** Country named in a headline (ISO3), for framing news without coordinates. */
   countryOf: (text: string) => string | null;
-  /** Presentation budget in ms (default 58 s). */
+  /** Presentation budget in ms (default about two minutes). */
   budgetMs?: number;
   mode: 'read' | 'play';
+  /** End of the covered period (epoch ms); default `now`. Voiced editions cover the 24 hours before their edition time. */
+  until?: number;
+  /** Spoken opening line (default names the period). */
+  introText?: string;
 }
+
+/** About two minutes, with a modest overrun allowed so a meaningful exchange is never cut. */
+export const BUDGET_MS = 120_000;
+export const OVERRUN_MS = 15_000;
 
 /** Builds a frozen plan: the best stories that fit the time budget, alternating hazards and news where possible. */
 export function buildPlan(inp: PlanInput): Plan {
-  const from = inp.now - WINDOWS[inp.window].hours * 3_600_000;
-  const evs = inp.events.filter((e) => e.provenance !== 'simulated' && validLocation(e) && Date.parse(e.time) >= from && Date.parse(e.time) <= inp.now + 60_000);
+  const until = inp.until ?? inp.now;
+  const from = until - WINDOWS[inp.window].hours * 3_600_000;
+  const evs = inp.events.filter((e) => e.provenance !== 'simulated' && validLocation(e) && Date.parse(e.time) >= from && Date.parse(e.time) <= until + 60_000);
+  const used = new Set<string>();
   const lines = storylines(dedupeEvents(evs)).filter((s) => s.lead.event.severity >= 3);
-  const eventScenes = lines.map((s, i) => eventScene(s, i));
+  const eventScenes = lines.map((s) => eventScene(s, used));
   const statusRank: Record<CoverageStatus, number> = { confirmed: 0, corroborated: 1, unverified: 2 };
   const news = inp.stories
-    .filter((s) => Date.parse(s.last) >= from && s.status !== 'unverified')
+    .filter((s) => Date.parse(s.last) >= from && Date.parse(s.last) <= until + 60_000 && s.status !== 'unverified')
     .sort((a, b) => statusRank[a.status] - statusRank[b.status] || b.independent.length - a.independent.length)
     .map((s) => ({ s, iso3: inp.countryOf(s.title) }))
     .filter((x): x is { s: Story; iso3: string } => !!x.iso3)
-    .map((x, i) => newsScene(x.s, x.iso3, i));
+    .map((x) => newsScene(x.s, x.iso3, used));
   // Interleave by importance: event, news, event, news…
   const merged: Scene[] = [];
   for (let i = 0; i < Math.max(eventScenes.length, news.length); i++) {
     if (eventScenes[i]) merged.push(eventScenes[i]!);
     if (news[i]) merged.push(news[i]!);
   }
-  const budget = inp.budgetMs ?? 58_000;
-  const intro: Line = { speaker: 'knox', text: `Aurora briefing. ${WINDOWS[inp.window].label}.` };
+  const budget = inp.budgetMs ?? BUDGET_MS;
+  const intro: Line = { speaker: 'knox', text: inp.introText ?? `Aurora briefing. ${WINDOWS[inp.window].label}.` };
   const dur = (s: Scene) => (inp.mode === 'play' ? s.speakMs : s.readMs);
   const scenes: Scene[] = [];
-  let used = inp.mode === 'play' ? speakMs([intro]) : 0;
+  let spent = inp.mode === 'play' ? speakMs([intro]) : 0;
   for (const s of merged) {
-    if (used + dur(s) > budget) continue;
+    // Whole stories only: a story may finish slightly past the budget, but none starts once it is used up.
+    if (spent >= budget || spent + dur(s) > budget + OVERRUN_MS) continue;
     scenes.push(s);
-    used += dur(s);
+    spent += dur(s);
   }
   return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro };
 }
@@ -234,7 +222,7 @@ export function hash(s: string): string {
   return (h >>> 0).toString(16);
 }
 
-/** Auto Tour: the same frozen, de-duplicated scenes over the last three days, read at a calm pace (about two minutes, looped). */
+/** Auto Tour and Comfort Mode: the same frozen, de-duplicated scenes over the last three days, read at a calm pace (looped). */
 export function buildTour(inp: Omit<PlanInput, 'window' | 'mode' | 'budgetMs'>): Plan {
-  return buildPlan({ ...inp, window: '3d', mode: 'read', budgetMs: 120_000 });
+  return buildPlan({ ...inp, window: '3d', mode: 'read', budgetMs: 150_000 });
 }
