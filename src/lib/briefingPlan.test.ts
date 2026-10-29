@@ -71,7 +71,7 @@ describe('briefing plan', () => {
     expect(buildPlan({ window: '7d', now, events, stories, countryOf, mode: 'play' }).version).toBe(p7.version);
   });
 
-  it('gives every story one grounded EVE–KNOX exchange without repeating a question', () => {
+  it('gives every story one grounded exchange (COMMAND asks, the specialist answers) without repeating a question', () => {
     const events = [ev('usgs-1'), ev('usgs-5', { lat: -20, lon: -70, region: 'Tarapaca, Chile', title: 'Quake Chile', summary: 'Magnitude 5.5 earthquake at 110 km depth.' })];
     const stories = [story('s1', 'Germany cuts gas price forecast as energy market eases'), story('s2', 'Japan confirms new defence budget', { status: 'confirmed' })];
     const p = buildPlan({ window: '24h', now, events, stories, countryOf: (t) => (/japan/i.test(t) ? 'JPN' : /germany/i.test(t) ? 'DEU' : null), mode: 'play' });
@@ -93,7 +93,7 @@ describe('briefing plan', () => {
     const a = exchange('eve', storyTurns('Oil exports fall', 'corroborated', 3, 'eve'), used);
     const b = exchange('eve', storyTurns('Gas tariffs rise', 'corroborated', 2, 'eve'), used);
     expect(a[0]!.text).not.toBe(b[0]!.text);
-    expect(a[0]!.speaker).toBe('knox');
+    expect(a[0]!.speaker).toBe('lead');
   });
 
   it('covers only the edition period when an end time is given', () => {
@@ -105,7 +105,7 @@ describe('briefing plan', () => {
     expect(leadFor('Oil exports fall as tariffs rise')).toBe('eve');
     expect(leadFor('Troops move near the border')).toBe('knox');
     const p = buildPlan({ window: '24h', now, events: [ev('gdacs-TC-1', { title: 'Typhoon X', severity: 5, region: 'Philippines', lat: 14, lon: 125 })], stories: [], countryOf, mode: 'play' });
-    expect(p.scenes[0]!.lines.map((l) => l.speaker)).toEqual(['knox', 'eve', 'knox']);
+    expect(p.scenes[0]!.lines.map((l) => l.speaker)).toEqual(['knox', 'lead', 'knox']);
     expect(p.scenes[0]!.lines[2]!.text).toContain('red');
   });
 });

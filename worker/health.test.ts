@@ -30,7 +30,24 @@ describe('integration health', () => {
     for (const v of Object.values(env)) expect(text).not.toContain(v);
     // The public summary has statuses and names only.
     expect(Object.keys(publicSummary(rows)[0]!)).toEqual(['id', 'status', 'authenticated', 'secrets']);
-    expect(publicSummary(rows).find((r) => r.id === 'elevenlabs')!.reason).toBe('ElevenLabs answered 401');
+    expect(publicSummary(rows).find((r) => r.id === 'elevenlabs')!.reason).toBe('ElevenLabs refused the key (http_401)');
+  });
+
+  it('reports voice routing without ids, and a key without the subscription permission still passes', async () => {
+    const env = { ELEVENLABS_API_KEY: 'eleven-secret-789', ELEVENLABS_VOICE_ANNA: 'anna-id-0001', ELEVENLABS_VOICE_KNOX: 'adam-id-0002', ELEVENLABS_VOICE_LEAD: 'xav-id-0003' };
+    const f = vi.fn(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.includes('subscription')) return new Response(JSON.stringify({ detail: { status: 'missing_permissions' } }), { status: 401 });
+      if (u.includes('/v1/models')) return new Response(JSON.stringify([{ model_id: 'eleven_flash_v2_5', can_do_text_to_speech: true }]));
+      if (u.includes('anna-id')) return new Response(JSON.stringify({ name: 'Emma', category: 'professional' }));
+      if (u.includes('/v1/voices/')) return new Response(JSON.stringify({ name: 'X', category: 'premade' }));
+      return new Response('', { status: 500 });
+    }) as unknown as typeof fetch;
+    const rows = await integrationHealth(env, f, now);
+    const el = publicSummary(rows).find((r) => r.id === 'elevenlabs')!;
+    expect(el.status).toBe('TESTED');
+    expect(el.voice).toMatchObject({ subscriptionLookup: 'missing_permissions', modelAvailable: true, 'voice.eve': 'ELEVENLABS_VOICE_ANNA: Emma (professional)' });
+    expect(JSON.stringify(el)).not.toMatch(/anna-id|adam-id|xav-id|eleven-secret/);
   });
 
   it('needs both OpenSky client id and secret, and uses the OAuth2 client-credentials flow', async () => {

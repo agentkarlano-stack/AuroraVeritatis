@@ -132,6 +132,11 @@ echo "OpenSky identity server from the CI runner: HTTP ${sky:-000}"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=OpenSky reachability::identity server from the CI runner answered HTTP ${sky:-000} (400/401 = reachable)"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Providers::$prov"
 [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=AI status::$ai"
+# Natural voice routing from the same cached check: configured voice variables, whether ElevenLabs knows each voice,
+# model support and the subscription lookup (names and short codes only; no ids, keys or account figures).
+voice_diag=$(printf '%s' "$check_out" | python3 -c 'import json,sys; d=json.load(sys.stdin); v=next((p.get("voice") for p in d.get("providers", []) if p["id"]=="elevenlabs"), None); print("; ".join(k + "=" + str(x) for k, x in v.items()) if v else "not reported")' 2>/dev/null || echo "unavailable")
+echo "Voice: $voice_diag"
+[[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::notice title=Voice routing::$voice_diag"
 echo "Integrations: ${integ:-unavailable}"
 echo "Integration check: ${check_out:-unavailable}"
 if [[ -n "${GITHUB_ACTIONS:-}" ]]; then

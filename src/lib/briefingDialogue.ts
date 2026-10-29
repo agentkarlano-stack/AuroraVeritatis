@@ -1,5 +1,5 @@
 /**
- * EVE–KNOX exchanges for the voiced briefing. Every story gets one short exchange: the second analyst asks what an
+ * Exchanges for the Operations Briefing. Every story gets one short exchange: COMMAND asks what an
  * informed non-specialist would ask, and the lead answers only from the facts in the source record (magnitude, depth,
  * tsunami flag, GDACS alert level and update count, publisher counts, storyline size). No quotations, no invented
  * figures, no filler. Questions rotate so the same wording is not heard twice in one briefing.
@@ -7,7 +7,9 @@
 import type { CoverageStatus } from '../../shared/news';
 import type { GeoEvent } from '../../shared/types';
 
-export type Analyst = 'eve' | 'knox';
+/** Presenter roles: COMMAND (lead) opens, asks and closes; the two specialists report. */
+export type Analyst = 'lead' | 'knox' | 'eve';
+export type Specialist = 'knox' | 'eve';
 export interface Line {
   speaker: Analyst;
   text: string;
@@ -79,7 +81,7 @@ export function eventTurns(e: GeoEvent, relatedReports: number, gdacsUpdates: nu
 
 const ECON = /\b(oil|gas|lng|energy|electricity|prices?|inflation|tariffs?|trade|exports?|imports?|markets?|currenc\w*|rates?|bank|debt|budget)\b/i;
 
-export function storyTurns(title: string, status: CoverageStatus, independent: number, lead: Analyst): Turn[] {
+export function storyTurns(title: string, status: CoverageStatus, independent: number, lead: Specialist): Turn[] {
   const turns: Turn[] = [];
   const pubs = `${independent} independent ${independent === 1 ? 'publisher' : 'publishers'}`;
   if (lead === 'eve' && ECON.test(title))
@@ -101,11 +103,12 @@ export function storyTurns(title: string, status: CoverageStatus, independent: n
 }
 
 /**
- * The exchange for one story: the second analyst asks, the lead answers. Picks the first turn with an unused
- * phrasing; `used` collects the questions asked so far in this briefing.
+ * The exchange for one story: COMMAND asks what an informed non-specialist would ask, and the reporting specialist
+ * answers from the source facts. Picks the first turn with an unused phrasing; `used` collects the questions asked so
+ * far in this briefing.
  */
-export function exchange(lead: Analyst, turns: Turn[], used: Set<string>): Line[] {
-  const other: Analyst = lead === 'eve' ? 'knox' : 'eve';
+export function exchange(lead: Specialist, turns: Turn[], used: Set<string>): Line[] {
+  const other: Analyst = 'lead';
   for (const t of turns) {
     const q = t.ask.find((a) => !used.has(a));
     if (!q) continue;
