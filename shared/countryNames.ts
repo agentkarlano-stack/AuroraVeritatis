@@ -12,3 +12,25 @@ export function countryName(iso3: string): string | undefined {
   const v = a2 ? names[a2] : undefined;
   return Array.isArray(v) ? (v[1] ?? v[0]) : v;
 }
+
+/** All countries with their English names (every variant the library lists), for matching names in headlines. */
+const ALL: { iso3: string; names: string[] }[] = (codes as string[][]).flatMap(([a2, a3]) => {
+  const v = names[a2!];
+  const list = (Array.isArray(v) ? v : v ? [v] : []).filter((n) => n.length > 3);
+  return a3 && list.length ? [{ iso3: a3, names: list }] : [];
+});
+
+/** Countries (ISO3) named in a text, in order of first mention (whole words; names of four letters or more). */
+export function countriesInHeadline(text: string): string[] {
+  const t = ` ${text.toLowerCase().replace(/[^\p{L}\s]/gu, ' ')} `;
+  const hits: { iso3: string; at: number }[] = [];
+  for (const c of ALL) {
+    let at = -1;
+    for (const n of c.names) {
+      const i = t.indexOf(` ${n.toLowerCase().replace(/[^\p{L}\s]/gu, ' ')} `);
+      if (i >= 0 && (at < 0 || i < at)) at = i;
+    }
+    if (at >= 0) hits.push({ iso3: c.iso3, at });
+  }
+  return hits.sort((a, b) => a.at - b.at).map((h) => h.iso3);
+}

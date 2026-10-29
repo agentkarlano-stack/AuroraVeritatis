@@ -243,15 +243,15 @@ async function interactions(browser: Browser) {
     await page.goto(`${BASE}/briefing`);
     await page.waitForTimeout(4000);
     check('/briefing redirects to Global Radar', new URL(page.url()).pathname === '/');
-    await page.getByRole('button', { name: 'Read the briefing: last 24 hours' }).click();
+    await page.getByRole('button', { name: 'Situation Report: last 24 hours' }).click();
     await page.waitForTimeout(1500);
-    const shown = await page.getByRole('dialog', { name: 'Written briefing' }).count();
+    const shown = await page.getByRole('dialog', { name: 'Situation Report' }).count();
     const empty = await page.getByText(/No significant, located developments/).count();
-    check('Written briefing (24 hours) opens the presentation or an honest empty summary', shown > 0 || empty > 0);
+    check('Situation Report (24 hours) opens the presentation or an honest empty summary', shown > 0 || empty > 0);
     if (shown) {
       await page.keyboard.press('Escape');
       await page.waitForTimeout(500);
-      check('Esc leaves the briefing', (await page.getByRole('dialog', { name: 'Written briefing' }).count()) === 0);
+      check('Esc leaves the briefing', (await page.getByRole('dialog', { name: 'Situation Report' }).count()) === 0);
     }
     await ctx.close();
   }

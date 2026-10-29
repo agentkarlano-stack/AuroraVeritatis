@@ -390,7 +390,7 @@ function IdlePreferences() {
       <label className="flex items-center justify-between gap-3 py-1.5 text-sm text-mist">
         <span>
           Global Radar: tour of current developments
-          <span className="block text-[11px] text-slate-dim">You can always start it with the Auto Tour button.</span>
+          <span className="block text-[11px] text-slate-dim">You can always start it with the Comfort Mode button in Global Radar.</span>
         </span>
         <input type="checkbox" className="h-5 w-5 accent-[#c9a35a]" checked={idle.radar} onChange={(e) => setIdle({ radar: e.target.checked })} aria-label="Automatic idle tour in Global Radar" />
       </label>

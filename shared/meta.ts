@@ -25,7 +25,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/hq': { title: 'HQ', description: 'Your workspace: resume recent dossiers, charts and map views, follow countries and regions, and keep saved intelligence in collections with notes.' },
   '/overview': { title: 'Platform overview', description: 'What Aurora Veritatis offers: global events, country intelligence, markets, quantitative research and a personal research graph.' },
   '/briefing': { title: 'World Briefing', description: 'The World Briefing now opens from Global Radar: the last 24 hours, 3 or 7 days in about a minute, written or narrated.', noindex: true },
-  '/radar': { title: 'Global Radar', description: 'A grayscale globe of earthquakes, disaster alerts and verified news, with country dossiers, a one-minute briefing and an Auto Tour. Every item links to its source.' },
+  '/radar': { title: 'Global Radar', description: 'A grayscale globe of earthquakes, disaster alerts and verified news, with country dossiers, a Situation Report, a daily Operations Briefing and Comfort Mode. Every item links to its source.' },
   '/countries': { title: 'Country Dossiers', description: 'Economic, demographic, infrastructure and defence indicators for every country, sourced from World Bank Open Data.' },
   '/countries/compare': { title: 'Compare countries over time', description: 'Animated bubble chart of World Bank indicators for every economy since 1990.' },
   '/countries/vs': { title: 'Side-by-side country comparison', description: 'Compare up to four countries across World Bank indicators, each value with its reference year.' },

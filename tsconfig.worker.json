@@ -16,5 +16,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["worker", "shared"]
+  "include": ["worker", "shared", "src/lib/briefingPlan.ts", "src/lib/briefingDialogue.ts", "src/lib/worldBriefing.ts", "src/lib/brainRisk.ts"]
 }
