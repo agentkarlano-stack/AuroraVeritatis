@@ -20,6 +20,13 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-29 (voice repair, PR #76, in production):** causes: per-IP limit (4 then 1/15 s) vs ~16 briefing lines; playback
+  blocked as autoplay after async preparation (error swallowed); subscription lookup failure blocked synthesis. Fixed, plus
+  presenter roles (Xavian/Adam/Anna with Amelia and former EVE reserves), classified errors, diagnostics ("Voice routing"
+  line verified on production: all five voices found, model available, subscription lookup ok) and live test V1.
+- **2026-10-29 (shared editions, branch `claude/briefing-editions`):** one daily Operations Briefing per schedule date
+  (Supabase records, Storage audio, Worker cron, archive, cleanup), Radar plays stored editions with an archive picker,
+  Situation Report / Operations Briefing names, Auto Tour button removed. Needs owner: migration + Worker secret.
 - **2026-10-26 (consolidated implementation prompt, increment 1, branch `claude/radar-phase-b`):** requirement matrix
   `docs/REQUIREMENTS-2026-10-26.md` (phases A–G, honest status). Phase B: globe centred beside the panel (camera padding),
   cursor coordinates, country developments list with return-to-country flow, Layers button and searchable panel with

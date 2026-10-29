@@ -4,7 +4,8 @@ import { macroHistory, macroOverview } from './ecb';
 import { error, json } from './http';
 import { aiAsk, aiModels, aiStatus, requireAdmin, type AiGatewayEnv } from './ai/handler';
 import { integrationHealth, publicSummary, type ProviderHealth } from './health';
-import { voiceEnabled, voiceSpeak, type VoiceEnv } from './voice';
+import { briefingRoute, runEditionJob, type EditionsEnv } from './editions';
+import { voiceEnabled, voiceSpeak } from './voice';
 import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
@@ -16,7 +17,7 @@ import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, er
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries, latestValues } from './worldbank';
 
-export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, VoiceEnv {
+export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, EditionsEnv {
   ASSETS: Fetcher;
   /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
   CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
@@ -158,6 +159,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
   }
   if (request.method === 'POST' && path === '/api/voice/speak') return voiceSpeak(request, env, { cache: voiceCache });
   if (request.method !== 'GET') return error(405, 'Method not allowed');
+  if (path.startsWith('/api/briefing/')) return (await briefingRoute(path, env))!;
 
   const ip = request.headers.get('CF-Connecting-IP') ?? 'local';
   if (!limiter.allow(ip)) return error(429, 'Too many requests');
@@ -473,6 +475,15 @@ async function quotePost(request: Request, env: Env, url: URL, ip: string): Prom
 }
 
 export default {
+  // Operations Briefing editions: the job runs every 15 minutes and generates today's edition once, when it is due.
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      runEditionJob(env, {
+        events: async () => [...(await earthquakes().catch(() => [])), ...(await disasters().catch(() => []))],
+        stories: async () => (await newsSearch(cleanQuery(null)!, '24h')).stories,
+      }).then((r) => console.log('Edition job', r.action, r.detail ?? '')),
+    );
+  },
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) return handleApi(request, env, ctx);

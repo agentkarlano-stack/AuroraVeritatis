@@ -58,7 +58,7 @@ function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
 
 /**
  * Full-screen presentation on the grayscale globe, shared by the written briefing (`read`), the narrated briefing
- * (`play`) and the passive Auto Tour (`tour`). The plan is frozen by the caller; nothing here regenerates or reorders
+ * (`play`) and Comfort Mode (`tour`). The plan is frozen by the caller; nothing here regenerates or reorders
  * it. One clock drives everything: pausing freezes the timeline, the narration and the atmosphere, and moving to a
  * scene restores its camera, card, captions and audio from the start of that scene.
  */
@@ -335,7 +335,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       className={`fixed inset-0 z-[100] overflow-hidden bg-ink-950 text-platinum ${state.paused ? 'av-paused' : ''}`}
       role="dialog"
       aria-modal="true"
-      aria-label={tour ? 'Auto Tour. Press any key or click to exit.' : mode === 'play' ? 'AI briefing' : 'Written briefing'}
+      aria-label={tour ? 'Comfort Mode. Press any key or click to exit.' : mode === 'play' ? 'Operations Briefing' : 'Situation Report'}
     >
       {/* The map stops above the control bar so its attribution stays visible. */}
       <div className={`absolute inset-x-0 top-0 ${tour ? 'bottom-0' : 'bottom-14'}`}>
@@ -376,7 +376,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       </div>
 
       <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-3 text-[11px] text-mist">
-        <span className="eyebrow !text-[10px]">{tour ? 'Auto Tour' : mode === 'play' ? 'AI briefing' : 'Briefing'}</span>
+        <span className="eyebrow !text-[10px]">{tour ? 'Comfort Mode' : mode === 'play' ? 'Operations Briefing' : 'Situation Report'}</span>
         <span>{subtitle ?? WINDOWS[plan.window].label}</span>
         <span className="num">
           {state.index + 1}/{scenes.length}

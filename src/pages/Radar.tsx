@@ -11,7 +11,6 @@ import { SaveButton } from '../components/SaveButton';
 import { ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
 import { getJson, useApi } from '../lib/api';
-import { editionAt, editionLabel, nextEdition } from '../lib/edition';
 import { countriesInText, countryByIso3, countryByName } from '../lib/countries';
 import { countryNameOf } from '../lib/worldBriefing';
 import { useEvents } from '../lib/events';
@@ -118,6 +117,19 @@ const wallClock = () => Date.now();
 /** Prepared natural-voice audio per briefing content version, so replays in this tab cost nothing. */
 const AUDIO_CACHE = new Map<string, Map<string, Promise<string>>>();
 
+/** A published Operations Briefing edition (worker/editions.ts). */
+interface Edition {
+  edition_date: string;
+  revision: number;
+  coverage_start: string;
+  coverage_end: string;
+  published_at: string;
+  plan: Plan;
+  audio: { key: string; url: string }[];
+}
+/** Timestamp in the viewer's own time zone. */
+const fmtLocal = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
 interface Showing {
   mode: PresentationMode;
   plan: Plan;
@@ -129,7 +141,7 @@ interface Showing {
 
 /**
  * Global Radar, the arrival view. Left: sourced signals and news; centre: the globe; right: the situation overview
- * with the briefing launcher, the selected event or an integrated country dossier. Briefings and the Auto Tour run as
+ * with the briefing launcher, the selected event or an integrated country dossier. Briefings and Comfort Mode run as
  * a full-screen presentation on the same grayscale globe (`components/presentation/Presentation.tsx`).
  */
 export default function Radar() {
@@ -167,6 +179,10 @@ export default function Radar() {
   const [summary, setSummary] = useState<{ plan: Plan; mode: 'read' | 'play' } | null>(null);
   const { session } = useAuth();
   const idle = normalizeIdle(usePrefs((s) => s.idle));
+  const status = useApi<{ latest: { edition_date: string; published_at: string } | null }>('/api/briefing/status');
+  const latest = status.status === 'ready' ? status.data.latest : null;
+  const archiveRes = useApi<{ editions: { date: string; revision: number; stories: string[] }[] }>('/api/briefing/archive');
+  const archive = archiveRes.status === 'ready' ? archiveRes.data.editions : [];
 
   const { quakes, disasters, quakeStale, disasterStale, quakeStatus, disasterStatus } = useEvents();
   const news = useApi<{ stories: Story[]; articles: number; fetchedAt: string; partial?: string }>('/api/news?t=24h');
@@ -197,7 +213,7 @@ export default function Radar() {
   // Briefings and the tour: the plan is built once when they start and stays frozen while they run.
   const countryOf = useCallback((text: string) => countryIn(text)?.iso3 ?? null, []);
   const storiesNow = useMemo(() => (news.status === 'ready' ? news.data.stories : []), [news]);
-  /** Written briefing: the chosen period, from what the feeds show now (news for longer periods is fetched on demand). */
+  /** Situation Report: the chosen period, from what the feeds show now (news for longer periods is fetched on demand). */
   const startWritten = async (w: ReportingWindow) => {
     let stories = storiesNow;
     if (w !== '24h') {
@@ -212,32 +228,35 @@ export default function Radar() {
     }
     setShowing({ mode: 'read', plan, fullscreen: true, narrator: null, audioNote: null, subtitle: WINDOWS[w].label });
   };
-  /** Voiced briefing: the latest 24-hour edition (07:00 or 19:00 Budapest), the same period for every viewer. */
-  const startVoiced = async () => {
-    // Must run synchronously inside the click: later playback (after preparation) is then not blocked as autoplay.
-    const el = session ? unlockAudio() : null;
-    const at = editionAt(wallClock());
-    const plan = buildPlan({
-      window: '24h',
-      now: wallClock(),
-      until: at,
-      events: signals,
-      stories: storiesNow,
-      countryOf,
-      mode: 'play',
-      introText: `Aurora briefing for the 24 hours to ${editionLabel(at).replace(' Budapest', ', Budapest time')}.`,
-    });
+  /**
+   * Operations Briefing: the latest shared edition (or an archived one), played from its stored audio with no new
+   * synthesis. Before the first edition is published, a clearly labelled live preview is built from the current feeds.
+   */
+  const startVoiced = async (date?: string) => {
+    // Must run synchronously inside the click: later playback (after loading) is then not blocked as autoplay.
+    const el = unlockAudio();
+    setPreparing(true);
+    const r = await getJson<{ edition: Edition | null }>(date ? `/api/briefing/edition/${date}` : '/api/briefing/latest').catch(() => ({ edition: null }));
+    const ed = r.edition;
+    if (ed && el) {
+      setPreparing(false);
+      const clips = new Map(ed.audio.map((a) => [a.key, Promise.resolve(a.url)]));
+      const cover = `${fmtLocal(ed.coverage_start)} to ${fmtLocal(ed.coverage_end)}`;
+      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · covers ${cover}` });
+      return;
+    }
+    const until = wallClock();
+    const plan = buildPlan({ window: '24h', now: until, until, events: signals, stories: storiesNow, countryOf, mode: 'play', introText: 'Aurora Operations Briefing, live preview of the past twenty-four hours.' });
     if (!plan.scenes.length) {
+      setPreparing(false);
       setSummary({ plan, mode: 'play' });
       return;
     }
-    // Natural voices for signed-in users (prepared once per content version); otherwise the browser's voices.
+    // Live preview (no shared edition yet): natural voices for signed-in users, cached per line; otherwise the browser.
     let narrator: Narrator | null = null;
-    let audioNote: string | null = null;
+    let audioNote: string | null = 'Live preview: today\'s shared edition is not published yet.';
     const lines = [plan.intro, ...plan.scenes.flatMap((s) => s.lines), plan.outro];
     if (session && el) {
-      setPreparing(true);
-      // Clips are fetched in parallel while playback runs; the first one decides whether the natural voice works.
       const clips = AUDIO_CACHE.get(plan.version) ?? prepareClips(lines, session.access_token);
       AUDIO_CACHE.set(plan.version, clips);
       try {
@@ -247,20 +266,19 @@ export default function Radar() {
         AUDIO_CACHE.delete(plan.version);
         const code = err instanceof VoiceError ? ` [${err.code}]` : '';
         audioNote = `Natural voice unavailable: ${err instanceof Error ? err.message : 'error'}${code} Using the browser voice.`;
-      } finally {
-        setPreparing(false);
       }
-    } else if (!session) audioNote = 'Browser voice. Sign in for the natural presenter voices.';
+    } else if (!session) audioNote += ' Browser voice; sign in for the presenter voices.';
+    setPreparing(false);
     if (!narrator) {
       narrator = browserNarrator();
       if (!narrator) audioNote = 'This browser cannot speak text aloud, so the briefing runs with captions only.';
     }
-    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, subtitle: `Edition ${editionLabel(at)}` });
+    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, subtitle: 'Live preview · past 24 hours' });
   };
   const startTour = useCallback(
     (fullscreen: boolean) => {
       const plan = buildTour({ now: Date.now(), events: signals, stories: storiesNow, countryOf });
-      if (plan.scenes.length) setShowing({ mode: 'tour', plan, fullscreen, narrator: null, audioNote: null, subtitle: fullscreen ? 'Auto Tour' : 'Comfort Mode' });
+      if (plan.scenes.length) setShowing({ mode: 'tour', plan, fullscreen, narrator: null, audioNote: null, subtitle: 'Comfort Mode' });
     },
     [signals, storiesNow, countryOf],
   );
@@ -268,7 +286,6 @@ export default function Radar() {
     if (showing && reason === 'done' && showing.mode !== 'tour') setSummary({ plan: showing.plan, mode: showing.mode });
     setShowing(null);
   };
-  // Automatic Auto Tour after inactivity (profile switch; never while presenting, typing or in a dialog).
   // Comfort Mode: after a period of inactivity (profile switch), a passive tour; never while presenting or preparing.
   useIdle(idle.radar && !showing && !preparing, () => startTour(false));
 
@@ -465,33 +482,47 @@ export default function Radar() {
     </div>
   );
 
-  const edition = editionAt(now);
   const launcher = (
     <div className="space-y-3 rounded-md border border-line p-3">
       <div>
-        <div className="eyebrow mb-1.5">Written briefing</div>
-        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Written briefing period">
+        <div className="eyebrow mb-1.5">Situation Report</div>
+        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Situation Report period">
           {(Object.keys(WINDOWS) as ReportingWindow[]).map((w) => (
-            <button key={w} className="btn-ghost justify-center px-2 text-xs" onClick={() => void startWritten(w)} disabled={preparing} aria-label={`Read the briefing: ${WINDOWS[w].label.toLowerCase()}`}>
+            <button key={w} className="btn-ghost justify-center px-2 text-xs" onClick={() => void startWritten(w)} disabled={preparing} aria-label={`Situation Report: ${WINDOWS[w].label.toLowerCase()}`}>
               <BookOpen className="h-3.5 w-3.5" aria-hidden /> {w === '24h' ? '24 hours' : w === '3d' ? '3 days' : '7 days'}
             </button>
           ))}
         </div>
+        <p className="mt-1 text-[10px] text-slate-dim">Written, updated as validated information arrives.</p>
       </div>
       <div className="border-t border-line pt-3">
-        <div className="eyebrow mb-1.5">AI briefing</div>
+        <div className="eyebrow mb-1.5">Operations Briefing</div>
         <button className="btn-primary w-full justify-center text-xs" onClick={() => void startVoiced()} disabled={preparing}>
-          <Headphones className="h-3.5 w-3.5" aria-hidden /> {preparing ? 'Preparing…' : 'Play AI Briefing'}
+          <Headphones className="h-3.5 w-3.5" aria-hidden /> {preparing ? 'Loading…' : 'Play Operations Briefing'}
         </button>
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-dim">
-          Edition {editionLabel(edition)}, covering the previous 24 hours; next edition {editionLabel(nextEdition(now)).replace(/^\d+ \w+, /, '')}. About two minutes: KNOX leads security and hazards,
-          EVE economy and markets, with one short exchange per story built from the cited sources. Archive of past editions: not available yet.
+          {latest
+            ? `Latest edition ${latest.edition_date}, published ${fmtLocal(latest.published_at)}. One shared edition a day, about two minutes.`
+            : 'One shared edition a day, about two minutes. No edition is published yet; the button plays a live preview.'}
         </p>
+        {archive.length > 1 && (
+          <label className="mt-2 flex items-center gap-2 text-[11px] text-slate-dim">
+            Archive
+            <select className="input h-8 py-0 text-xs" defaultValue="" onChange={(e) => e.target.value && void startVoiced(e.target.value)} aria-label="Play an archived edition">
+              <option value="">Choose a date…</option>
+              {archive.map((a) => (
+                <option key={`${a.date}-${a.revision}`} value={a.date}>
+                  {a.date} · {a.stories.length} {a.stories.length === 1 ? 'story' : 'stories'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <button className="btn-ghost w-full justify-center text-xs" onClick={() => startTour(true)} disabled={!signals.length && !storiesNow.length}>
-        <Tv className="h-3.5 w-3.5" aria-hidden /> Auto Tour
+        <Tv className="h-3.5 w-3.5" aria-hidden /> Comfort Mode
       </button>
-      {idle.radar && <p className="text-[10px] text-slate-dim">Comfort Mode starts after five minutes without activity (switch in Account or HQ).</p>}
+      {idle.radar && <p className="text-[10px] text-slate-dim">Comfort Mode also starts after five minutes without activity (switch in Account or HQ).</p>}
     </div>
   );
 

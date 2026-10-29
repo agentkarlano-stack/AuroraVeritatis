@@ -233,7 +233,7 @@ export function hash(s: string): string {
   return (h >>> 0).toString(16);
 }
 
-/** Auto Tour and Comfort Mode: the same frozen, de-duplicated scenes over the last three days, read at a calm pace (looped). */
+/** Comfort Mode: the same frozen, de-duplicated scenes over the last three days, read at a calm pace (looped). */
 export function buildTour(inp: Omit<PlanInput, 'window' | 'mode' | 'budgetMs'>): Plan {
   return buildPlan({ ...inp, window: '3d', mode: 'read', budgetMs: 150_000 });
 }
