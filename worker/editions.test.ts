@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GeoEvent } from '../shared/types';
-import { briefingRoute, editionPlan, editionWindow, localDate, runEditionJob, zonedTime } from './editions';
+import { briefingRoute, editionPlan, editionWindow, localDate, measurePeak, publishBeforePeak, runEditionJob, zonedTime } from './editions';
 import { resetVoiceForTests } from './voice';
 
 afterEach(resetVoiceForTests);
@@ -82,7 +82,7 @@ describe('edition job', () => {
     const uploads = calls.filter((c) => c.url.includes('/storage/v1/object/briefing-audio/2026-10-29/r1/'));
     expect(uploads.length).toBe(tts.length);
     expect(tts.some((c) => c.url.includes('lead-id')) && tts.some((c) => c.url.includes('knox-id'))).toBe(true);
-    const publish = calls.find((c) => c.method === 'PATCH')!.body as { status: string; plan: { scenes: unknown[] }; audio: { voice_source: string }[]; expires_at: string };
+    const publish = calls.find((c) => c.method === 'PATCH' && c.url.includes('briefing_editions'))!.body as { status: string; plan: { scenes: unknown[] }; audio: { voice_source: string }[]; expires_at: string };
     expect(publish.status).toBe('published');
     expect(publish.plan.scenes.length).toBe(1);
     expect(publish.audio[0]!.voice_source).toBe('ELEVENLABS_VOICE_LEAD');
@@ -96,7 +96,7 @@ describe('edition job', () => {
     expect(r.action).toBe('failed');
     expect(r.detail).toContain('quota');
     expect(calls.filter((c) => c.url.includes('text-to-speech'))).toHaveLength(1);
-    expect((calls.find((c) => c.method === 'PATCH')!.body as { status: string }).status).toBe('failed');
+    expect((calls.find((c) => c.method === 'PATCH' && c.url.includes('briefing_editions'))!.body as { status: string }).status).toBe('failed');
   });
 });
 
@@ -107,5 +107,24 @@ describe('edition reads', () => {
     const r = await briefingRoute('/api/briefing/latest', env, f);
     expect(r!.status).toBe(503);
     expect(((await r!.json()) as { error: string }).error).toBe('Editions are not set up yet.');
+  });
+});
+
+describe('publication time from measured activity', () => {
+  const ph = (rows: [number, number][] | null, status = 200) => vi.fn(async () => (rows ? new Response(JSON.stringify({ results: rows })) : new Response('no', { status }))) as unknown as typeof fetch;
+  const keys = { ...env, POSTHOG_PERSONAL_API_KEY: 'phx_key', POSTHOG_PROJECT_ID: '123' };
+
+  it('finds the busiest UTC hour from enough pageviews, and refuses thin or missing data', async () => {
+    expect(await measurePeak(keys, ph([[17, 900], [9, 400], [3, 20]]))).toEqual({ status: 'measured', peakUtcHour: 17, pageviews: 1320 });
+    expect((await measurePeak(keys, ph([[17, 120]]))).status).toBe('insufficient');
+    expect((await measurePeak(env, ph([[17, 900]]))).status).toBe('unavailable');
+    expect((await measurePeak(keys, ph(null, 403))).detail).toContain('403');
+  });
+
+  it('publishes one hour before the peak, expressed in the schedule time zone (DST-aware)', () => {
+    // Peak 17:00 UTC → publish 16:00 UTC = 17:00 in Budapest in winter, 18:00 in summer.
+    expect(publishBeforePeak(17, 'Europe/Budapest', Date.parse('2026-11-10T08:00:00Z'))).toBe('17:00');
+    expect(publishBeforePeak(17, 'Europe/Budapest', Date.parse('2026-07-10T08:00:00Z'))).toBe('18:00');
+    expect(publishBeforePeak(0, 'Europe/Budapest', Date.parse('2026-11-10T08:00:00Z'))).toBe('00:00');
   });
 });

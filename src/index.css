@@ -258,3 +258,9 @@
 .av-session { animation: av-session-in 700ms ease-out both; }
 @keyframes av-session-in { from { opacity: 0; transform: translateY(6px); letter-spacing: 0.4em; } to { opacity: 1; transform: none; } }
 .av-vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%); }
+
+/* In the cinematic presentation the provider credit stays visible but unobtrusive: faint small text, no bubble. */
+.av-present .maplibregl-ctrl-attrib { background: transparent !important; box-shadow: none !important; padding: 0 6px !important; min-height: 0 !important; }
+.av-present .maplibregl-ctrl-attrib-button { display: none !important; }
+.av-present .maplibregl-ctrl-attrib-inner { display: block !important; font-size: 9px; line-height: 1.4; color: rgba(241, 240, 236, 0.4); }
+.av-present .maplibregl-ctrl-attrib a { color: inherit; }

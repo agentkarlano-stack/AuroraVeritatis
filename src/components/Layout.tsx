@@ -100,6 +100,9 @@ export function Layout() {
               <Search className="h-4 w-4" aria-hidden />
               <kbd className="hidden rounded border border-line px-1.5 py-0.5 text-[10px] text-slate-dim xl:inline">Ctrl K</kbd>
             </button>
+            <NavLink to="/help" className={(s) => `${navCls(s)} hidden sm:block`}>
+              Help
+            </NavLink>
             <NavLink to="/pricing" className={(s) => `${navCls(s)} hidden sm:block`}>
               Plans
             </NavLink>
@@ -114,7 +117,7 @@ export function Layout() {
         </div>
         {open && (
           <nav className="border-t border-line bg-ink-950 px-4 py-3 xl:hidden" aria-label="Mobile">
-            {[...NAV, { to: '/pricing', label: 'Plans' }, { to: status === 'signed-in' ? '/account' : '/signin', label: status === 'signed-in' ? 'Account' : 'Sign in' }].map((n) => (
+            {[...NAV, { to: '/help', label: 'Help' }, { to: '/pricing', label: 'Plans' }, { to: status === 'signed-in' ? '/account' : '/signin', label: status === 'signed-in' ? 'Account' : 'Sign in' }].map((n) => (
               <NavLink key={n.to} to={n.to} end={n.to === '/'} className={(s) => `block ${navCls(s)}`}>
                 {n.label}
               </NavLink>

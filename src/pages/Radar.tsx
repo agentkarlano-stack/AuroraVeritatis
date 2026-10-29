@@ -230,7 +230,7 @@ export default function Radar() {
       setSummary({ plan, mode: 'read' });
       return;
     }
-    setShowing({ mode: 'read', plan, fullscreen: true, narrator: null, audioNote: null, subtitle: WINDOWS[w].label });
+    setShowing({ mode: 'read', plan, fullscreen: true, narrator: null, audioNote: null, subtitle: 'Last 24 hours' });
   };
   /**
    * Operations Briefing: the latest shared edition (or an archived one), played from its stored audio with no new
@@ -247,11 +247,11 @@ export default function Radar() {
       setPreparing(false);
       const clips = new Map(ed.audio.map((a) => [a.key, Promise.resolve(a.url)]));
       const cover = `${fmtLocal(ed.coverage_start)} to ${fmtLocal(ed.coverage_end)}`;
-      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · covers ${cover}` });
+      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · ${cover}` });
       return;
     }
     const until = wallClock();
-    const plan = buildPlan({ window: '24h', now: until, until, events: signals, stories: storiesNow, countryOf, placeName, mode: 'play', introText: 'Aurora Operations Briefing, live preview of the past twenty-four hours.' });
+    const plan = buildPlan({ window: '24h', now: until, until, events: signals, stories: storiesNow, countryOf, placeName, mode: 'play' });
     if (!plan.scenes.length) {
       amb?.stop();
       setPreparing(false);
@@ -260,7 +260,7 @@ export default function Radar() {
     }
     // Live preview (no shared edition yet): natural voices for signed-in users, cached per line; otherwise the browser.
     let narrator: Narrator | null = null;
-    let audioNote: string | null = 'Live preview: today\'s shared edition is not published yet.';
+    let audioNote: string | null = null;
     const lines = [plan.intro, plan.agenda, ...plan.scenes.flatMap((s) => s.lines), plan.outro];
     if (session && el) {
       const clips = AUDIO_CACHE.get(plan.version) ?? prepareClips(lines, session.access_token);
@@ -273,18 +273,18 @@ export default function Radar() {
         const code = err instanceof VoiceError ? ` [${err.code}]` : '';
         audioNote = `Natural voice unavailable: ${err instanceof Error ? err.message : 'error'}${code} Using the browser voice.`;
       }
-    } else if (!session) audioNote += ' Browser voice; sign in for the presenter voices.';
+    } else if (!session) audioNote = 'Browser voice. Sign in for the presenter voices.';
     setPreparing(false);
     if (!narrator) {
       narrator = browserNarrator();
       if (!narrator) audioNote = 'This browser cannot speak text aloud, so the briefing runs with captions only.';
     }
-    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, ambience: amb, subtitle: 'Live preview · past 24 hours' });
+    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, ambience: amb, subtitle: 'Preview · not a published edition' });
   };
   const startTour = useCallback(
     (fullscreen: boolean) => {
       const plan = buildTour({ now: Date.now(), events: signals, stories: storiesNow, countryOf });
-      if (plan.scenes.length) setShowing({ mode: 'tour', plan, fullscreen, narrator: null, audioNote: null, subtitle: 'Comfort Mode' });
+      if (plan.scenes.length) setShowing({ mode: 'tour', plan, fullscreen, narrator: null, audioNote: null, subtitle: '' });
     },
     [signals, storiesNow, countryOf],
   );
@@ -491,44 +491,39 @@ export default function Radar() {
   const launcher = (
     <div className="space-y-3 rounded-md border border-line p-3">
       <div>
-        <div className="eyebrow mb-1.5">Situation Report</div>
-        <div className="grid grid-cols-3 gap-2" role="group" aria-label="Situation Report period">
-          {(Object.keys(WINDOWS) as ReportingWindow[]).map((w) => (
-            <button key={w} className="btn-ghost justify-center px-2 text-xs" onClick={() => void startWritten(w)} disabled={preparing} aria-label={`Situation Report: ${WINDOWS[w].label.toLowerCase()}`}>
-              <BookOpen className="h-3.5 w-3.5" aria-hidden /> {w === '24h' ? '24 hours' : w === '3d' ? '3 days' : '7 days'}
-            </button>
-          ))}
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="eyebrow">Operations Briefing</span>
+          <span className="text-[11px] text-slate-dim">{latest ? `Edition ${latest.edition_date}` : 'Preview'}</span>
         </div>
-        <p className="mt-1 text-[10px] text-slate-dim">Written, updated as validated information arrives.</p>
-      </div>
-      <div className="border-t border-line pt-3">
-        <div className="eyebrow mb-1.5">Operations Briefing</div>
-        <button className="btn-primary w-full justify-center text-xs" onClick={() => void startVoiced()} disabled={preparing}>
+        <button className="btn-primary mt-1.5 w-full justify-center text-xs" onClick={() => void startVoiced()} disabled={preparing}>
           <Headphones className="h-3.5 w-3.5" aria-hidden /> {preparing ? 'Loading…' : 'Play Operations Briefing'}
         </button>
-        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-dim">
-          {latest
-            ? `Latest edition ${latest.edition_date}, published ${fmtLocal(latest.published_at)}. One shared edition a day, about two minutes.`
-            : 'One shared edition a day, about two minutes. No edition is published yet; the button plays a live preview.'}
-        </p>
-        {archive.length > 1 && (
-          <label className="mt-2 flex items-center gap-2 text-[11px] text-slate-dim">
-            Archive
-            <select className="input h-8 py-0 text-xs" defaultValue="" onChange={(e) => e.target.value && void startVoiced(e.target.value)} aria-label="Play an archived edition">
-              <option value="">Choose a date…</option>
-              {archive.map((a) => (
-                <option key={`${a.date}-${a.revision}`} value={a.date}>
-                  {a.date} · {a.stories.length} {a.stories.length === 1 ? 'story' : 'stories'}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
       </div>
-      <button className="btn-ghost w-full justify-center text-xs" onClick={() => startTour(true)} disabled={!signals.length && !storiesNow.length}>
-        <Tv className="h-3.5 w-3.5" aria-hidden /> Comfort Mode
-      </button>
-      {idle.radar && <p className="text-[10px] text-slate-dim">Comfort Mode also starts after five minutes without activity (switch in Account or HQ).</p>}
+      <div className="grid grid-cols-2 gap-2">
+        <button className="btn-ghost justify-center text-xs" onClick={() => void startWritten('24h')} disabled={preparing} aria-label="Situation Report: last 24 hours">
+          <BookOpen className="h-3.5 w-3.5" aria-hidden /> Situation Report
+        </button>
+        <button className="btn-ghost justify-center text-xs" onClick={() => startTour(false)} disabled={!signals.length && !storiesNow.length}>
+          <Tv className="h-3.5 w-3.5" aria-hidden /> Comfort Mode
+        </button>
+      </div>
+      {archive.length > 0 && (
+        <details className="group border-t border-line pt-2">
+          <summary className="flex min-h-8 cursor-pointer list-none items-center justify-between text-[11px] text-mist hover:text-platinum">
+            Briefing archive <span className="text-slate-dim">{archive.length} {archive.length === 1 ? 'edition' : 'editions'}</span>
+          </summary>
+          <ul className="mt-1 max-h-48 divide-y divide-line/60 overflow-y-auto" aria-label="Published editions, last 30 days" data-scroll-panel>
+            {archive.map((a) => (
+              <li key={`${a.date}-${a.revision}`}>
+                <button className="flex min-h-9 w-full items-center justify-between gap-2 px-1 text-left text-xs text-mist hover:text-gold-soft" onClick={() => void startVoiced(a.date)}>
+                  <span className="num">{a.date}</span>
+                  <span className="truncate text-[11px] text-slate-dim">{a.stories[0] ?? ''}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
 
@@ -617,8 +612,7 @@ export default function Radar() {
           <div className="eyebrow">Situation overview</div>
           <h2 className="mt-1 text-lg font-semibold text-platinum">The last 24 hours</h2>
           <p className="mt-1 text-sm text-mist">
-            {last24.length} hazard signals from USGS and GDACS{news.status === 'ready' ? ` and ${news.data.stories.length} news stories grouped from ${news.data.articles} headlines` : ''}. Select an
-            event or a country on the map, or start a briefing below.
+            {last24.length} hazard signals{news.status === 'ready' ? `, ${news.data.stories.length} news stories` : ''}.
           </p>
         </div>
       )}
@@ -638,12 +632,9 @@ export default function Radar() {
           </Link>
         ))}
       </nav>
-      <p className="text-[10px] text-slate-dim">
-        Signals: USGS earthquakes M4.5+ and GDACS disaster alerts; news: GDELT and UN News headlines. Times are when the source published.{' '}
-        <Link to="/overview" className="underline hover:text-mist">
-          About the platform
-        </Link>
-      </p>
+      <Link to="/legal/sources" className="block text-[10px] text-slate-dim hover:text-mist">
+        Sources
+      </Link>
     </div>
   );
 

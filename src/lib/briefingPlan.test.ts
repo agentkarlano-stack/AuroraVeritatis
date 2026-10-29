@@ -76,11 +76,12 @@ describe('briefing plan', () => {
     const stories = [story('s1', 'Germany cuts gas price forecast as energy market eases'), story('s2', 'Japan confirms new defence budget', { status: 'confirmed' })];
     const p = buildPlan({ window: '24h', now, events, stories, countryOf: (t) => (/japan/i.test(t) ? 'JPN' : /germany/i.test(t) ? 'DEU' : null), placeName: (c) => ({ JPN: 'Japan', DEU: 'Germany' })[c] ?? null, mode: 'play' });
     expect(p.scenes.length).toBe(4);
-    for (const sc of p.scenes) {
-      expect(sc.lines[0]!.speaker).toBe('lead');
+    p.scenes.forEach((sc, i) => {
+      // The first story follows the Commander's opening question directly; later stories open with his handover.
+      expect(sc.lines[0]!.speaker).toBe(i === 0 ? 'eve' : 'lead');
       expect(sc.lines.filter((l) => l.speaker === 'eve').length).toBeGreaterThanOrEqual(2);
       expect(sc.lines.filter((l) => l.speaker === 'knox').length).toBeLessThanOrEqual(1);
-    }
+    });
     const all = p.scenes.flatMap((sc) => sc.lines);
     const by = (r: string) => all.filter((l) => l.speaker === r).reduce((n, l) => n + l.text.length, 0);
     // The Analyst and the Commander carry the briefing; the Security Officer supports.
@@ -88,8 +89,13 @@ describe('briefing plan', () => {
     expect(by('lead')).toBeGreaterThan(0);
     const handovers = p.scenes.map((sc) => sc.lines[0]!.text);
     expect(new Set(handovers).size).toBe(handovers.length);
-    expect(handovers[0]).toMatch(/^(Let's start in|First,) Japan\.$/);
-    expect(p.agenda).toEqual({ speaker: 'eve', text: '4 items today, most significant first.' });
+    expect(handovers[0]).toMatch(/^First, Japan\. /);
+    expect(p.agenda).toEqual({ speaker: 'eve', text: 'Four developments stand out. Most significant first.' });
+    // No announcements: a staff-briefing opening addressed to the Analyst and a short operational close.
+    expect(p.intro.text).toMatch(/Analyst,/);
+    expect(p.intro.text).not.toMatch(/Aurora|Operations Briefing|live preview/i);
+    expect(p.outro.text).toMatch(/That's all/);
+    expect(p.outro.text).not.toMatch(/transcript|sources/i);
     // Answers use only source facts: the Chilean quake's depth comes from its summary.
     expect(p.scenes.find((sc) => /Iquique/.test(sc.title))!.lines.map((l) => l.text).join(' ')).toContain('110 kilometres');
   });
@@ -110,7 +116,7 @@ describe('briefing plan', () => {
     expect(leadFor('Oil exports fall as tariffs rise')).toBe('eve');
     expect(leadFor('Troops move near the border')).toBe('knox');
     const p = buildPlan({ window: '24h', now, events: [ev('gdacs-TC-1', { title: 'Typhoon X', severity: 5, region: 'Philippines', lat: 14, lon: 125 })], stories: [], countryOf, mode: 'play' });
-    expect(p.scenes[0]!.lines.map((l) => l.speaker)).toEqual(['lead', 'eve', 'lead', 'eve', 'knox']);
-    expect(p.scenes[0]!.lines[3]!.text).toContain('Red');
+    expect(p.scenes[0]!.lines.map((l) => l.speaker)).toEqual(['eve', 'lead', 'eve', 'knox']);
+    expect(p.scenes[0]!.lines[2]!.text).toContain('Red');
   });
 });

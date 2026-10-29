@@ -154,20 +154,20 @@ export interface StoryInput {
 export function storyConversation(s: StoryInput, used: Set<string>): Line[] {
   const place = s.place;
   const ack = s.index === 0 ? '' : pick(['Noted. ', 'Understood. ', 'Good. ', 'Right. ', ''], used);
+  // The first story follows the Commander's question directly: the Analyst opens it, no handover needed.
   const handover =
     s.index === 0
-      ? place
-        ? pick([`Let's start in ${place}.`, `First, ${place}.`], used)
-        : "Let's start with the most significant item."
+      ? null
       : place
-        ? `${ack}${pick([`Next, ${place}.`, `Moving to ${place}.`, `${place} now.`, `Turning to ${place}.`, `Over to ${place}.`], used)}`
-        : `${ack}${pick(['Next item.', 'What else?', 'Moving on.'], used)}`;
-  const lines: Line[] = [{ speaker: 'lead', text: handover }];
+        ? `${ack}${pick([`Next, ${place}.`, `What about ${place}?`, `${place} now.`, `Go on, ${place}.`, `And ${place}?`], used)}`
+        : `${ack}${pick(['What else?', 'Next.', 'Go on.'], used)}`;
+  const lines: Line[] = handover ? [{ speaker: 'lead', text: handover }] : [];
+  const lead0 = s.index === 0 ? (place ? `First, ${place}. ` : 'First, ') : '';
   if (s.kind === 'event' && s.event) {
     const e = s.event;
     const isQuake = e.id.startsWith('usgs-');
     const updates = Number(e.summary.match(/(\d+) GDACS updates/)?.[1] ?? 1);
-    lines.push({ speaker: 'eve', text: eventHeadline(e) });
+    lines.push({ speaker: 'eve', text: `${lead0}${s.index === 0 && !place ? eventHeadline(e).charAt(0).toLowerCase() + eventHeadline(e).slice(1) : eventHeadline(e)}` });
     const turns = isQuake ? quakeTurns(e, s.related ?? 0) : gdacsTurns(e, updates);
     const turn = turns.find((t) => t.ask.some((a) => !used.has(a))) ?? turns[0];
     if (turn) lines.push({ speaker: 'lead', text: pick(turn.ask, used) }, { speaker: 'eve', text: turn.answer });
@@ -175,7 +175,7 @@ export function storyConversation(s: StoryInput, used: Set<string>): Line[] {
     if (sec) lines.push({ speaker: 'knox', text: sec });
   } else if (s.story) {
     const st = s.story;
-    lines.push({ speaker: 'eve', text: `Reports from ${st.independent} independent ${st.independent === 1 ? 'outlet' : 'outlets'}: ${st.title.replace(/[.\s]+$/, '')}.` });
+    lines.push({ speaker: 'eve', text: `${lead0}${s.index === 0 && !place ? 'reports' : 'Reports'} from ${st.independent} independent ${st.independent === 1 ? 'outlet' : 'outlets'}: ${st.title.replace(/[.\s]+$/, '')}.` });
     const turns = storyTurns(st.title, st.status, st.independent);
     const turn = turns.find((t) => t.ask.some((a) => !used.has(a))) ?? turns[0]!;
     lines.push({ speaker: 'lead', text: pick(turn.ask, used) }, { speaker: 'eve', text: turn.answer });

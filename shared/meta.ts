@@ -48,6 +48,7 @@ const STATIC: Record<string, { title: string; description: string; noindex?: boo
   '/business': { title: 'Business & Institutional Solutions', description: 'Request a private quote for teams, companies, universities and institutions: seats, features and AI usage sized to your organisation.' },
   '/news': { title: 'News verification', description: 'Headlines from publishers worldwide grouped by story, with independent coverage, syndicated copies and official sources marked.' },
   '/assistant': { title: 'EVE and KNOX AI research assistants', description: 'Source-grounded AI answers about countries, events, markets and methods, with citations and usage limits.' },
+  '/help': { title: 'Help & Guides', description: 'How Global Radar, the Operations Briefing, the Situation Report, Comfort Mode, Map Explorer layers, HQ and sources work.' },
   '/about': { title: 'About Aurora Veritatis', description: 'An independent intelligence and research platform bringing global events, geopolitics, economic information and financial market analysis together.' },
   '/status': { title: 'Platform status and data sources', description: 'What works today, what uses simulated data, and the licence of every data source.' },
   '/signin': { title: 'Sign in', description: 'Sign in to Aurora Veritatis.', noindex: true },

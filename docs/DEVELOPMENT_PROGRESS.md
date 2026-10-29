@@ -20,6 +20,14 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-29 (briefing & Comfort Mode corrections):** staff-briefing opening/close (no announcements); Security Officer
+  = ELEVENLABS_VOICE_CHARLIE (KNOX reserve); no player HUD or browser full-screen request (viewport overlay, discreet
+  close, Esc, end card with Replay Briefing / Close); single "last 24 hours" period + clean 30-day archive list; Comfort
+  Mode and Situation Report share the cinematic design with timed captions (no audio, no hints); source links and
+  imagery captions removed from the overlay (credits faint in the corner; sources in transcript/summary); Help & Guides
+  page (/help) replaces permanent hints; AbortError fixed (narrator generations, prefetch, one "Enable sound" recovery);
+  publication time measured from PostHog pageviews (needs POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID), else
+  provisional. Browser checks 38/38 (desktop and 390 px).
 - **2026-10-29 (cinematic briefing patch):** Anna was missing because the RISK ANALYST spoke only on stories matching an
   economy keyword list; silences came from estimated scene durations longer than the real speech. Now: Commander frames,
   hands over and asks; Analyst (Anna) explains every story; Security Officer interjects; speech-driven advance (measured

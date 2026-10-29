@@ -1,7 +1,7 @@
 /**
  * POST /api/voice/speak: narration with ElevenLabs for signed-in users. Three presenter roles (plan §13C):
  * - lead (COMMAND / Commander): ELEVENLABS_VOICE_LEAD (Xavian);
- * - knox (SECURITY OFFICER / Lieutenant): ELEVENLABS_VOICE_KNOX (Adam);
+ * - knox (SECURITY OFFICER): ELEVENLABS_VOICE_CHARLIE, then ELEVENLABS_VOICE_KNOX (Adam) as reserve;
  * - eve (RISK ANALYST / Operator): ELEVENLABS_VOICE_ANNA (Anna), then the Amelia variable (ELEVENLABS_VOICE_AME…),
  *   then ELEVENLABS_VOICE_EVE (the former EVE voice), in that order, only after a voice-specific failure.
  * Provider-wide failures (invalid key, missing permission, exhausted quota, rate limit, outage) are classified and
@@ -18,6 +18,8 @@ export interface VoiceEnv {
   /** "off" disables narration without removing the key. */
   ELEVENLABS_ENABLED?: string;
   ELEVENLABS_VOICE_LEAD?: string;
+  /** Security Officer voice (owner choice of 29 October); the former KNOX voice is its reserve. */
+  ELEVENLABS_VOICE_CHARLIE?: string;
   ELEVENLABS_VOICE_KNOX?: string;
   ELEVENLABS_VOICE_ANNA?: string;
   /** The former EVE voice; second reserve for the EVE role. */
@@ -36,7 +38,7 @@ export interface VoiceDeps {
 /** Flash v2.5: ElevenLabs' lowest-cost model that supports the selected voices. */
 export const VOICE_MODEL = 'eleven_flash_v2_5';
 /** Part of the cache identity: bump when routing or voice settings change, so new audio never reuses an old voice. */
-export const VOICE_CONFIG_VERSION = 'roles-2026-10-29b';
+export const VOICE_CONFIG_VERSION = 'roles-2026-10-29c';
 /** Premade ElevenLabs voices, used only when no voice is configured for a role. */
 const DEFAULT_VOICES = { eve: '21m00Tcm4TlvDq8ikWAM', knox: 'JBFqnCBsd6RMkjVDRZzb', lead: 'JBFqnCBsd6RMkjVDRZzb' } as const;
 export const MAX_CHARS = 1500;
@@ -82,7 +84,7 @@ export function voiceChain(env: VoiceEnv, role: VoiceRole): VoiceChoice[] {
     return typeof id === 'string' && id.trim() ? { role, source: name, id: id.trim() } : null;
   };
   const amelia = ameliaVar(env);
-  const names = role === 'eve' ? ['ELEVENLABS_VOICE_ANNA', ...(amelia ? [amelia] : []), 'ELEVENLABS_VOICE_EVE'] : role === 'knox' ? ['ELEVENLABS_VOICE_KNOX'] : ['ELEVENLABS_VOICE_LEAD'];
+  const names = role === 'eve' ? ['ELEVENLABS_VOICE_ANNA', ...(amelia ? [amelia] : []), 'ELEVENLABS_VOICE_EVE'] : role === 'knox' ? ['ELEVENLABS_VOICE_CHARLIE', 'ELEVENLABS_VOICE_KNOX'] : ['ELEVENLABS_VOICE_LEAD'];
   const chain = names.map(v).filter((x): x is VoiceChoice => !!x);
   return chain.length ? chain : [{ role, source: 'default', id: DEFAULT_VOICES[role] }];
 }

@@ -166,17 +166,54 @@ export function prepareClips(lines: Line[], token: string, concurrency = 3): Map
   return out;
 }
 
-/** Plays prepared clips through the unlocked element; a clip that fails is reported and its line is shown only. */
+/**
+ * Plays prepared clips through the unlocked element. Each `speak` call gets its own generation: cancelling (or a new
+ * scene) ends the previous loop for good, so two loops never compete for the element (the earlier cause of
+ * AbortError). Upcoming clips are fetched ahead so the next line starts without a gap. An AbortError from our own
+ * source change is not a failure; a real NotAllowedError (no user gesture) is reported once with a recovery action.
+ */
 export function audioNarrator(el: HTMLAudioElement, clips: Map<string, Promise<string>>): Narrator {
-  let cancelled = false;
+  let generation = 0;
   let reported = false;
   let report: (message: string) => void = () => undefined;
+  const warmed = new Set<string>();
+  const warm = (key: string) => {
+    if (warmed.has(key)) return;
+    warmed.add(key);
+    void clips
+      .get(key)
+      ?.then((url) => (url.startsWith('blob:') ? undefined : fetch(url).then((r) => r.blob())))
+      .catch(() => undefined);
+  };
+  const playClip = (src: string, gen: number) =>
+    new Promise<void>((resolve) => {
+      const done = () => resolve();
+      el.onended = done;
+      el.onerror = () => {
+        if (gen === generation) report('This browser could not decode the voice audio. Captions continue.');
+        resolve();
+      };
+      el.src = src;
+      el.play().catch((err: unknown) => {
+        const name = err instanceof Error ? err.name : '';
+        if (name === 'AbortError' || gen !== generation) return resolve();
+        if (name === 'NotAllowedError') {
+          report('SOUND_BLOCKED');
+          // Wait for the viewer's tap (resume) instead of skipping the line.
+          return;
+        }
+        if (!reported) report('The voice audio could not be played. Captions continue.');
+        reported = true;
+        resolve();
+      });
+    });
   const n: Narrator = {
     kind: 'natural',
     async speak(lines, onLine) {
-      cancelled = false;
-      for (let i = 0; i < lines.length && !cancelled; i++) {
+      const gen = ++generation;
+      for (let i = 0; i < lines.length && gen === generation; i++) {
         onLine(i);
+        for (const next of lines.slice(i + 1, i + 3)) warm(clipKey(next));
         const p = clips.get(clipKey(lines[i]!));
         let src: string | null = null;
         try {
@@ -185,25 +222,14 @@ export function audioNarrator(el: HTMLAudioElement, clips: Map<string, Promise<s
           if (!reported) report(`Natural voice stopped: ${e instanceof Error ? e.message : 'unknown error'} Captions continue.`);
           reported = true;
         }
-        if (!src || cancelled) continue;
-        await new Promise<void>((resolve) => {
-          el.onended = () => resolve();
-          el.onerror = () => {
-            report('This browser could not decode the voice audio. Captions continue.');
-            resolve();
-          };
-          el.src = src!;
-          el.play().catch((err: unknown) => {
-            report(`This browser blocked audio playback (${err instanceof Error ? err.name : 'error'}). Press Pause and Resume to allow it.`);
-            resolve();
-          });
-        });
+        if (!src || gen !== generation) continue;
+        await playClip(src, gen);
       }
     },
     pause: () => el.pause(),
     resume: () => void el.play().catch(() => undefined),
     cancel: () => {
-      cancelled = true;
+      generation++;
       el.pause();
       el.dispatchEvent(new Event('ended'));
     },

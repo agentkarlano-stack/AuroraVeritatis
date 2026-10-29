@@ -1,8 +1,8 @@
-import { ExternalLink, FileText, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX, X } from 'lucide-react';
+import { RotateCcw, Volume2, X } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoEvent } from '../../../shared/types';
 import type { Ambience } from '../../lib/ambience';
-import { ANALYSTS, SPEAKER_COLOR, WINDOWS, type Analyst, type Line, type Plan, type Scene } from '../../lib/briefingPlan';
+import { ANALYSTS, SPEAKER_COLOR, type Analyst, type Line, type Plan, type Scene } from '../../lib/briefingPlan';
 import type { MapState } from '../../lib/geo/state';
 import type { Narrator } from '../../lib/narration';
 import { Clock, locate, startOf } from '../../lib/presentation';
@@ -26,9 +26,9 @@ interface Props {
   ambience?: Ambience | null;
   /** Licensed high-resolution imagery for close-ups, when configured. */
   detailImagery?: DetailImagery | null;
-  /** Ask the browser for full screen (only when the user started the presentation). */
-  fullscreen: boolean;
-  /** Edition and coverage label. */
+  /** Kept for compatibility; the presentation always fills the viewport and never asks for browser full screen. */
+  fullscreen?: boolean;
+  /** Edition label (e.g. the edition date, or "Preview"). */
   subtitle?: string;
   onExit: (reason: ExitReason) => void;
 }
@@ -42,15 +42,16 @@ const webgl2 = () => {
 };
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const OPEN_MS = 1800;
-const CLOSE_MS = 1700;
-const CHROME_MS = 2600;
+/** Reading time for a caption line in the silent modes: about 3 words per second, never under 2.4 s. */
+const readLineMs = (text: string) => Math.max(2_400, (text.split(/\s+/).length / 3) * 1000 + 600);
+const CAMERA_LEAD_MS = 1_200;
 
 /** Narrated briefings open over the whole globe and close back on it. */
 function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
   if (mode !== 'play') return plan.scenes;
   const base = { kind: 'event' as const, date: plan.scenes[0]?.date ?? new Date(0).toISOString(), sources: [], related: 0, lead: 'lead' as Analyst, readMs: 3_000 };
   const intro: Scene = { ...base, id: 'intro', title: 'Operations Briefing', explanation: `${plan.scenes.length} ${plan.scenes.length === 1 ? 'item' : 'items'} from public sources.`, lines: [plan.intro, plan.agenda], speakMs: 4_000 };
-  const outro: Scene = { ...base, id: 'outro', title: 'End of briefing', explanation: 'Sources and the full transcript follow.', lines: [plan.outro], speakMs: 2_500 };
+  const outro: Scene = { ...base, id: 'outro', title: 'End of briefing', explanation: '', lines: [plan.outro], speakMs: 2_500 };
   return [intro, ...plan.scenes, outro];
 }
 
@@ -93,8 +94,7 @@ function RoleBadge({ role }: { role: Analyst }) {
  * from the grayscale map to natural-colour imagery with a short acquisition effect. Controls stay hidden until the
  * pointer moves; there is no player frame.
  */
-export function Presentation({ plan, mode, events, narrator = null, audioNote = null, ambience = null, detailImagery = null, fullscreen, subtitle, onExit }: Props) {
-  const [transcript, setTranscript] = useState(false);
+export function Presentation({ plan, mode, events, narrator = null, audioNote = null, ambience = null, detailImagery = null, subtitle, onExit }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     narrator?.reportTo(setProblem);
@@ -103,20 +103,25 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   const play = mode === 'play';
   const tour = mode === 'tour';
   const scenes = useMemo(() => scenesFor(plan, mode), [plan, mode]);
-  const timeline = useMemo(() => ({ durations: scenes.map((s) => (play ? s.speakMs : s.readMs)) }), [scenes, play]);
+  // Silent modes (Situation Report, Comfort Mode) show the conversation as captions, timed by reading length.
+  const lineTimes = useMemo(() => scenes.map((s) => s.lines.map((l) => readLineMs(l.text))), [scenes]);
+  const timeline = useMemo(
+    () => ({ durations: scenes.map((s, i) => (play ? s.speakMs : CAMERA_LEAD_MS + (lineTimes[i]!.reduce((a, b) => a + b, 0) || s.readMs))) }),
+    [scenes, play, lineTimes],
+  );
   const [clock] = useState(() => new Clock());
   const [gl] = useState(webgl2);
-  const [state, setState] = useState({ index: 0, offset: 0, line: 0, lineAt: 0, paused: false, phase: (play ? 'opening' : 'live') as 'opening' | 'live' | 'closing', detail: false, acquire: 0, chrome: true, muted: false, spoken: 0, tick: 0 });
+  const [state, setState] = useState({ index: 0, offset: 0, line: 0, lineAt: 0, paused: false, phase: (tour ? 'live' : 'opening') as 'opening' | 'live' | 'closing', detail: false, acquire: 0, spoken: 0, tick: 0, run: 0 });
   const root = useRef<HTMLDivElement>(null);
   const map = useRef<GeoMapHandle>(null);
   const current = useRef(-1);
   const userPaused = useRef(false);
   const pendingSpeech = useRef(false);
   const exited = useRef(false);
-  const chromeTimer = useRef(0);
+  /** The closing card is up: the reading clock stops driving scenes until a replay. */
+  const closing = useRef(false);
   const [desktop] = useState(() => window.matchMedia?.('(min-width: 1024px)').matches ?? true);
   const pad = useMemo(() => (desktop ? { top: 70, bottom: 150, left: 60, right: 470 } : { top: 60, bottom: 300, left: 24, right: 24 }), [desktop]);
-  const totalLines = useMemo(() => scenes.reduce((n, s) => n + s.lines.length, 0), [scenes]);
 
   const onExitRef = useRef(onExit);
   useEffect(() => {
@@ -124,7 +129,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   }, [onExit]);
   const exit = useCallback(
     (reason: ExitReason) => {
-      if (exited.current) return;
+      if (exited.current || closing.current) return;
       exited.current = true;
       narrator?.cancel();
       ambience?.stop();
@@ -194,8 +199,12 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     (i: number) => {
       if (i >= scenes.length) {
         if (tour) return enterRef.current(0);
-        setState((st) => ({ ...st, phase: 'closing' }));
-        window.setTimeout(() => exit('done'), CLOSE_MS);
+        closing.current = true;
+        clock.pause();
+        narrator?.cancel();
+        ambience?.duck(false);
+        setState((st) => ({ ...st, phase: 'closing', detail: false }));
+        void map.current?.flyStages([{ lon: 12, lat: 24, zoom: 1.2, duration: 2200 }], pad);
         return;
       }
       const s = scenes[i]!;
@@ -208,7 +217,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       setState((st) => ({ ...st, index: i, offset: 0, line: 0, lineAt: performance.now() }));
       speak(s, i);
     },
-    [scenes, tour, play, narrator, ambience, frame, clock, timeline, speak, exit],
+    [scenes, tour, play, narrator, ambience, frame, clock, timeline, speak, pad],
   );
   useEffect(() => {
     enterRef.current = enter;
@@ -242,7 +251,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         setState((st) => ({ ...st, phase: 'live' }));
         enterRef.current(0);
       },
-      play ? OPEN_MS : 0,
+      tour ? 0 : OPEN_MS,
     );
     let raf = 0;
     let last = 0;
@@ -254,6 +263,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         setState((st) => ({ ...st, offset: clock.now() - startOf(timeline, st.index), tick: now }));
         return;
       }
+      if (exited.current) return;
       const at = locate(timeline, clock.now());
       if (current.current < 0) return;
       if (at.done) {
@@ -269,7 +279,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       cancelAnimationFrame(raf);
       narrator?.cancel();
     };
-  }, [clock, timeline, scenes.length, play, narrator]);
+  }, [clock, timeline, scenes.length, play, tour, narrator]);
 
   // The map loads lazily: frame the current scene once it is there.
   useEffect(() => {
@@ -286,39 +296,24 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     return () => clearInterval(t);
   }, [scenes, frame]);
 
-  // Page under the presentation: no scrolling; browser full screen when the user started it.
+  // The presentation fills the viewport (no browser full-screen request); the page underneath does not scroll.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const el = root.current;
-    let requested = false;
-    if (fullscreen && el?.requestFullscreen && !document.fullscreenElement) {
-      requested = true;
-      el.requestFullscreen().catch(() => undefined);
-    }
     return () => {
       document.body.style.overflow = prev;
-      if (requested && document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     };
-  }, [fullscreen]);
-
-  // Controls appear when the pointer moves or a key is pressed, and fade after a moment of stillness.
-  const wake = useCallback(() => {
-    setState((st) => (st.chrome ? st : { ...st, chrome: true }));
-    window.clearTimeout(chromeTimer.current);
-    chromeTimer.current = window.setTimeout(() => setState((st) => ({ ...st, chrome: false })), CHROME_MS);
   }, []);
-  useEffect(() => {
-    if (tour) return;
-    chromeTimer.current = window.setTimeout(() => setState((st) => ({ ...st, chrome: false })), CHROME_MS);
-    window.addEventListener('pointermove', wake);
-    window.addEventListener('touchstart', wake);
-    return () => {
-      window.removeEventListener('pointermove', wake);
-      window.removeEventListener('touchstart', wake);
-      window.clearTimeout(chromeTimer.current);
-    };
-  }, [tour, wake]);
+
+  /** Starts the whole presentation again from the opening (the plan and stored audio are reused). */
+  const replay = useCallback(() => {
+    closing.current = false;
+    setState((st) => ({ ...st, phase: 'opening', run: st.run + 1, index: 0, offset: 0, line: 0, spoken: 0 }));
+    window.setTimeout(() => {
+      setState((st) => ({ ...st, phase: 'live' }));
+      enterRef.current(0);
+    }, OPEN_MS);
+  }, []);
 
   // Keyboard: Esc exits; Space pauses; arrows move between stories. In Comfort Mode any key exits.
   useEffect(() => {
@@ -329,8 +324,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         exit('user');
         return;
       }
-      wake();
-      if (e.key === 'Escape') exit('user');
+      if (e.key === 'Escape') exit(state.phase === 'closing' ? 'done' : 'user');
       else if (e.key === ' ') {
         e.preventDefault();
         togglePause();
@@ -339,7 +333,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [tour, exit, togglePause, seek, wake]);
+  }, [tour, exit, togglePause, seek, state.phase]);
 
   // Comfort Mode: any click or tap exits and is consumed, so it never activates what is underneath.
   useEffect(() => {
@@ -357,14 +351,6 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     window.addEventListener('pointerdown', onDown, true);
     return () => window.removeEventListener('pointerdown', onDown, true);
   }, [tour, exit]);
-
-  useEffect(() => {
-    const on = () => {
-      if (tour && !document.fullscreenElement && fullscreen) exit('user');
-    };
-    document.addEventListener('fullscreenchange', on);
-    return () => document.removeEventListener('fullscreenchange', on);
-  }, [tour, fullscreen, exit]);
 
   const scene = scenes[state.index];
   const mapState: MapState = useMemo(
@@ -388,17 +374,29 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     () => (scene && scene.lat != null && scene.lon != null && state.phase === 'live' ? { lon: scene.lon, lat: scene.lat, label: scene.title.replace(/^M\s?\d+(\.\d)?\s*-\s*/, '').slice(0, 40), precise: scene.kind === 'event' } : null),
     [scene, state.phase],
   );
-  const line: Line | undefined = scene?.lines[Math.min(state.line, scene.lines.length - 1)];
+  // Which line is on screen: the narrator says so when speaking; the silent modes follow reading time.
+  let lineIdx = state.line;
+  let sinceLine = state.tick - state.lineAt;
+  if (!play && scene) {
+    let t = state.offset - CAMERA_LEAD_MS;
+    lineIdx = -1;
+    for (const [i, d] of (lineTimes[state.index] ?? []).entries()) {
+      if (t < 0) break;
+      lineIdx = i;
+      sinceLine = t;
+      t -= d;
+    }
+  }
+  const line: Line | undefined = lineIdx >= 0 ? scene?.lines[Math.min(lineIdx, scene.lines.length - 1)] : undefined;
   // Captions reveal word by word, slightly ahead of the voice (about 3.4 words per second) so they are easy to read.
   const words = line ? line.text.split(' ') : [];
-  const shown = play && narrator ? Math.min(words.length, 3 + Math.floor((state.tick - state.lineAt) / 290)) : words.length;
-  const progress = play ? (totalLines ? Math.min(1, state.spoken / totalLines) : 0) : Math.min(1, (startOf(timeline, state.index) + state.offset) / Math.max(1, timeline.durations.reduce((a, b) => a + b, 0)));
+  const shown = Math.min(words.length, 3 + Math.floor(sinceLine / 290));
   const label = tour ? 'Comfort Mode' : play ? 'Operations Briefing' : 'Situation Report';
 
   return (
     <div
       ref={root}
-      className={`fixed inset-0 z-[100] overflow-hidden bg-ink-950 text-platinum ${state.paused ? 'av-paused' : ''}`}
+      className={`av-present fixed inset-0 z-[100] overflow-hidden bg-ink-950 text-platinum ${state.paused ? "av-paused" : ""}`}
       role="dialog"
       aria-modal="true"
       aria-label={tour ? 'Comfort Mode. Press any key or click to exit.' : label}
@@ -430,127 +428,86 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       <div className="av-vignette pointer-events-none absolute inset-0" aria-hidden />
       {state.acquire > 0 && <div key={state.acquire} className="av-acquire" aria-hidden />}
 
-      {/* Session header: quiet, always readable. */}
-      <div className="pointer-events-none absolute left-5 top-4 z-10 text-[11px] text-mist">
-        <div className="eyebrow !text-[10px]">{label}</div>
-        <div className="mt-0.5">{subtitle ?? WINDOWS[plan.window].label}</div>
-        {state.detail && <div className="mt-1 text-[10px] text-slate-dim">{detailImagery ? 'Colour satellite imagery (Esri World Imagery; not live)' : 'Natural-colour satellite composite (NASA Blue Marble; not live)'}</div>}
-      </div>
-      {tour && <div className="pointer-events-none absolute right-5 top-4 text-[11px] text-mist">Click, tap or press any key to return</div>}
+      {/* Edition label only; no explanatory captions on the presentation. */}
+      {!tour && (
+        <div className="pointer-events-none absolute left-5 top-4 z-10 text-[11px] text-mist">
+          <div className="eyebrow !text-[10px]">{label}</div>
+          {subtitle && <div className="mt-0.5">{subtitle}</div>}
+        </div>
+      )}
 
-      {/* Story card. */}
-      {scene && state.phase === 'live' && scene.id !== 'intro' && scene.id !== 'outro' && (
+      {/* Story card: what and when (sources stay in the transcript and the evidence views). */}
+      {scene && state.phase === 'live' && scene.id !== 'intro' && scene.id !== 'outro' && !tour && (
         <section
-          key={scene.id}
-          className={`av-session absolute z-10 border-l-2 border-gold/70 bg-ink-950/80 p-4 backdrop-blur ${desktop ? 'right-6 top-20 w-[400px]' : 'inset-x-3 top-16'}`}
+          key={`${state.run}-${scene.id}`}
+          className={`av-session absolute z-10 border-l-2 border-gold/70 bg-ink-950/75 p-4 backdrop-blur ${desktop ? 'right-6 top-20 w-[380px]' : 'inset-x-3 top-16'}`}
           aria-live="polite"
         >
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-dim">
-            {scene.kind === 'news' ? 'News' : 'Signal'} · {fmtDate(scene.date)}
-          </div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-dim">{fmtDate(scene.date)}</div>
           <h2 className="mt-1.5 text-lg font-semibold leading-snug">{scene.title}</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-mist">{scene.explanation}</p>
-          {scene.sources.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-x-3 text-[11px]">
-              {scene.sources.slice(0, 3).map((s) =>
-                tour ? (
-                  <span key={s.url} className="text-mist">
-                    {s.name}
-                  </span>
-                ) : (
-                  <a key={s.url} href={s.url} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-gold hover:underline">
-                    {s.name} <ExternalLink className="h-2.5 w-2.5" aria-hidden />
-                  </a>
-                ),
-              )}
-            </div>
-          )}
+          {scene.explanation && <p className="mt-1.5 text-sm leading-relaxed text-mist">{scene.explanation}</p>}
         </section>
       )}
 
-      {/* Live captions with the speaker's role. */}
-      {play && line && !transcript && state.phase === 'live' && (
-        <div className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 ${desktop ? 'bottom-14 w-[min(760px,calc(100%-560px))]' : 'bottom-10 w-[calc(100%-24px)]'}`}>
+      {/* The conversation: spoken in the Operations Briefing, shown as timed captions in the silent modes. */}
+      {line && state.phase === 'live' && (
+        <div
+          key={`${state.run}-${scene?.id}-${lineIdx}`}
+          className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 ${tour ? 'bottom-[18%] w-[min(820px,calc(100%-48px))]' : desktop ? 'bottom-14 w-[min(760px,calc(100%-560px))]' : 'bottom-10 w-[calc(100%-24px)]'}`}
+        >
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: SPEAKER_COLOR[line.speaker] }}>
             <RoleBadge role={line.speaker} />
             {ANALYSTS[line.speaker].name}
           </div>
-          <p className="mt-1 text-[17px] leading-relaxed text-platinum [text-shadow:0_1px_6px_rgba(0,0,0,0.9)]">
+          <p className={`mt-1 leading-relaxed text-platinum [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] ${tour ? 'text-xl' : 'text-[17px]'}`}>
             {words.slice(0, shown).join(' ')}
             <span className="opacity-0">{shown < words.length ? ` ${words.slice(shown).join(' ')}` : ''}</span>
           </p>
-          {note && <p className="mt-2 text-[11px] text-warn">{note}</p>}
         </div>
       )}
-      {play && note && (transcript || !line) && <p className="absolute bottom-6 left-5 z-20 text-[11px] text-warn">{note}</p>}
+
+      {/* A real playback block (no user gesture) gets one clean recovery action; other problems one short line. */}
+      {problem === 'SOUND_BLOCKED' ? (
+        <button
+          className="btn-primary absolute bottom-24 left-1/2 z-30 -translate-x-1/2 text-xs"
+          onClick={() => {
+            setProblem(null);
+            narrator?.resume();
+            ambience?.resume();
+          }}
+        >
+          <Volume2 className="h-4 w-4" aria-hidden /> Enable sound
+        </button>
+      ) : (
+        play && note && state.phase === 'live' && <p className="absolute bottom-4 left-5 z-20 text-[11px] text-slate-dim">{note}</p>
+      )}
 
       {/* Session open and close: the briefing starts like a session, not a video. */}
       {state.phase !== 'live' && (
-        <div className="absolute inset-0 z-30 grid place-items-center bg-ink-950/70 backdrop-blur-sm transition-opacity duration-700">
-          <div className="av-session flex flex-col items-center gap-4 text-center">
+        <div className="absolute inset-0 z-30 grid place-items-center bg-ink-950/70 backdrop-blur-sm">
+          <div key={`${state.run}-${state.phase}`} className="av-session flex flex-col items-center gap-4 text-center">
             <Monogram className="h-14 w-auto" />
-            <div className="eyebrow">{state.phase === 'opening' ? 'Operations Briefing' : 'Briefing complete'}</div>
-            <div className="text-xs text-mist">{subtitle}</div>
+            <div className="eyebrow">{state.phase === 'opening' ? label : 'Briefing complete'}</div>
+            {subtitle && <div className="text-xs text-mist">{subtitle}</div>}
+            {state.phase === 'closing' && (
+              <div className="mt-2 flex gap-2">
+                <button className="btn-ghost text-xs" onClick={replay}>
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Replay Briefing
+                </button>
+                <button className="btn-primary text-xs" onClick={() => exit('done')} autoFocus>
+                  Close
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Minimal controls, hidden until the pointer moves. */}
-      {!tour && (
-        <div className="av-chrome absolute right-4 top-4 z-30 flex gap-1.5" data-hidden={!state.chrome}>
-          <button className="chip min-h-10 bg-ink-950/80 px-3" onClick={togglePause} aria-label={state.paused ? 'Resume' : 'Pause'}>
-            {state.paused ? <Play className="h-4 w-4" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />}
-          </button>
-          <button className="chip min-h-10 bg-ink-950/80 px-3" onClick={() => seek(state.index - 1)} disabled={state.index === 0} aria-label="Previous story">
-            <SkipBack className="h-4 w-4" aria-hidden />
-          </button>
-          <button className="chip min-h-10 bg-ink-950/80 px-3" onClick={() => enter(state.index + 1)} aria-label="Next story">
-            <SkipForward className="h-4 w-4" aria-hidden />
-          </button>
-          <button className="chip min-h-10 bg-ink-950/80 px-3" onClick={() => setTranscript((t) => !t)} aria-pressed={transcript} aria-label="Transcript">
-            <FileText className="h-4 w-4" aria-hidden />
-          </button>
-          {ambience && (
-            <button
-              className="chip min-h-10 bg-ink-950/80 px-3"
-              onClick={() => {
-                ambience.setMuted(!state.muted);
-                setState((st) => ({ ...st, muted: !st.muted }));
-              }}
-              aria-pressed={!state.muted}
-              aria-label={state.muted ? 'Room ambience off' : 'Room ambience on'}
-            >
-              {state.muted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
-            </button>
-          )}
-          <button className="chip min-h-10 bg-ink-950/80 px-3" onClick={() => exit('user')} aria-label="Exit briefing">
-            <X className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
-      )}
-      {/* A hairline of progress at the very bottom edge; no transport bar. */}
-      {!tour && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-px bg-gold/60" style={{ transform: `scaleX(${progress})`, transformOrigin: 'left' }} aria-hidden />}
-
-      {transcript && !tour && (
-        <section
-          className={`absolute z-20 overflow-y-auto border border-line bg-ink-950/95 p-4 text-sm backdrop-blur ${desktop ? 'bottom-16 left-6 top-20 w-[380px] rounded-xl' : 'inset-x-3 bottom-16 top-16 rounded-xl'}`}
-          aria-label="Transcript"
-          data-scroll-panel
-        >
-          <div className="eyebrow mb-2">Transcript</div>
-          <ol className="space-y-3">
-            {scenes.map((sc, i) => (
-              <li key={sc.id} className={i === state.index ? 'text-platinum' : 'text-mist'}>
-                <div className="text-[10px] uppercase tracking-wider text-slate-dim">{sc.title}</div>
-                {sc.lines.map((l, j) => (
-                  <p key={j} className="mt-1 leading-relaxed">
-                    <span style={{ color: SPEAKER_COLOR[l.speaker] }}>{ANALYSTS[l.speaker].name}:</span> {l.text}
-                  </p>
-                ))}
-              </li>
-            ))}
-          </ol>
-        </section>
+      {/* One discreet, accessible way out (Esc does the same). */}
+      {!tour && state.phase !== 'closing' && (
+        <button className="absolute right-3 top-3 z-30 grid h-11 w-11 place-items-center rounded-full text-mist/60 hover:bg-ink-900/60 hover:text-platinum" onClick={() => exit('user')} aria-label="Close briefing">
+          <X className="h-5 w-5" aria-hidden />
+        </button>
       )}
     </div>
   );

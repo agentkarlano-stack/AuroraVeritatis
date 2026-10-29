@@ -11,6 +11,7 @@ export interface SearchItem {
 
 export const PAGES: SearchItem[] = [
   ['/', 'Headquarters', 'Map-first intelligence dashboard'],
+  ['/help', 'Help & Guides', 'How the briefings, Comfort Mode, layers, HQ and sources work'],
   ['/hq', 'HQ', 'Your workspace: resume work, follows, saved intelligence'],
   ['/overview', 'Platform overview', 'What Aurora Veritatis offers'],
   ['/radar', 'Global Radar', 'Globe of events and news, dossiers, briefing'],
