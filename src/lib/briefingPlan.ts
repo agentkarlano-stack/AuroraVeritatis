@@ -12,7 +12,7 @@
  */
 import type { CoverageStatus, Story } from '../../shared/news';
 import type { GeoEvent, SourceRef } from '../../shared/types';
-import { eventTurns, exchange, storyTurns, type Analyst, type Line } from './briefingDialogue';
+import { eventTurns, exchange, storyTurns, type Analyst, type Line, type Specialist } from './briefingDialogue';
 import { countryNameOf, dedupeEvents, type BriefingItem } from './worldBriefing';
 
 export type ReportingWindow = '24h' | '3d' | '7d';
@@ -21,11 +21,18 @@ export const WINDOWS: Record<ReportingWindow, { label: string; hours: number }> 
   '3d': { label: 'Last 3 days', hours: 72 },
   '7d': { label: 'Last 7 days', hours: 168 },
 };
-export type { Analyst, Line } from './briefingDialogue';
-export const ANALYSTS: Record<Analyst, { name: string; role: string }> = {
-  eve: { name: 'EVE', role: 'Economy and markets' },
-  knox: { name: 'KNOX', role: 'Security and geopolitics' },
+export type { Analyst, Line, Specialist } from './briefingDialogue';
+/**
+ * Presenter roles (fictional Aurora presentation roles, not real ranks): display title, spoken form of address and
+ * remit. EVE and KNOX remain the internal identities of the two specialists.
+ */
+export const ANALYSTS: Record<Analyst, { name: string; address: string; role: string }> = {
+  lead: { name: 'COMMAND', address: 'Commander', role: 'Lead presenter' },
+  knox: { name: 'SECURITY OFFICER', address: 'Lieutenant', role: 'Military, security and hazards' },
+  eve: { name: 'RISK ANALYST', address: 'Operator', role: 'Economy, markets and civilian risk' },
 };
+/** One persistent identity colour per presenter (identifies voices only; never severity or territorial actors). */
+export const SPEAKER_COLOR: Record<Analyst, string> = { lead: '#C9A35A', knox: '#8FB3D9', eve: '#7CC4B4' };
 
 
 export interface Scene {
@@ -43,6 +50,7 @@ export interface Scene {
   iso3?: string;
   /** How many related reports or developments the scene combines. */
   related: number;
+  /** Presenter who reports the scene (COMMAND for the opening and closing). */
   lead: Analyst;
   lines: Line[];
   /** Planned duration in the written presentation (ms). */
@@ -57,6 +65,8 @@ export interface Plan {
   version: string;
   scenes: Scene[];
   intro: Line;
+  /** Closing line by COMMAND (narrated briefings). */
+  outro: Line;
 }
 
 /** Valid map location: finite, in range, not the 0,0 placeholder. */
@@ -65,7 +75,7 @@ export function validLocation(e: Pick<GeoEvent, 'lat' | 'lon'>): boolean {
 }
 
 const ECONOMY = /\b(econom\w*|market\w*|stocks?|shares?|trade|tariffs?|exports?|imports?|inflation|interest rates?|central bank|currenc\w*|bonds?|oil|gas|lng|energy|electricity|prices?|gdp|recession|budget|debt|supply chains?|shipping|ports?|commodit\w*|investment|banks?|wheat|grain)\b/i;
-export const leadFor = (text: string): Analyst => (ECONOMY.test(text) ? 'eve' : 'knox');
+export const leadFor = (text: string): Specialist => (ECONOMY.test(text) ? 'eve' : 'knox');
 
 const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 /** Comfortable reading time plus camera movement. */
@@ -202,17 +212,18 @@ export function buildPlan(inp: PlanInput): Plan {
     if (news[i]) merged.push(news[i]!);
   }
   const budget = inp.budgetMs ?? BUDGET_MS;
-  const intro: Line = { speaker: 'knox', text: inp.introText ?? `Aurora briefing. ${WINDOWS[inp.window].label}.` };
+  const intro: Line = { speaker: 'lead', text: inp.introText ?? `Aurora briefing. ${WINDOWS[inp.window].label}.` };
   const dur = (s: Scene) => (inp.mode === 'play' ? s.speakMs : s.readMs);
   const scenes: Scene[] = [];
-  let spent = inp.mode === 'play' ? speakMs([intro]) : 0;
+  let spent = inp.mode === 'play' ? speakMs([intro]) + 2_500 : 0;
   for (const s of merged) {
     // Whole stories only: a story may finish slightly past the budget, but none starts once it is used up.
     if (spent >= budget || spent + dur(s) > budget + OVERRUN_MS) continue;
     scenes.push(s);
     spent += dur(s);
   }
-  return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro };
+  const outro: Line = { speaker: 'lead', text: 'That concludes this Operations Briefing. The sources and the full transcript follow.' };
+  return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro, outro };
 }
 
 /** Small stable hash (FNV-1a, hex) for content versions. */

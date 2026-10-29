@@ -9,6 +9,7 @@ import type { BrainNode } from '../lib/brain';
 import { getActiveGraphId, getGraph } from '../lib/brainStore';
 import { COUNTRIES } from '../lib/countries';
 import { useApi } from '../lib/api';
+import { playBlob, unlockAudio } from '../lib/narration';
 import { usePrefs } from '../store/prefs';
 
 interface Status {
@@ -370,7 +371,9 @@ function ReadAloud({ sentences, assistant }: { sentences: string[]; assistant: A
   };
   const playNatural = async () => {
     setNote(null);
-    if (audio.current?.src) {
+    // Unlock an audio element inside the click; playback after the request is then not blocked as autoplay.
+    const el = audio.current ?? unlockAudio();
+    if (audio.current?.dataset.ready === '1') {
       audio.current.playbackRate = speed;
       const ok = await audio.current.play().then(
         () => true,
@@ -385,19 +388,20 @@ function ReadAloud({ sentences, assistant }: { sentences: string[]; assistant: A
       body: JSON.stringify({ text: sentences.join(' '), voice: assistant }),
     }).catch(() => null);
     if (!res?.ok) {
-      const msg = ((await res?.json().catch(() => null)) as { error?: string } | null)?.error;
-      setNote(`${msg ?? 'The natural voice is unavailable.'} Using your browser's voice.`);
+      const j = (await res?.json().catch(() => null)) as { error?: string; code?: string } | null;
+      setNote(`${j?.error ?? 'The natural voice is unavailable.'}${j?.code ? ` [${j.code}]` : ''} Using your browser's voice.`);
       setMode('browser');
       return supported ? playBrowser() : setState('idle');
     }
-    const el = new Audio(URL.createObjectURL(await res.blob()));
-    el.playbackRate = speed;
-    el.onended = () => setState('idle');
+    if (!el) {
+      setNote("This browser cannot play audio. Using your browser's voice.");
+      setMode('browser');
+      return supported ? playBrowser() : setState('idle');
+    }
     try {
-      await el.play();
-    } catch {
-      URL.revokeObjectURL(el.src);
-      setNote("This browser could not play the natural voice. Using your browser's voice.");
+      await playBlob(el, await res.blob(), speed, () => setState('idle'));
+    } catch (err) {
+      setNote(`This browser blocked the natural voice (${err instanceof Error ? err.name : 'error'}). Using your browser's voice.`);
       setMode('browser');
       return supported ? playBrowser() : setState('idle');
     }

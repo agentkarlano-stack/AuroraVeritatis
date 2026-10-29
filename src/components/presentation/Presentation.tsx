@@ -1,7 +1,7 @@
 import { ExternalLink, FileText, Pause, Play, SkipBack, SkipForward, X } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoEvent } from '../../../shared/types';
-import { ANALYSTS, WINDOWS, type Line, type Plan, type Scene } from '../../lib/briefingPlan';
+import { ANALYSTS, SPEAKER_COLOR, WINDOWS, type Line, type Plan, type Scene } from '../../lib/briefingPlan';
 import type { MapState } from '../../lib/geo/state';
 import type { Narrator } from '../../lib/narration';
 import { Clock, locate, startOf, total } from '../../lib/presentation';
@@ -52,7 +52,8 @@ function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
     readMs: 3_000,
     speakMs: 3_000,
   };
-  return [intro, ...plan.scenes];
+  const outro: Scene = { ...intro, id: 'outro', title: 'End of briefing', explanation: 'Sources and the full transcript follow.', lines: [plan.outro], readMs: 2_500, speakMs: 2_500 };
+  return [intro, ...plan.scenes, outro];
 }
 
 /**
@@ -63,6 +64,12 @@ function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
  */
 export function Presentation({ plan, mode, events, narrator = null, audioNote = null, fullscreen, subtitle, onExit }: Props) {
   const [transcript, setTranscript] = useState(false);
+  // Problems the narrator meets during playback (blocked or failed audio) are shown, never skipped silently.
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    narrator?.reportTo(setProblem);
+  }, [narrator]);
+  const note = problem ?? audioNote;
   const scenes = useMemo(() => scenesFor(plan, mode), [plan, mode]);
   const timeline = useMemo(() => ({ durations: scenes.map((s) => (mode === 'play' ? s.speakMs : s.readMs)) }), [scenes, mode]);
   const [clock] = useState(() => new Clock());
@@ -421,9 +428,9 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       {mode === 'play' && line && !transcript && (
         <div className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 text-center ${desktop ? 'bottom-24 w-[min(720px,calc(100%-560px))]' : 'top-14 w-[calc(100%-24px)]'}`}>
           <p className="inline rounded bg-ink-950/85 px-3 py-1.5 text-sm leading-relaxed">
-            <span className={line.speaker === 'eve' ? 'text-gold' : 'text-platinum'}>{ANALYSTS[line.speaker].name}:</span> {line.text}
+            <span style={{ color: SPEAKER_COLOR[line.speaker] }}>{ANALYSTS[line.speaker].name}:</span> {line.text}
           </p>
-          {audioNote && <p className="mt-2 text-[11px] text-warn">{audioNote}</p>}
+          {note && <p className="mt-2 text-[11px] text-warn">{note}</p>}
         </div>
       )}
 
@@ -480,7 +487,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
                 <div className="text-[10px] uppercase tracking-wider text-slate-dim">{sc.title}</div>
                 {sc.lines.map((l, j) => (
                   <p key={j} className="mt-1 leading-relaxed">
-                    <span className={l.speaker === 'eve' ? 'text-gold' : 'text-platinum'}>{ANALYSTS[l.speaker].name}:</span> {l.text}
+                    <span style={{ color: SPEAKER_COLOR[l.speaker] }}>{ANALYSTS[l.speaker].name}:</span> {l.text}
                   </p>
                 ))}
               </li>
@@ -488,7 +495,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
           </ol>
         </section>
       )}
-      {mode === 'play' && !line && audioNote && <p className="absolute bottom-16 left-4 text-[11px] text-warn">{audioNote}</p>}
+      {mode === 'play' && (!line || transcript) && note && <p className="absolute bottom-16 left-4 z-20 text-[11px] text-warn">{note}</p>}
     </div>
   );
 }

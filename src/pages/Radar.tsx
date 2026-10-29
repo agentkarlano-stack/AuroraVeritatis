@@ -20,9 +20,9 @@ import { useChoropleths } from '../components/geo/useChoropleths';
 import { LAYER_MAP, type ChoroplethLayer } from '../lib/geo/layers';
 import { MAX_LAYERS, type LayerState, type MapState, type MapStyleId } from '../lib/geo/state';
 import { useAuth } from '../auth/AuthProvider';
-import { WINDOWS, buildPlan, buildTour, type Plan, type ReportingWindow } from '../lib/briefingPlan';
+import { ANALYSTS, SPEAKER_COLOR, WINDOWS, buildPlan, buildTour, type Plan, type ReportingWindow } from '../lib/briefingPlan';
 import { age } from '../lib/radarLabels';
-import { audioNarrator, browserNarrator, prepareNaturalVoice, type Narrator } from '../lib/narration';
+import { audioNarrator, browserNarrator, clipKey, prepareClips, unlockAudio, VoiceError, type Narrator } from '../lib/narration';
 import { useIdle } from '../lib/useIdle';
 import { normalizeIdle, usePrefs } from '../store/prefs';
 
@@ -116,7 +116,7 @@ function EventDetail({ event, now }: { event: GeoEvent; now: number }) {
 const wallClock = () => Date.now();
 
 /** Prepared natural-voice audio per briefing content version, so replays in this tab cost nothing. */
-const AUDIO_CACHE = new Map<string, Map<string, string>>();
+const AUDIO_CACHE = new Map<string, Map<string, Promise<string>>>();
 
 interface Showing {
   mode: PresentationMode;
@@ -214,10 +214,12 @@ export default function Radar() {
   };
   /** Voiced briefing: the latest 24-hour edition (07:00 or 19:00 Budapest), the same period for every viewer. */
   const startVoiced = async () => {
-    const at = editionAt(Date.now());
+    // Must run synchronously inside the click: later playback (after preparation) is then not blocked as autoplay.
+    const el = session ? unlockAudio() : null;
+    const at = editionAt(wallClock());
     const plan = buildPlan({
       window: '24h',
-      now: Date.now(),
+      now: wallClock(),
       until: at,
       events: signals,
       stories: storiesNow,
@@ -232,19 +234,23 @@ export default function Radar() {
     // Natural voices for signed-in users (prepared once per content version); otherwise the browser's voices.
     let narrator: Narrator | null = null;
     let audioNote: string | null = null;
-    const lines = [plan.intro, ...plan.scenes.flatMap((s) => s.lines)];
-    if (session) {
+    const lines = [plan.intro, ...plan.scenes.flatMap((s) => s.lines), plan.outro];
+    if (session && el) {
       setPreparing(true);
+      // Clips are fetched in parallel while playback runs; the first one decides whether the natural voice works.
+      const clips = AUDIO_CACHE.get(plan.version) ?? prepareClips(lines, session.access_token);
+      AUDIO_CACHE.set(plan.version, clips);
       try {
-        const clips = AUDIO_CACHE.get(plan.version) ?? (await prepareNaturalVoice(lines, session.access_token));
-        AUDIO_CACHE.set(plan.version, clips);
-        narrator = audioNarrator(clips);
+        await clips.get(clipKey(plan.intro));
+        narrator = audioNarrator(el, clips);
       } catch (err) {
-        audioNote = `Natural voice unavailable (${err instanceof Error ? err.message : 'error'}). Using the browser voice.`;
+        AUDIO_CACHE.delete(plan.version);
+        const code = err instanceof VoiceError ? ` [${err.code}]` : '';
+        audioNote = `Natural voice unavailable: ${err instanceof Error ? err.message : 'error'}${code} Using the browser voice.`;
       } finally {
         setPreparing(false);
       }
-    } else audioNote = 'Browser voice. Sign in for the natural EVE and KNOX voices.';
+    } else if (!session) audioNote = 'Browser voice. Sign in for the natural presenter voices.';
     if (!narrator) {
       narrator = browserNarrator();
       if (!narrator) audioNote = 'This browser cannot speak text aloud, so the briefing runs with captions only.';
@@ -532,12 +538,12 @@ export default function Radar() {
         <details className="rounded-md border border-line p-3 text-xs">
           <summary className="cursor-pointer text-gold">Full transcript</summary>
           <p className="mt-2 text-mist">
-            <span className="text-platinum">KNOX:</span> {summary.plan.intro.text}
+            <span style={{ color: SPEAKER_COLOR.lead }}>{ANALYSTS.lead.name}:</span> {summary.plan.intro.text}
           </p>
           {summary.plan.scenes.flatMap((sc) =>
             sc.lines.map((l, j) => (
               <p key={`${sc.id}-${j}`} className="mt-1 text-mist">
-                <span className={l.speaker === 'eve' ? 'text-gold' : 'text-platinum'}>{l.speaker === 'eve' ? 'EVE' : 'KNOX'}:</span> {l.text}
+                <span style={{ color: SPEAKER_COLOR[l.speaker] }}>{ANALYSTS[l.speaker].name}:</span> {l.text}
               </p>
             )),
           )}

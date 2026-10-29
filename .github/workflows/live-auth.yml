@@ -15,12 +15,19 @@ on:
         description: Make one minimal real EVE request if AI is switched on (costs < $0.001)
         type: boolean
         default: false
+      voice_test:
+        description: Synthesise one short line per presenter voice (about 90 characters in total)
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       url:
         type: string
         required: true
       ai_test:
+        type: boolean
+        default: false
+      voice_test:
         type: boolean
         default: false
 
@@ -47,6 +54,7 @@ jobs:
         env:
           BASE_URL: ${{ inputs.url || 'https://aurorav.app' }}
           AI_LIVE_TEST: ${{ inputs.ai_test && '1' || '' }}
+          VOICE_LIVE_TEST: ${{ inputs.voice_test && '1' || '' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

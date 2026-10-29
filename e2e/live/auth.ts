@@ -740,6 +740,47 @@ async function main() {
         const usd = j.provider === 'openai' ? (tin * 0.15 + tout * 0.6) / 1e6 : 0;
         return `${j.provider} ${j.model}${j.fallback ? ' (fallback)' : ''}: ${tin} in + ${tout} out tokens ≈ $${usd.toFixed(6)}; usage recorded (${before.used_today ?? 0} → ${after.used_today})`;
       });
+      // Natural voice through the real path: signed-in token → Worker /api/voice/speak → ElevenLabs → audio decoded
+      // in a real browser. Paid but tiny (about 30 characters per role); runs only with VOICE_LIVE_TEST=1.
+      await check('V1', 'COMMAND, SECURITY OFFICER and RISK ANALYST voices synthesise and decode in the browser', 'api', async () => {
+        const guest = await fetch(`${BASE}/api/voice/speak`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: 'Guest check.', voice: 'eve' }) });
+        const gj = (await guest.json().catch(() => ({}))) as { code?: string };
+        assert(guest.status === 401 || guest.status === 503, `guest request answered ${guest.status}`);
+        if (process.env.VOICE_LIVE_TEST !== '1') throw new Skip(`guest refused (${guest.status} ${gj.code ?? ''}); the paid voice check runs only with VOICE_LIVE_TEST=1`);
+        const token = (await A.auth.getSession()).data.session?.access_token;
+        assert(token, 'no session token');
+        const ctxV = await browser.newContext(desktop);
+        const pageV = await newPage(ctxV);
+        await pageV.goto(`${BASE}/about`);
+        const out: string[] = [];
+        try {
+          for (const role of ['lead', 'knox', 'eve'] as const) {
+            const r = await fetch(`${BASE}/api/voice/speak`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ text: `Aurora voice check for the ${role} presenter.`, voice: role }),
+            });
+            if (!r.ok) {
+              const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
+              throw new Error(`${role}: HTTP ${r.status} ${j.code ?? ''} ${j.error ?? ''}`.trim());
+            }
+            const buf = Buffer.from(await r.arrayBuffer());
+            assert((r.headers.get('content-type') ?? '').includes('audio/mpeg') && buf.length > 2000, `${role}: ${r.headers.get('content-type')} ${buf.length} bytes`);
+            const seconds = await pageV.evaluate(async (b64) => {
+              const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+              const ctx = new AudioContext();
+              const audio = await ctx.decodeAudioData(bytes.buffer);
+              await ctx.close();
+              return audio.duration;
+            }, buf.toString('base64'));
+            assert(seconds > 0.5, `${role}: decoded only ${seconds}s`);
+            out.push(`${role} ${r.headers.get('x-voice-source')} ${seconds.toFixed(1)}s ${buf.length} B cache ${r.headers.get('x-voice-cache')}${r.headers.get('x-voice-fallback') ? ` fallback (${r.headers.get('x-voice-fallback')})` : ''}`);
+          }
+        } finally {
+          await ctxV.close();
+        }
+        return `guest refused (${guest.status}); ${out.join('; ')}`;
+      });
     } else {
       record('S1', 'Two-account RLS tests', 'api', 'skip', 'second account not available');
     }

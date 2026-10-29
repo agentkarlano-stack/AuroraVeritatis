@@ -1,3 +1,5 @@
+import { voiceDiagnostics, type VoiceEnv } from './voice';
+
 /**
  * Integration health: which provider credentials are present (names only, never values) and a minimal authenticated
  * test per provider. Tests use free endpoints or a single small request, run at most once per deployment (the route
@@ -99,9 +101,14 @@ export const PROBES: Probe[] = [
     licence: 'Paid plan: narration of Aurora text may be published',
     licensed: true,
     test: async (env, f) => {
-      const res = await ok(await f('https://api.elevenlabs.io/v1/user/subscription', { headers: { 'xi-api-key': first(env, PATTERNS.elevenlabs)! }, signal: T(8000) }), 'ElevenLabs');
-      const j = (await res.json()) as { tier?: string; character_count?: number; character_limit?: number; next_character_count_reset_unix?: number };
-      return { plan: j.tier ?? null, charactersUsed: j.character_count ?? null, characterLimit: j.character_limit ?? null, cost: 'free (account endpoint)' };
+      // The voice variables also contain "ELEVEN": the key is read by its exact name.
+      const key = typeof env.ELEVENLABS_API_KEY === 'string' ? env.ELEVENLABS_API_KEY : first(env, /^(ELEVENLABS_API_KEY|XI_API_KEY)$/);
+      if (!key) throw new Error('ELEVENLABS_API_KEY is not set (other ELEVENLABS_* variables are present)');
+      const facts = await voiceDiagnostics({ ...(env as VoiceEnv), ELEVENLABS_API_KEY: key }, f);
+      // Authentication is proven when any account endpoint answered; a missing permission is reported, not fatal.
+      const codes = Object.values(facts).map(String);
+      if (codes.some((c) => /invalid_api_key|http_401$/.test(c)) && facts.subscriptionLookup !== 'ok' && facts.modelAvailable !== true) throw new Error(`ElevenLabs refused the key (${facts.subscriptionLookup})`);
+      return { ...facts, cost: 'free (account, model and voice endpoints; no synthesis)' };
     },
   },
   {
@@ -285,5 +292,13 @@ export async function integrationHealth(env: Env, f: typeof fetch = fetch, now =
  * (already scrubbed of every secret value, e.g. "token endpoint answered 401"). No facts.
  */
 export function publicSummary(rows: ProviderHealth[]) {
-  return rows.map((r) => ({ id: r.id, status: r.status, authenticated: r.authenticated, secrets: r.secrets, ...(r.error ? { reason: r.error } : {}) }));
+  return rows.map((r) => ({
+    id: r.id,
+    status: r.status,
+    authenticated: r.authenticated,
+    secrets: r.secrets,
+    ...(r.error ? { reason: r.error } : {}),
+    // Voice routing facts are configuration names and short provider codes (no ids, keys or account figures).
+    ...(r.id === 'elevenlabs' ? { voice: Object.fromEntries(Object.entries(r.facts).filter(([k]) => k === 'subscriptionLookup' || k === 'modelAvailable' || k === 'enabled' || k.startsWith('voice.'))) } : {}),
+  }));
 }
