@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Story } from '../../shared/news';
 import type { GeoEvent } from '../../shared/types';
 import { BUDGET_MS, buildPlan, leadFor, OVERRUN_MS, storylines, validLocation } from './briefingPlan';
-import { exchange, quakeFacts, storyTurns } from './briefingDialogue';
+import { eventHeadline, quakeFacts, speakPlace } from './briefingDialogue';
 import { dedupeEvents } from './worldBriefing';
 
 const now = Date.parse('2026-10-25T12:00:00Z');
@@ -71,29 +71,34 @@ describe('briefing plan', () => {
     expect(buildPlan({ window: '7d', now, events, stories, countryOf, mode: 'play' }).version).toBe(p7.version);
   });
 
-  it('gives every story one grounded exchange (COMMAND asks, the specialist answers) without repeating a question', () => {
-    const events = [ev('usgs-1'), ev('usgs-5', { lat: -20, lon: -70, region: 'Tarapaca, Chile', title: 'Quake Chile', summary: 'Magnitude 5.5 earthquake at 110 km depth.' })];
+  it('gives the Analyst every story, with the Commander handing over and asking and the Security Officer interjecting', () => {
+    const events = [ev('usgs-1'), ev('usgs-5', { lat: -20, lon: -70, region: 'Tarapaca, Chile', title: 'M5.5 - 30 km W of Iquique, Chile', summary: 'Magnitude 5.5 earthquake at 110 km depth.' })];
     const stories = [story('s1', 'Germany cuts gas price forecast as energy market eases'), story('s2', 'Japan confirms new defence budget', { status: 'confirmed' })];
-    const p = buildPlan({ window: '24h', now, events, stories, countryOf: (t) => (/japan/i.test(t) ? 'JPN' : /germany/i.test(t) ? 'DEU' : null), mode: 'play' });
+    const p = buildPlan({ window: '24h', now, events, stories, countryOf: (t) => (/japan/i.test(t) ? 'JPN' : /germany/i.test(t) ? 'DEU' : null), placeName: (c) => ({ JPN: 'Japan', DEU: 'Germany' })[c] ?? null, mode: 'play' });
     expect(p.scenes.length).toBe(4);
-    const questions = p.scenes.map((sc) => sc.lines[1]!.text);
     for (const sc of p.scenes) {
-      expect(sc.lines).toHaveLength(3);
-      expect(sc.lines[1]!.speaker).not.toBe(sc.lead);
-      expect(sc.lines[2]!.speaker).toBe(sc.lead);
+      expect(sc.lines[0]!.speaker).toBe('lead');
+      expect(sc.lines.filter((l) => l.speaker === 'eve').length).toBeGreaterThanOrEqual(2);
+      expect(sc.lines.filter((l) => l.speaker === 'knox').length).toBeLessThanOrEqual(1);
     }
-    expect(new Set(questions).size).toBe(questions.length);
+    const all = p.scenes.flatMap((sc) => sc.lines);
+    const by = (r: string) => all.filter((l) => l.speaker === r).reduce((n, l) => n + l.text.length, 0);
+    // The Analyst and the Commander carry the briefing; the Security Officer supports.
+    expect(by('eve')).toBeGreaterThan(by('knox'));
+    expect(by('lead')).toBeGreaterThan(0);
+    const handovers = p.scenes.map((sc) => sc.lines[0]!.text);
+    expect(new Set(handovers).size).toBe(handovers.length);
+    expect(handovers[0]).toMatch(/^(Let's start in|First,) Japan\.$/);
+    expect(p.agenda).toEqual({ speaker: 'eve', text: '4 items today, most significant first.' });
     // Answers use only source facts: the Chilean quake's depth comes from its summary.
-    expect(p.scenes.find((sc) => sc.title === 'Quake Chile')!.lines[2]!.text).toContain('110 kilometres');
+    expect(p.scenes.find((sc) => /Iquique/.test(sc.title))!.lines.map((l) => l.text).join(' ')).toContain('110 kilometres');
   });
 
-  it('reads magnitude, depth and tsunami flag from the USGS summary and rotates phrasings', () => {
+  it('speaks headlines naturally and reads magnitude, depth and tsunami flag from the USGS summary', () => {
     expect(quakeFacts('Magnitude 6.4 earthquake at 15 km depth. USGS tsunami flag set — check official warning centres.')).toEqual({ magnitude: 6.4, depthKm: 15, tsunami: true });
-    const used = new Set<string>();
-    const a = exchange('eve', storyTurns('Oil exports fall', 'corroborated', 3, 'eve'), used);
-    const b = exchange('eve', storyTurns('Gas tariffs rise', 'corroborated', 2, 'eve'), used);
-    expect(a[0]!.text).not.toBe(b[0]!.text);
-    expect(a[0]!.speaker).toBe('lead');
+    expect(speakPlace('50 km ENE of Miyako, Japan')).toBe('50 kilometres east-northeast of Miyako, Japan');
+    expect(eventHeadline(ev('usgs-9', { title: 'M6.1 - 50 km E of Miyako, Japan' }))).toBe('A magnitude 6.1 earthquake struck 50 kilometres east of Miyako, Japan.');
+    expect(eventHeadline(ev('gdacs-TC-1', { title: 'Tropical Cyclone KONG-REY', region: 'Philippines', severity: 5 }))).toBe('GDACS is tracking Tropical Cyclone Kong-rey affecting Philippines, with a red alert.');
   });
 
   it('covers only the edition period when an end time is given', () => {
@@ -101,11 +106,11 @@ describe('briefing plan', () => {
     expect(p.scenes.map((sc) => sc.title)).toEqual(['Earlier']);
   });
 
-  it('assigns economic stories to EVE and security or hazard stories to KNOX, with viewer questions only where sources answer them', () => {
+  it('keeps the economic lead rule for compatibility, and every hazard story still includes the Analyst', () => {
     expect(leadFor('Oil exports fall as tariffs rise')).toBe('eve');
     expect(leadFor('Troops move near the border')).toBe('knox');
     const p = buildPlan({ window: '24h', now, events: [ev('gdacs-TC-1', { title: 'Typhoon X', severity: 5, region: 'Philippines', lat: 14, lon: 125 })], stories: [], countryOf, mode: 'play' });
-    expect(p.scenes[0]!.lines.map((l) => l.speaker)).toEqual(['knox', 'lead', 'knox']);
-    expect(p.scenes[0]!.lines[2]!.text).toContain('red');
+    expect(p.scenes[0]!.lines.map((l) => l.speaker)).toEqual(['lead', 'eve', 'lead', 'eve', 'knox']);
+    expect(p.scenes[0]!.lines[3]!.text).toContain('Red');
   });
 });

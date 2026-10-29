@@ -20,6 +20,13 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-29 (cinematic briefing patch):** Anna was missing because the RISK ANALYST spoke only on stories matching an
+  economy keyword list; silences came from estimated scene durations longer than the real speech. Now: Commander frames,
+  hands over and asks; Analyst (Anna) explains every story; Security Officer interjects; speech-driven advance (measured
+  gaps ≤ 0.36 s locally); per-role ElevenLabs voice settings and previous/next text for intonation; generated room tone
+  with ducking and handover cues; session open/close cards instead of a player; hidden auto-showing controls; layered
+  flights (Earth → region → country → local); colour close-up (NASA composite; Esri World Imagery when
+  ARCGIS_BASEMAP_KEY is set) with a 0.65 s acquisition effect; tactical marker with wide/region/local forms.
 - **2026-10-29 (voice repair, PR #76, in production):** causes: per-IP limit (4 then 1/15 s) vs ~16 briefing lines; playback
   blocked as autoplay after async preparation (error swallowed); subscription lookup failure blocked synthesis. Fixed, plus
   presenter roles (Xavian/Adam/Anna with Amelia and former EVE reserves), classified errors, diagnostics ("Voice routing"

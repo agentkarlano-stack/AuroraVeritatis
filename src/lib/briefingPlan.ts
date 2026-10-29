@@ -12,7 +12,7 @@
  */
 import type { CoverageStatus, Story } from '../../shared/news';
 import type { GeoEvent, SourceRef } from '../../shared/types';
-import { eventTurns, exchange, storyTurns, type Analyst, type Line, type Specialist } from './briefingDialogue';
+import { storyConversation, type Analyst, type Line, type Specialist } from './briefingDialogue';
 import { countryNameOf, dedupeEvents, type BriefingItem } from './worldBriefing';
 
 export type ReportingWindow = '24h' | '3d' | '7d';
@@ -27,9 +27,9 @@ export type { Analyst, Line, Specialist } from './briefingDialogue';
  * remit. EVE and KNOX remain the internal identities of the two specialists.
  */
 export const ANALYSTS: Record<Analyst, { name: string; address: string; role: string }> = {
-  lead: { name: 'COMMAND', address: 'Commander', role: 'Lead presenter' },
-  knox: { name: 'SECURITY OFFICER', address: 'Lieutenant', role: 'Military, security and hazards' },
-  eve: { name: 'RISK ANALYST', address: 'Operator', role: 'Economy, markets and civilian risk' },
+  lead: { name: 'COMMANDER', address: 'Commander', role: 'Leads the briefing' },
+  eve: { name: 'ANALYST', address: 'Analyst', role: 'Explains and interprets' },
+  knox: { name: 'SECURITY OFFICER', address: 'Lieutenant', role: 'Caution and validation' },
 };
 /** One persistent identity colour per presenter (identifies voices only; never severity or territorial actors). */
 export const SPEAKER_COLOR: Record<Analyst, string> = { lead: '#C9A35A', knox: '#8FB3D9', eve: '#7CC4B4' };
@@ -65,6 +65,8 @@ export interface Plan {
   version: string;
   scenes: Scene[];
   intro: Line;
+  /** The Analyst's agenda line after the Commander's opening (narrated briefings). */
+  agenda: Line;
   /** Closing line by COMMAND (narrated briefings). */
   outro: Line;
 }
@@ -81,7 +83,8 @@ const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 /** Comfortable reading time plus camera movement. */
 const readMs = (text: string) => Math.min(13_000, Math.max(6_500, 1_800 + (words(text) / 3.2) * 1000));
 /** Speaking time at a calm pace (about 2.6 words per second) plus a short pause per line. */
-const speakMs = (lines: Line[]) => lines.reduce((t, l) => t + (words(l.text) / 2.6) * 1000 + 450, 1_200);
+/** Estimated speaking time (about 2.9 words per second, short turn gaps); playback follows the real audio. */
+const speakMs = (lines: Line[]) => lines.reduce((t, l) => t + (words(l.text) / 2.9) * 1000 + 180, 400);
 const firstSentence = (s: string) => (s.match(/^.*?[.!?](\s|$)/)?.[0] ?? s).trim();
 /** Lead of a source summary: the first sentence, plus the second while it stays short. */
 const summaryLead = (s: string) => {
@@ -114,7 +117,7 @@ export function storylines(items: BriefingItem[]): Storyline[] {
   return out;
 }
 
-function eventScene(s: Storyline, used: Set<string>): Scene {
+function eventScene(s: Storyline): Draft {
   const e = s.lead.event;
   // One entry per report; repeated publisher names are numbered so each link stays distinguishable.
   const seen = new Map<string, number>();
@@ -124,11 +127,8 @@ function eventScene(s: Storyline, used: Set<string>): Scene {
     return n > 1 ? { ...x, name: `${x.name} (report ${n})` } : x;
   });
   const latest = s.items.reduce((m, i) => (Date.parse(i.event.time) > Date.parse(m) ? i.event.time : m), e.time);
-  const lead = leadFor(`${e.title} ${e.summary}`);
   const more = s.items.length > 1 ? ` ${s.items.length - 1} related ${s.items.length === 2 ? 'report follows' : 'reports follow'} the same storyline.` : '';
   const explanation = `${summaryLead(e.summary) || e.title}${more}`.trim();
-  const updates = Number(e.summary.match(/(\d+) GDACS updates/)?.[1] ?? 1);
-  const lines: Line[] = [{ speaker: lead, text: `${e.title}. ${explanation}` }, ...exchange(lead, eventTurns(e, s.items.length - 1, updates), used)];
   return {
     id: `ev:${e.id}`,
     kind: 'event',
@@ -139,20 +139,19 @@ function eventScene(s: Storyline, used: Set<string>): Scene {
     lat: e.lat,
     lon: e.lon,
     related: s.items.length - 1,
-    lead,
-    lines,
+    lead: 'eve',
+    lines: [],
     readMs: readMs(`${e.title} ${explanation}`),
-    speakMs: speakMs(lines),
+    speakMs: 0,
+    talk: { kind: 'event', event: e, related: s.items.length - 1, place: placeOf(e) },
   };
 }
 
 const STATUS_WORD: Record<CoverageStatus, string> = { confirmed: 'Confirmed by an official source', corroborated: 'Corroborated', unverified: 'Not yet verified' };
 
-function newsScene(st: Story, iso3: string, used: Set<string>): Scene {
-  const lead = leadFor(st.title);
+function newsScene(st: Story, iso3: string, place: string | null): Draft {
   const n = st.independent.length;
   const explanation = `${STATUS_WORD[st.status]}: ${n} independent ${n === 1 ? 'publisher' : 'publishers'}.`;
-  const lines: Line[] = [{ speaker: lead, text: `${st.title}. ${explanation}` }, ...exchange(lead, storyTurns(st.title, st.status, n, lead), used)];
   const sources: SourceRef[] = st.articles.slice(0, 3).map((a) => ({ name: a.domain, url: a.url, license: '' }));
   return {
     id: `news:${st.id}`,
@@ -163,11 +162,23 @@ function newsScene(st: Story, iso3: string, used: Set<string>): Scene {
     sources,
     iso3,
     related: Math.max(0, st.articles.length - 1),
-    lead,
-    lines,
+    lead: 'eve',
+    lines: [],
     readMs: readMs(`${st.title} ${explanation}`),
-    speakMs: speakMs(lines),
+    speakMs: 0,
+    talk: { kind: 'news', story: { title: st.title, status: st.status, independent: n }, place },
   };
+}
+
+/** A candidate story before its conversation is composed (in final order, so handovers and phrasing rotate). */
+type Draft = Scene & { talk: Omit<Parameters<typeof storyConversation>[0], 'index'> };
+
+/** Spoken place for an event: the country, else the named area (never invented for open ocean). */
+function placeOf(e: GeoEvent): string | null {
+  const c = countryNameOf(e);
+  if (c) return c;
+  const r = e.region.trim();
+  return r && r !== 'Unknown' ? (r.split(',').pop() ?? r).trim() : null;
 }
 
 export interface PlanInput {
@@ -184,6 +195,8 @@ export interface PlanInput {
   until?: number;
   /** Spoken opening line (default names the period). */
   introText?: string;
+  /** Country name for an ISO3 code, for the Commander's handover to news stories. */
+  placeName?: (iso3: string) => string | null;
 }
 
 /** About two minutes, with a modest overrun allowed so a meaningful exchange is never cut. */
@@ -195,35 +208,41 @@ export function buildPlan(inp: PlanInput): Plan {
   const until = inp.until ?? inp.now;
   const from = until - WINDOWS[inp.window].hours * 3_600_000;
   const evs = inp.events.filter((e) => e.provenance !== 'simulated' && validLocation(e) && Date.parse(e.time) >= from && Date.parse(e.time) <= until + 60_000);
-  const used = new Set<string>();
   const lines = storylines(dedupeEvents(evs)).filter((s) => s.lead.event.severity >= 3);
-  const eventScenes = lines.map((s) => eventScene(s, used));
+  const eventScenes = lines.map((s) => eventScene(s));
   const statusRank: Record<CoverageStatus, number> = { confirmed: 0, corroborated: 1, unverified: 2 };
   const news = inp.stories
     .filter((s) => Date.parse(s.last) >= from && Date.parse(s.last) <= until + 60_000 && s.status !== 'unverified')
     .sort((a, b) => statusRank[a.status] - statusRank[b.status] || b.independent.length - a.independent.length)
     .map((s) => ({ s, iso3: inp.countryOf(s.title) }))
     .filter((x): x is { s: Story; iso3: string } => !!x.iso3)
-    .map((x) => newsScene(x.s, x.iso3, used));
+    .map((x) => newsScene(x.s, x.iso3, inp.placeName?.(x.iso3) ?? null));
   // Interleave by importance: event, news, event, news…
-  const merged: Scene[] = [];
+  const merged: Draft[] = [];
   for (let i = 0; i < Math.max(eventScenes.length, news.length); i++) {
     if (eventScenes[i]) merged.push(eventScenes[i]!);
     if (news[i]) merged.push(news[i]!);
   }
   const budget = inp.budgetMs ?? BUDGET_MS;
   const intro: Line = { speaker: 'lead', text: inp.introText ?? `Aurora briefing. ${WINDOWS[inp.window].label}.` };
-  const dur = (s: Scene) => (inp.mode === 'play' ? s.speakMs : s.readMs);
   const scenes: Scene[] = [];
-  let spent = inp.mode === 'play' ? speakMs([intro]) + 2_500 : 0;
-  for (const s of merged) {
+  const used = new Set<string>();
+  let spent = inp.mode === 'play' ? speakMs([intro]) + 3_000 : 0;
+  for (const d of merged) {
+    // Compose the conversation in its final position; keep the phrasing only if the story fits.
+    const trial = new Set(used);
+    const lines = storyConversation({ ...d.talk, index: scenes.length }, trial);
+    const scene: Scene = { id: d.id, kind: d.kind, title: d.title, explanation: d.explanation, date: d.date, sources: d.sources, lat: d.lat, lon: d.lon, iso3: d.iso3, related: d.related, lead: d.lead, lines, readMs: d.readMs, speakMs: speakMs(lines) };
+    const dur = inp.mode === 'play' ? scene.speakMs : scene.readMs;
     // Whole stories only: a story may finish slightly past the budget, but none starts once it is used up.
-    if (spent >= budget || spent + dur(s) > budget + OVERRUN_MS) continue;
-    scenes.push(s);
-    spent += dur(s);
+    if (spent >= budget || spent + dur > budget + OVERRUN_MS) continue;
+    for (const u of trial) used.add(u);
+    scenes.push(scene);
+    spent += dur;
   }
-  const outro: Line = { speaker: 'lead', text: 'That concludes this Operations Briefing. The sources and the full transcript follow.' };
-  return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro, outro };
+  const agenda: Line = { speaker: 'eve', text: scenes.length === 1 ? 'One item today.' : `${scenes.length} items today, most significant first.` };
+  const outro: Line = { speaker: 'lead', text: "That's the briefing. Sources and the full transcript are on screen." };
+  return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro, agenda, outro };
 }
 
 /** Small stable hash (FNV-1a, hex) for content versions. */
