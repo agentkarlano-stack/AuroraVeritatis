@@ -366,7 +366,6 @@ export function QuickWidget() {
               </Link>
             ))}
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-dim">Tools you open on two or more occasions replace these shortcuts.</p>
         </div>
       )}
       <div>

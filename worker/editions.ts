@@ -11,12 +11,56 @@
 import type { Story } from '../shared/news';
 import type { GeoEvent } from '../shared/types';
 import { countriesInHeadline, countryName } from '../shared/countryNames';
-import { buildPlan, type Line, type Plan } from '../src/lib/briefingPlan';
+import { agendaText, buildPlan, type Line, type Plan } from '../src/lib/briefingPlan';
 import { json } from './http';
 import { speakRole, voiceChain, voiceEnabled, VOICE_CONFIG_VERSION, VOICE_MODEL, type VoiceEnv, type VoiceRole } from './voice';
 
 export interface EditionsEnv extends VoiceEnv {
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  /** PostHog personal API key with read access (query), project id and API host, for the peak-hour measurement. */
+  POSTHOG_PERSONAL_API_KEY?: string;
+  POSTHOG_PROJECT_ID?: string;
+  POSTHOG_API_HOST?: string;
+}
+
+// ---------- Publication time from measured activity (plan §13D) ----------
+
+export interface PeakResult {
+  status: 'measured' | 'insufficient' | 'unavailable';
+  /** Busiest hour of the day in UTC (0–23) when measured. */
+  peakUtcHour?: number;
+  pageviews?: number;
+  detail?: string;
+}
+
+/** Minimum pageviews before a peak is considered evidence rather than noise. */
+export const MIN_PAGEVIEWS = 300;
+/** The edition must be available this long before the peak hour starts. */
+export const LEAD_MINUTES = 60;
+
+/** Busiest UTC hour from PostHog pageviews over the last 28 days (HogQL query API, read-only). */
+export async function measurePeak(env: EditionsEnv, f: F): Promise<PeakResult> {
+  if (!env.POSTHOG_PERSONAL_API_KEY || !env.POSTHOG_PROJECT_ID) return { status: 'unavailable', detail: 'POSTHOG_PERSONAL_API_KEY / POSTHOG_PROJECT_ID not set' };
+  const host = (env.POSTHOG_API_HOST || 'https://eu.posthog.com').replace(/\/$/, '');
+  const res = await f(`${host}/api/projects/${encodeURIComponent(env.POSTHOG_PROJECT_ID)}/query/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.POSTHOG_PERSONAL_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: { kind: 'HogQLQuery', query: "SELECT toHour(timestamp) AS h, count() AS c FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 28 DAY GROUP BY h ORDER BY c DESC" } }),
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null);
+  if (!res?.ok) return { status: 'unavailable', detail: `PostHog query answered ${res?.status ?? 'network error'}` };
+  const rows = (((await res.json().catch(() => null)) as { results?: unknown[][] } | null)?.results ?? []).filter((r): r is [number, number] => typeof r[0] === 'number' && typeof r[1] === 'number');
+  const total = rows.reduce((n, r) => n + r[1], 0);
+  if (total < MIN_PAGEVIEWS || !rows.length) return { status: 'insufficient', pageviews: total, detail: `${total} pageviews in 28 days (needs ${MIN_PAGEVIEWS})` };
+  return { status: 'measured', peakUtcHour: rows[0]![0], pageviews: total };
+}
+
+/** Local publication time (HH:MM in the schedule's zone) that is LEAD_MINUTES before the UTC peak hour, today. */
+export function publishBeforePeak(peakUtcHour: number, tz: string, now: number): string {
+  const d = new Date(now);
+  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), peakUtcHour) - LEAD_MINUTES * 60_000;
+  const p = parts(t, tz);
+  return `${String(p.h).padStart(2, '0')}:${String(p.mi).padStart(2, '0')}`;
 }
 
 export interface Schedule {
@@ -112,7 +156,6 @@ const linesOf = (p: Plan) => [p.intro, p.agenda, ...p.scenes.flatMap((s) => s.li
 
 /** Builds the edition plan within the character limit (whole stories are dropped from the end, never shortened). */
 export function editionPlan(events: GeoEvent[], stories: Story[], w: EditionWindow, maxChars: number): Plan {
-  const day = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(w.cutoff));
   const plan = buildPlan({
     window: '24h',
     now: w.cutoff,
@@ -122,10 +165,10 @@ export function editionPlan(events: GeoEvent[], stories: Story[], w: EditionWind
     countryOf: (t) => countriesInHeadline(t)[0] ?? null,
     placeName: (iso3) => countryName(iso3) ?? null,
     mode: 'play',
-    introText: `This is the Aurora Operations Briefing for ${day}, covering the previous twenty-four hours.`,
   });
   while (plan.scenes.length > 1 && spoken(linesOf(plan)) > maxChars) plan.scenes.pop();
-  return plan;
+  // The Analyst's agenda must match the stories that remain.
+  return { ...plan, agenda: { speaker: 'eve', text: agendaText(plan.scenes.length) } };
 }
 
 export async function runEditionJob(env: EditionsEnv, deps: JobDeps): Promise<JobResult> {
@@ -134,6 +177,17 @@ export async function runEditionJob(env: EditionsEnv, deps: JobDeps): Promise<Jo
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return { action: 'disabled', detail: 'SUPABASE_SERVICE_ROLE_KEY is not set' };
   const [schedule] = await rest<Schedule[]>(f, env, 'briefing_schedule?id=eq.1&select=*');
   if (!schedule?.active) return { action: 'disabled', detail: 'schedule inactive' };
+  // Once a day, align the publication time with the measured activity peak (the schedule records its evidence).
+  if (Date.parse((schedule as Schedule & { updated_at?: string }).updated_at ?? '0') < now - 23 * 3_600_000) {
+    const peak = await measurePeak(env, f).catch((): PeakResult => ({ status: 'unavailable', detail: 'measurement failed' }));
+    const patch: Record<string, unknown> = { updated_at: new Date(now).toISOString() };
+    if (peak.status === 'measured') {
+      const local = publishBeforePeak(peak.peakUtcHour!, schedule.timezone, now);
+      Object.assign(patch, { publish_local: local, verified: true, evidence: `PostHog pageviews, last 28 days (n=${peak.pageviews}): busiest hour ${String(peak.peakUtcHour).padStart(2, '0')}:00 UTC; edition published ${LEAD_MINUTES} minutes earlier (${local} ${schedule.timezone}).` });
+      schedule.publish_local = local;
+    } else Object.assign(patch, { verified: false, evidence: `Provisional editorial slot: peak not measured (${peak.detail}).` });
+    await rest(f, env, 'briefing_schedule?id=eq.1', { method: 'PATCH', body: JSON.stringify(patch) }).catch((e: unknown) => console.warn('Schedule update failed', (e as Error).message));
+  }
   await cleanup(env, f, now).catch((e: unknown) => console.warn('Edition cleanup failed', (e as Error).message));
   const w = editionWindow(now, schedule);
   if (!w) return { action: 'not-due' };

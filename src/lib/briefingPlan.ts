@@ -199,6 +199,22 @@ export interface PlanInput {
   placeName?: (iso3: string) => string | null;
 }
 
+const OPENINGS = [
+  "All right, let's get started. Analyst, what's our current assessment?",
+  "Okay, let's begin. Analyst, what are we looking at?",
+  "Let's get started. Analyst, give me the picture.",
+];
+const CLOSINGS = [
+  "Understood. Keep monitoring those developments and update the assessment if anything changes. That's all for now.",
+  "Good. Stay on those and flag anything that moves. That's all for now.",
+  "Copy that. Keep the picture current and brief me on any change. That's all.",
+];
+const NUMBER = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+export const agendaText = (n: number) =>
+  n === 1 ? 'One development stands out.' : `${NUMBER[n] ?? n} developments stand out. Most significant first.`;
+/** Stable small number from text (varies the phrasing between editions, identical for the same edition). */
+const seed = (t: string) => [...t].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+
 /** About two minutes, with a modest overrun allowed so a meaningful exchange is never cut. */
 export const BUDGET_MS = 120_000;
 export const OVERRUN_MS = 15_000;
@@ -224,7 +240,8 @@ export function buildPlan(inp: PlanInput): Plan {
     if (news[i]) merged.push(news[i]!);
   }
   const budget = inp.budgetMs ?? BUDGET_MS;
-  const intro: Line = { speaker: 'lead', text: inp.introText ?? `Aurora briefing. ${WINDOWS[inp.window].label}.` };
+  // Staff-briefing opening: the Commander starts and hands straight to the Analyst (no announcement).
+  const intro: Line = { speaker: 'lead', text: inp.introText ?? OPENINGS[seed(merged.map((d) => d.id).join('|')) % OPENINGS.length]! };
   const scenes: Scene[] = [];
   const used = new Set<string>();
   let spent = inp.mode === 'play' ? speakMs([intro]) + 3_000 : 0;
@@ -240,8 +257,8 @@ export function buildPlan(inp: PlanInput): Plan {
     scenes.push(scene);
     spent += dur;
   }
-  const agenda: Line = { speaker: 'eve', text: scenes.length === 1 ? 'One item today.' : `${scenes.length} items today, most significant first.` };
-  const outro: Line = { speaker: 'lead', text: "That's the briefing. Sources and the full transcript are on screen." };
+  const agenda: Line = { speaker: 'eve', text: agendaText(scenes.length) };
+  const outro: Line = { speaker: 'lead', text: CLOSINGS[seed(scenes.map((x) => x.id).join('|')) % CLOSINGS.length]! };
   return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro, agenda, outro };
 }
 

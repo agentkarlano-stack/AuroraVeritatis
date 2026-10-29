@@ -88,6 +88,7 @@ describe('voice roles and reserves (plan §13C)', () => {
     expect(voiceChain(roles, 'eve').map((v) => v.source)).toEqual(['ELEVENLABS_VOICE_ANNA', 'ELEVENLABS_VOICE_AMELIA', 'ELEVENLABS_VOICE_EVE']);
     expect(voiceChain(roles, 'lead')[0]).toMatchObject({ source: 'ELEVENLABS_VOICE_LEAD', id: 'id-xavian' });
     expect(voiceChain(roles, 'knox')[0]).toMatchObject({ source: 'ELEVENLABS_VOICE_KNOX', id: 'id-adam' });
+    expect(voiceChain({ ...roles, ELEVENLABS_VOICE_CHARLIE: 'id-charlie' }, 'knox').map((v) => v.source)).toEqual(['ELEVENLABS_VOICE_CHARLIE', 'ELEVENLABS_VOICE_KNOX']);
     expect(voiceChain(env, 'eve')[0]!.source).toBe('default');
   });
 
