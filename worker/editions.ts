@@ -10,7 +10,7 @@
  */
 import type { Story } from '../shared/news';
 import type { GeoEvent } from '../shared/types';
-import { countriesInHeadline } from '../shared/countryNames';
+import { countriesInHeadline, countryName } from '../shared/countryNames';
 import { buildPlan, type Line, type Plan } from '../src/lib/briefingPlan';
 import { json } from './http';
 import { speakRole, voiceChain, voiceEnabled, VOICE_CONFIG_VERSION, VOICE_MODEL, type VoiceEnv, type VoiceRole } from './voice';
@@ -108,7 +108,7 @@ export interface JobResult {
 }
 
 const spoken = (lines: Line[]) => lines.reduce((n, l) => n + l.text.length, 0);
-const linesOf = (p: Plan) => [p.intro, ...p.scenes.flatMap((s) => s.lines), p.outro];
+const linesOf = (p: Plan) => [p.intro, p.agenda, ...p.scenes.flatMap((s) => s.lines), p.outro];
 
 /** Builds the edition plan within the character limit (whole stories are dropped from the end, never shortened). */
 export function editionPlan(events: GeoEvent[], stories: Story[], w: EditionWindow, maxChars: number): Plan {
@@ -120,6 +120,7 @@ export function editionPlan(events: GeoEvent[], stories: Story[], w: EditionWind
     events,
     stories,
     countryOf: (t) => countriesInHeadline(t)[0] ?? null,
+    placeName: (iso3) => countryName(iso3) ?? null,
     mode: 'play',
     introText: `This is the Aurora Operations Briefing for ${day}, covering the previous twenty-four hours.`,
   });
@@ -150,7 +151,7 @@ export async function runEditionJob(env: EditionsEnv, deps: JobDeps): Promise<Jo
     const lines = linesOf(plan);
     const audio: { key: string; path: string; bytes: number; role: VoiceRole; voice_source: string; seconds: number }[] = [];
     for (const [i, l] of lines.entries()) {
-      const r = await speakRole(env, f, l.speaker, l.text, now);
+      const r = await speakRole(env, f, l.speaker, l.text, now, { previous: lines[i - 1]?.text, next: lines[i + 1]?.text });
       if ('failure' in r) throw new Error(`voice ${r.failure.kind}:${r.failure.code} on line ${i + 1}`);
       const path = `${w.date}/r1/${i}.mp3`;
       const up = await f(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {

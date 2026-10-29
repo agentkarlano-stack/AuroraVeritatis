@@ -1,6 +1,7 @@
 import type { FeatureCollection, Geometry } from "geojson";
 import {
   Map as MlMap,
+  Marker,
   NavigationControl,
   setWorkerUrl,
   type ExpressionSpecification,
@@ -32,7 +33,20 @@ import { formatLngLat } from "../../lib/geo/coords";
 
 setWorkerUrl(workerUrl);
 
+export interface CameraStage {
+  lon: number;
+  lat: number;
+  zoom: number;
+  /** Milliseconds for this leg. */
+  duration: number;
+}
+
 export interface GeoMapHandle {
+  /**
+   * Flies through several zoom levels in sequence (Earth → region → country → local). A new call cancels the previous
+   * path. Resolves when the last stage is reached or the path was cancelled.
+   */
+  flyStages: (stages: CameraStage[], padding?: { top: number; right: number; bottom: number; left: number }, onStage?: (i: number) => void) => Promise<void>;
   /** PNG of the current view with a source footer, or null when the browser refuses (e.g. tainted canvas). */
   exportPng: (footer: string) => Promise<Blob | null>;
   /** `padding` (px) keeps the point clear of panels drawn over the map. */
@@ -42,6 +56,21 @@ export interface GeoMapHandle {
    * drawn over the map, e.g. `{ right: 480 }` for a side dossier.
    */
   focusCountry: (iso3: string, padding?: number | { top: number; right: number; bottom: number; left: number }) => boolean;
+}
+
+/** SVG tactical marker (static markup; the label is set as text). States: wide ring, regional lock-on, local reticle. */
+function tacticalMarker(label: string, precise: boolean): HTMLDivElement {
+  const el = document.createElement("div");
+  el.className = `av-target${precise ? "" : " av-target--area"}`;
+  el.setAttribute("aria-hidden", "true");
+  el.innerHTML = `<svg viewBox="-60 -60 120 120" width="120" height="120">
+    <g class="av-t-wide"><circle r="16" class="av-t-ring"/><g class="av-t-spin"><path d="M0 -26 A26 26 0 0 1 22.5 -13"/><path d="M22.5 13 A26 26 0 0 1 -22.5 13"/><path d="M-22.5 -13 A26 26 0 0 1 0 -26"/></g><circle r="2.2" class="av-t-dot"/></g>
+    <g class="av-t-region"><path d="M-30 -18 V-30 H-18 M18 -30 H30 V-18 M30 18 V30 H18 M-18 30 H-30 V18"/><path d="M0 -14 V-6 M0 6 V14 M-14 0 H-6 M6 0 H14"/><circle r="2" class="av-t-dot"/></g>
+    <g class="av-t-local"><circle r="22" class="av-t-ring"/><circle r="40" class="av-t-ring av-t-faint"/><path d="M0 -52 V-28 M0 28 V52 M-52 0 H-28 M28 0 H52"/><line class="av-t-scan" x1="-40" y1="0" x2="40" y2="0"/><circle r="2" class="av-t-dot"/></g>
+  </svg><span class="av-t-label"></span>`;
+  const span = el.querySelector(".av-t-label");
+  if (span) span.textContent = label;
+  return el;
 }
 
 /** Bounding box of a geometry as [west, south, east, north]; uses the largest part for countries spanning the antimeridian. */
@@ -147,6 +176,22 @@ const COUNTRIES: FeatureCollection<
 /** Border lines (computed once). */
 const BORDERS = borderLines(COUNTRIES);
 
+/** A licensed imagery provider for close-up views (see `lib/geo/imagery.ts`). */
+export interface DetailImagery {
+  tiles: string;
+  attribution: string;
+  maxZoom: number;
+}
+
+/** Point the presentation is focused on; drawn as a tactical marker that changes with the zoom level. */
+export interface MapTarget {
+  lon: number;
+  lat: number;
+  label: string;
+  /** False for approximate locations: the marker shows an area, never a falsely precise point. */
+  precise: boolean;
+}
+
 interface Props {
   ref?: Ref<GeoMapHandle>;
   state: MapState;
@@ -173,6 +218,10 @@ interface Props {
   padding?: { top: number; right: number; bottom: number; left: number };
   /** Show the geographic coordinates under the cursor (not the camera centre). */
   coordinates?: boolean;
+  /** Close-up colour view: natural colour base, plus licensed high-resolution imagery when configured. */
+  detail?: boolean;
+  detailImagery?: DetailImagery | null;
+  target?: MapTarget | null;
 }
 
 
@@ -182,7 +231,7 @@ function buildStyle(
   today: string,
   events: GeoEvent[],
   values: Props["values"],
-  extra: { nightAt?: number | null; selectedEventId?: string | null } = {},
+  extra: { nightAt?: number | null; selectedEventId?: string | null; detail?: boolean; detailImagery?: DetailImagery | null } = {},
 ): StyleSpecification {
   const sources: Record<string, SourceSpecification> = {};
   const layers: LayerSpecification[] = [];
@@ -216,9 +265,12 @@ function buildStyle(
       paint:
         s.style === "grayscale"
           ? {
-              "raster-saturation": -1,
-              "raster-contrast": 0.1,
-              "raster-brightness-max": 0.85,
+              // Close-up views restore the composite's natural colour (a timed transition, not a cut).
+              "raster-saturation": extra.detail ? 0 : -1,
+              "raster-contrast": extra.detail ? 0.05 : 0.1,
+              "raster-brightness-max": extra.detail ? 1 : 0.85,
+              "raster-saturation-transition": { duration: 900, delay: 0 },
+              "raster-brightness-max-transition": { duration: 900, delay: 0 },
             }
           : s.style === "terrain"
             ? {
@@ -227,6 +279,17 @@ function buildStyle(
                 "raster-brightness-min": 0.12,
               }
             : { "raster-saturation": -0.1, "raster-brightness-max": 0.92 },
+    });
+  }
+  // High-resolution colour imagery for close-up views (only when a licensed provider is configured).
+  if (satelliteBase && extra.detailImagery) {
+    sources.detail = { type: "raster", tiles: [extra.detailImagery.tiles], tileSize: 256, minzoom: 5, maxzoom: extra.detailImagery.maxZoom, attribution: extra.detailImagery.attribution };
+    layers.push({
+      id: "detail",
+      type: "raster",
+      source: "detail",
+      minzoom: 6,
+      paint: { "raster-opacity": extra.detail ? 1 : 0, "raster-opacity-transition": { duration: 900, delay: 250 } },
     });
   }
   // Country polygons: land fill for vector styles, choropleths and selection.
@@ -479,6 +542,9 @@ export default function GeoMap({
   interactive = true,
   padding,
   coordinates = false,
+  detail = false,
+  detailImagery = null,
+  target = null,
 }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const coordBox = useRef<HTMLDivElement>(null);
@@ -514,7 +580,7 @@ export default function GeoMap({
     if (!box.current) return;
     const map = new MlMap({
       container: box.current,
-      style: buildStyle(state, today, events, values, { nightAt, selectedEventId }),
+      style: buildStyle(state, today, events, values, { nightAt, selectedEventId, detail, detailImagery }),
       center: state.center,
       zoom: state.zoom,
       maxZoom: 9,
@@ -607,8 +673,28 @@ export default function GeoMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(buildStyle(styleState.current, today, events, values, { nightAt, selectedEventId }), { diff: true });
-  }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values, nightAt, selectedEventId]);
+    map.setStyle(buildStyle(styleState.current, today, events, values, { nightAt, selectedEventId, detail, detailImagery }), { diff: true });
+  }, [state.mode, state.style, state.layers, state.date, state.country, today, events, values, nightAt, selectedEventId, detail, detailImagery]);
+
+  // Tactical marker anchored to the target's real coordinates; its form follows the zoom level.
+  const targetKey = target ? JSON.stringify([target.lon, target.lat, target.label, target.precise]) : '';
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !targetKey) return;
+    const [lon, lat, label, precise] = JSON.parse(targetKey) as [number, number, string, boolean];
+    const el = tacticalMarker(label, precise);
+    const marker = new Marker({ element: el, anchor: 'center' }).setLngLat([lon, lat]).addTo(map);
+    const scale = () => {
+      const z = map.getZoom();
+      el.dataset.scale = z < 3.5 ? 'wide' : z < 6.5 ? 'region' : 'local';
+    };
+    scale();
+    map.on('zoom', scale);
+    return () => {
+      map.off('zoom', scale);
+      marker.remove();
+    };
+  }, [targetKey]);
 
   // Keep the camera centred in the canvas left visible by overlaid panels.
   const padKey = padding ? `${padding.top},${padding.right},${padding.bottom},${padding.left}` : "";
@@ -645,7 +731,29 @@ export default function GeoMap({
     }
   }, [state.center, state.zoom]);
 
+  const pathId = useRef(0);
   useImperativeHandle(ref, () => ({
+    flyStages: async (stages, padding, onStage) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const id = ++pathId.current;
+      const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      for (const [i, st] of stages.entries()) {
+        if (id !== pathId.current) return;
+        onStage?.(i);
+        if (reduced) {
+          map.jumpTo({ center: [st.lon, st.lat], zoom: st.zoom, padding: padding ?? basePad.current });
+          continue;
+        }
+        await new Promise<void>((resolve) => {
+          const done = () => resolve();
+          map.once("moveend", done);
+          map.flyTo({ center: [st.lon, st.lat], zoom: st.zoom, padding: padding ?? basePad.current, duration: st.duration, essential: true, curve: 1.3 });
+          // Safety net if moveend never fires (e.g. no movement needed).
+          setTimeout(done, st.duration + 400);
+        });
+      }
+    },
     flyTo: (lon, lat, zoom, padding) => {
       const reduced = window.matchMedia?.(
         "(prefers-reduced-motion: reduce)",

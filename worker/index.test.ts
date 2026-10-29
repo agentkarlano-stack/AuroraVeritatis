@@ -29,9 +29,11 @@ describe('API routing', () => {
 
   it('exposes only public config, and null when unset', async () => {
     const off = await body<PublicConfig>(get('/api/config'));
-    expect(off).toEqual({ environment: 'production', supabase: null, posthog: null });
+    expect(off).toEqual({ environment: 'production', supabase: null, posthog: null, imagery: null });
     const on = await body<PublicConfig>(get('/api/config', { ...env, SUPABASE_URL: 'https://x.supabase.co', SUPABASE_ANON_KEY: 'anon' }));
     expect(on.supabase).toEqual({ url: 'https://x.supabase.co', anonKey: 'anon' });
+    const img = await body<PublicConfig>(get('/api/config', { ...env, ARCGIS_BASEMAP_KEY: 'browser key' }));
+    expect(img.imagery?.tiles).toBe('https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=browser%20key');
   });
 
   it('rejects unknown routes, bad methods and bad input', async () => {

@@ -128,11 +128,11 @@ export class VoiceError extends Error {
 }
 
 /** One clip through the Worker; rejects with the server's sanitized message and code. */
-export async function fetchClip(line: Line, token: string): Promise<string> {
+export async function fetchClip(line: Line, token: string, ctx: { previous?: string; next?: string } = {}): Promise<string> {
   const res = await fetch('/api/voice/speak', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ text: line.text, voice: line.speaker }),
+    body: JSON.stringify({ text: line.text, voice: line.speaker, previous: ctx.previous, next: ctx.next }),
   }).catch(() => null);
   if (!res) throw new VoiceError('The voice service could not be reached.', 'network');
   if (!res.ok) {
@@ -156,7 +156,8 @@ export function prepareClips(lines: Line[], token: string, concurrency = 3): Map
     while (next < unique.length) {
       const l = unique[next++]!;
       const r = resolvers.get(clipKey(l))!;
-      await fetchClip(l, token).then(r.resolve, r.reject);
+      const at = lines.findIndex((x) => clipKey(x) === clipKey(l));
+      await fetchClip(l, token, { previous: lines[at - 1]?.text, next: lines[at + 1]?.text }).then(r.resolve, r.reject);
     }
   };
   for (let i = 0; i < Math.min(concurrency, unique.length); i++) void worker();

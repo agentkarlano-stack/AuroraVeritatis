@@ -23,6 +23,7 @@ import { ANALYSTS, SPEAKER_COLOR, WINDOWS, buildPlan, buildTour, type Plan, type
 import { age } from '../lib/radarLabels';
 import { audioNarrator, browserNarrator, clipKey, prepareClips, unlockAudio, VoiceError, type Narrator } from '../lib/narration';
 import { useIdle } from '../lib/useIdle';
+import { startAmbience, type Ambience } from '../lib/ambience';
 import { normalizeIdle, usePrefs } from '../store/prefs';
 
 const GeoMap = lazy(() => import('../components/geo/GeoMap'));
@@ -137,6 +138,7 @@ interface Showing {
   narrator: Narrator | null;
   audioNote: string | null;
   subtitle: string;
+  ambience?: Ambience | null;
 }
 
 /**
@@ -177,7 +179,8 @@ export default function Radar() {
   const [showing, setShowing] = useState<Showing | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [summary, setSummary] = useState<{ plan: Plan; mode: 'read' | 'play' } | null>(null);
-  const { session } = useAuth();
+  const { session, config } = useAuth();
+  const imagery = config?.imagery ?? null;
   const idle = normalizeIdle(usePrefs((s) => s.idle));
   const status = useApi<{ latest: { edition_date: string; published_at: string } | null }>('/api/briefing/status');
   const latest = status.status === 'ready' ? status.data.latest : null;
@@ -212,6 +215,7 @@ export default function Radar() {
 
   // Briefings and the tour: the plan is built once when they start and stays frozen while they run.
   const countryOf = useCallback((text: string) => countryIn(text)?.iso3 ?? null, []);
+  const placeName = useCallback((iso3: string) => countryByIso3(iso3)?.name ?? null, []);
   const storiesNow = useMemo(() => (news.status === 'ready' ? news.data.stories : []), [news]);
   /** Situation Report: the chosen period, from what the feeds show now (news for longer periods is fetched on demand). */
   const startWritten = async (w: ReportingWindow) => {
@@ -235,6 +239,7 @@ export default function Radar() {
   const startVoiced = async (date?: string) => {
     // Must run synchronously inside the click: later playback (after loading) is then not blocked as autoplay.
     const el = unlockAudio();
+    const amb = startAmbience();
     setPreparing(true);
     const r = await getJson<{ edition: Edition | null }>(date ? `/api/briefing/edition/${date}` : '/api/briefing/latest').catch(() => ({ edition: null }));
     const ed = r.edition;
@@ -242,12 +247,13 @@ export default function Radar() {
       setPreparing(false);
       const clips = new Map(ed.audio.map((a) => [a.key, Promise.resolve(a.url)]));
       const cover = `${fmtLocal(ed.coverage_start)} to ${fmtLocal(ed.coverage_end)}`;
-      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · covers ${cover}` });
+      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · covers ${cover}` });
       return;
     }
     const until = wallClock();
-    const plan = buildPlan({ window: '24h', now: until, until, events: signals, stories: storiesNow, countryOf, mode: 'play', introText: 'Aurora Operations Briefing, live preview of the past twenty-four hours.' });
+    const plan = buildPlan({ window: '24h', now: until, until, events: signals, stories: storiesNow, countryOf, placeName, mode: 'play', introText: 'Aurora Operations Briefing, live preview of the past twenty-four hours.' });
     if (!plan.scenes.length) {
+      amb?.stop();
       setPreparing(false);
       setSummary({ plan, mode: 'play' });
       return;
@@ -255,7 +261,7 @@ export default function Radar() {
     // Live preview (no shared edition yet): natural voices for signed-in users, cached per line; otherwise the browser.
     let narrator: Narrator | null = null;
     let audioNote: string | null = 'Live preview: today\'s shared edition is not published yet.';
-    const lines = [plan.intro, ...plan.scenes.flatMap((s) => s.lines), plan.outro];
+    const lines = [plan.intro, plan.agenda, ...plan.scenes.flatMap((s) => s.lines), plan.outro];
     if (session && el) {
       const clips = AUDIO_CACHE.get(plan.version) ?? prepareClips(lines, session.access_token);
       AUDIO_CACHE.set(plan.version, clips);
@@ -273,7 +279,7 @@ export default function Radar() {
       narrator = browserNarrator();
       if (!narrator) audioNote = 'This browser cannot speak text aloud, so the briefing runs with captions only.';
     }
-    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, subtitle: 'Live preview · past 24 hours' });
+    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, ambience: amb, subtitle: 'Live preview · past 24 hours' });
   };
   const startTour = useCallback(
     (fullscreen: boolean) => {
@@ -731,6 +737,8 @@ export default function Radar() {
           events={signals}
           narrator={showing.narrator}
           audioNote={showing.audioNote}
+          ambience={showing.ambience ?? null}
+          detailImagery={imagery}
           fullscreen={showing.fullscreen}
           subtitle={showing.subtitle}
           onExit={endShow}

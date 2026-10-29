@@ -26,6 +26,8 @@ export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, Ed
   SUPABASE_ANON_KEY?: string;
   POSTHOG_KEY?: string;
   POSTHOG_HOST?: string;
+  /** ArcGIS Location Platform API key (browser key, referrer-restricted) for close-up satellite imagery; optional. */
+  ARCGIS_BASEMAP_KEY?: string;
   /** Inbox for business quote requests (defaults to the support address). */
   BUSINESS_QUOTE_TO?: string;
 }
@@ -50,6 +52,13 @@ function publicConfig(env: Env, url: URL): PublicConfig {
     environment,
     supabase: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? { url: env.SUPABASE_URL, anonKey: env.SUPABASE_ANON_KEY } : null,
     posthog: env.POSTHOG_KEY ? { key: env.POSTHOG_KEY, host: env.POSTHOG_HOST || 'https://eu.i.posthog.com' } : null,
+    imagery: env.ARCGIS_BASEMAP_KEY
+      ? {
+          tiles: `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${encodeURIComponent(env.ARCGIS_BASEMAP_KEY)}`,
+          attribution: 'Imagery: Esri, Maxar, Earthstar Geographics and the GIS User Community',
+          maxZoom: 18,
+        }
+      : null,
   };
 }
 

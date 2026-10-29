@@ -36,7 +36,7 @@ export interface VoiceDeps {
 /** Flash v2.5: ElevenLabs' lowest-cost model that supports the selected voices. */
 export const VOICE_MODEL = 'eleven_flash_v2_5';
 /** Part of the cache identity: bump when routing or voice settings change, so new audio never reuses an old voice. */
-export const VOICE_CONFIG_VERSION = 'roles-2026-10-29';
+export const VOICE_CONFIG_VERSION = 'roles-2026-10-29b';
 /** Premade ElevenLabs voices, used only when no voice is configured for a role. */
 const DEFAULT_VOICES = { eve: '21m00Tcm4TlvDq8ikWAM', knox: 'JBFqnCBsd6RMkjVDRZzb', lead: 'JBFqnCBsd6RMkjVDRZzb' } as const;
 export const MAX_CHARS = 1500;
@@ -44,6 +44,22 @@ export const USER_DAILY_CHARS = 6000;
 const RESERVE_SHARE = 0.1;
 
 export type VoiceRole = 'lead' | 'knox' | 'eve';
+
+/**
+ * Delivery per role (ElevenLabs voice settings, supported by Flash v2.5): lower stability gives livelier intonation.
+ * Commander steady and authoritative, Analyst conversational, Security Officer firm.
+ */
+export const ROLE_SETTINGS: Record<VoiceRole, { stability: number; similarity_boost: number; use_speaker_boost: boolean }> = {
+  lead: { stability: 0.55, similarity_boost: 0.8, use_speaker_boost: true },
+  eve: { stability: 0.38, similarity_boost: 0.78, use_speaker_boost: true },
+  knox: { stability: 0.6, similarity_boost: 0.8, use_speaker_boost: true },
+};
+
+/** Neighbouring lines sent with a line so intonation continues naturally across turns (not spoken). */
+export interface LineContext {
+  previous?: string;
+  next?: string;
+}
 export const isRole = (v: unknown): v is VoiceRole => v === 'lead' || v === 'knox' || v === 'eve';
 
 export interface VoiceChoice {
@@ -140,11 +156,17 @@ async function sha256(s: string): Promise<string> {
 const fail = (status: number, message: string, code: string, extra: Record<string, unknown> = {}) => json({ error: message, code, ...extra }, { status });
 
 /** One synthesis request; returns the audio or a classified failure. */
-export async function synthesize(env: VoiceEnv, f: typeof fetch, voiceId: string, text: string): Promise<{ audio: ArrayBuffer } | { failure: ProviderFailure }> {
+export async function synthesize(env: VoiceEnv, f: typeof fetch, voiceId: string, text: string, role: VoiceRole = 'eve', ctx: LineContext = {}): Promise<{ audio: ArrayBuffer } | { failure: ProviderFailure }> {
   const res = await f(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_64`, {
     method: 'POST',
     headers: { 'xi-api-key': env.ELEVENLABS_API_KEY!, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-    body: JSON.stringify({ text, model_id: VOICE_MODEL }),
+    body: JSON.stringify({
+      text,
+      model_id: VOICE_MODEL,
+      voice_settings: ROLE_SETTINGS[role],
+      ...(ctx.previous ? { previous_text: ctx.previous.slice(-300) } : {}),
+      ...(ctx.next ? { next_text: ctx.next.slice(0, 300) } : {}),
+    }),
     signal: AbortSignal.timeout(30_000),
   }).catch(() => null);
   if (!res) return { failure: { kind: 'network', code: 'network', status: 0 } };
@@ -158,7 +180,7 @@ export async function synthesize(env: VoiceEnv, f: typeof fetch, voiceId: string
  * Speaks `text` with the role's first usable voice. Moves to a reserve only after a voice-specific failure, and at most
  * through the configured chain once; any other failure stops immediately.
  */
-export async function speakRole(env: VoiceEnv, f: typeof fetch, role: VoiceRole, text: string, now: number): Promise<{ audio: ArrayBuffer; voice: VoiceChoice; skipped: string[] } | { failure: ProviderFailure; skipped: string[] }> {
+export async function speakRole(env: VoiceEnv, f: typeof fetch, role: VoiceRole, text: string, now: number, ctx: LineContext = {}): Promise<{ audio: ArrayBuffer; voice: VoiceChoice; skipped: string[] } | { failure: ProviderFailure; skipped: string[] }> {
   const skipped: string[] = [];
   let last: ProviderFailure | null = null;
   for (const v of voiceChain(env, role)) {
@@ -167,7 +189,7 @@ export async function speakRole(env: VoiceEnv, f: typeof fetch, role: VoiceRole,
       skipped.push(`${v.source}: ${bad.code}`);
       continue;
     }
-    const r = await synthesize(env, f, v.id, text);
+    const r = await synthesize(env, f, v.id, text, role, ctx);
     if ('audio' in r) return { audio: r.audio, voice: v, skipped };
     last = r.failure;
     if (r.failure.kind !== 'voice') return { failure: r.failure, skipped };
@@ -185,10 +207,14 @@ export async function voiceSpeak(request: Request, env: VoiceEnv, deps: VoiceDep
   if (!ipLimiter.allow(ip)) return fail(429, 'Too many narration requests. Please wait a few seconds.', 'rate_limited');
   const token = request.headers.get('Authorization')?.match(/^Bearer (\S{20,4096})$/)?.[1];
   if (!token || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return fail(401, 'Sign in to use the natural voice.', 'sign_in');
-  const body = (await request.json().catch(() => null)) as { text?: unknown; voice?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { text?: unknown; voice?: unknown; previous?: unknown; next?: unknown } | null;
   const text = narrationText(typeof body?.text === 'string' ? body.text : '');
   if (text.length < 2 || text.length > MAX_CHARS) return fail(400, `Narration text must be 2 to ${MAX_CHARS.toLocaleString('en-US')} characters.`, 'bad_text');
   const role: VoiceRole = isRole(body?.voice) ? body.voice : 'eve';
+  const ctx: LineContext = {
+    previous: typeof body?.previous === 'string' ? narrationText(body.previous).slice(-300) : undefined,
+    next: typeof body?.next === 'string' ? narrationText(body.next).slice(0, 300) : undefined,
+  };
 
   // Who is asking (free Supabase call); the id keys the per-user daily limit.
   const who = await f(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) }).catch(() => null);
@@ -198,7 +224,7 @@ export async function voiceSpeak(request: Request, env: VoiceEnv, deps: VoiceDep
 
   // Cached audio for the preferred voice of this role (a reserve voice is cached under its own identity).
   const preferred = voiceChain(env, role)[0]!;
-  const keyFor = (voiceId: string) => sha256(`${VOICE_MODEL}|${VOICE_CONFIG_VERSION}|${voiceId}|${text}`);
+  const keyFor = (voiceId: string) => sha256(`${VOICE_MODEL}|${VOICE_CONFIG_VERSION}|${voiceId}|${ctx.previous ?? ''}|${text}|${ctx.next ?? ''}`);
   const hit = await deps.cache?.get(await keyFor(preferred.id)).catch(() => null);
   if (hit) return audio(hit, 'hit', 0, preferred, []);
 
@@ -223,7 +249,7 @@ export async function voiceSpeak(request: Request, env: VoiceEnv, deps: VoiceDep
     return fail(503, "This month's natural-voice allowance is nearly used. The browser voice is still available.", 'reserve');
   }
 
-  const r = await speakRole(env, f, role, text, now());
+  const r = await speakRole(env, f, role, text, now(), ctx);
   if ('failure' in r) {
     console.warn('ElevenLabs synthesis failed', r.failure.kind, r.failure.code, r.failure.status, r.skipped.join('; '));
     const status = r.failure.kind === 'rate' ? 429 : r.failure.kind === 'network' || r.failure.kind === 'provider' ? 502 : 503;

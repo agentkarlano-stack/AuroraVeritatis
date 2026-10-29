@@ -216,3 +216,45 @@
 
 /* Presentation sensor reticle (components/presentation/Presentation.tsx): corner brackets shown while the camera travels. */
 .av-bracket { position: absolute; width: 18px; height: 18px; border-color: rgba(201, 163, 90, 0.55); }
+
+/* Tactical target marker (GeoMap `target`): one element, three forms chosen by zoom (data-scale). Original Aurora
+   design: thin gold strokes, no weapon symbols. Anchored to map coordinates by MapLibre, never to the mouse. */
+.av-target { position: relative; width: 120px; height: 120px; pointer-events: none; }
+.av-target svg { overflow: visible; }
+.av-target path, .av-target line, .av-target .av-t-ring { fill: none; stroke: rgba(201, 163, 90, 0.95); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.av-target .av-t-faint { stroke: rgba(201, 163, 90, 0.35); stroke-dasharray: 3 5; }
+.av-target .av-t-dot { fill: #c9a35a; }
+.av-target g { opacity: 0; transition: opacity 450ms ease, transform 600ms cubic-bezier(.2,.8,.2,1); transform-origin: 0 0; }
+.av-target[data-scale="wide"] .av-t-wide,
+.av-target[data-scale="region"] .av-t-region,
+.av-target[data-scale="local"] .av-t-local { opacity: 1; }
+.av-target[data-scale="wide"] .av-t-region { transform: scale(1.8); }
+.av-target[data-scale="region"] .av-t-local { transform: scale(1.6); }
+.av-t-spin { animation: av-t-spin 6s linear infinite; }
+.av-t-ring { animation: av-t-pulse 2.4s ease-in-out infinite; }
+.av-t-scan { animation: av-t-scan 2.8s ease-in-out infinite; }
+@keyframes av-t-spin { to { transform: rotate(360deg); } }
+@keyframes av-t-pulse { 50% { opacity: 0.45; } }
+@keyframes av-t-scan { 0%, 100% { transform: translateY(-34px); opacity: 0; } 15%, 85% { opacity: 0.8; } 50% { transform: translateY(34px); } }
+/* Approximate locations: dashed area, no centre dot (never a falsely precise point). */
+.av-target--area .av-t-dot { display: none; }
+.av-target--area .av-t-ring { stroke-dasharray: 4 4; }
+.av-t-label { position: absolute; left: 118px; top: 52px; white-space: nowrap; font: 600 10px/1.2 Montserrat, system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(241, 240, 236, 0.92); text-shadow: 0 1px 3px #000; }
+.av-paused .av-target * { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .av-t-spin, .av-t-ring, .av-t-scan { animation: none; }
+}
+
+/* Imagery acquisition: a short blur + interference pass while the close-up switches to colour imagery (~0.6 s). */
+.av-acquire { pointer-events: none; position: absolute; inset: 0; animation: av-acquire 650ms ease-out forwards; backdrop-filter: blur(7px) saturate(0.4); }
+.av-acquire::after { content: ""; position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 3px); animation: av-acquire-lines 650ms steps(6) forwards; }
+@keyframes av-acquire { 0% { opacity: 1; backdrop-filter: blur(7px) saturate(0.4); } 60% { opacity: 0.8; } 100% { opacity: 0; backdrop-filter: blur(0) saturate(1); } }
+@keyframes av-acquire-lines { 0% { transform: translateY(0); opacity: 0.9; } 100% { transform: translateY(12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .av-acquire, .av-acquire::after { animation-duration: 1ms; } }
+
+/* Briefing chrome: controls stay out of sight until the pointer moves; session open and close cards. */
+.av-chrome { transition: opacity 400ms ease; }
+.av-chrome[data-hidden="true"] { opacity: 0; pointer-events: none; }
+.av-session { animation: av-session-in 700ms ease-out both; }
+@keyframes av-session-in { from { opacity: 0; transform: translateY(6px); letter-spacing: 0.4em; } to { opacity: 1; transform: none; } }
+.av-vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%); }

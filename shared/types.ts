@@ -7,6 +7,11 @@ export interface PublicConfig {
   environment: 'production' | 'preview' | 'development';
   supabase: { url: string; anonKey: string } | null;
   posthog: { key: string; host: string } | null;
+  /**
+   * Licensed high-resolution colour imagery for close-up map views, or null (the natural-colour NASA composite is used).
+   * Esri World Imagery when the owner has configured an ArcGIS Location Platform key (a referrer-restricted browser key).
+   */
+  imagery?: { tiles: string; attribution: string; maxZoom: number } | null;
 }
 
 export interface IndicatorValue {
