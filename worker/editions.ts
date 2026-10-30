@@ -301,7 +301,7 @@ export async function briefingRoute(path: string, env: EditionsEnv, f: F = fetch
     }
     if (path === '/api/briefing/status') {
       const [s] = await rest<Schedule[]>(f, env, 'briefing_schedule?id=eq.1&select=publish_local,active,verified,evidence,retention_days', { service: false });
-      const latest = await rest<{ edition_date: string; published_at: string }[]>(f, env, 'briefing_editions?select=edition_date,published_at&order=edition_date.desc&limit=1', { service: false });
+      const latest = await rest<{ edition_date: string; published_at: string; coverage_start: string; coverage_end: string }[]>(f, env, 'briefing_editions?select=edition_date,published_at,coverage_start,coverage_end&order=edition_date.desc&limit=1', { service: false });
       return json({ generator: !!env.SUPABASE_SERVICE_ROLE_KEY, schedule: s ?? null, latest: latest[0] ?? null }, { maxAge: 60 });
     }
     const a = path.match(/^\/api\/briefing\/audio\/(.+)$/);

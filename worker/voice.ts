@@ -38,7 +38,7 @@ export interface VoiceDeps {
 /** Flash v2.5: ElevenLabs' lowest-cost model that supports the selected voices. */
 export const VOICE_MODEL = 'eleven_flash_v2_5';
 /** Part of the cache identity: bump when routing or voice settings change, so new audio never reuses an old voice. */
-export const VOICE_CONFIG_VERSION = 'roles-2026-10-29c';
+export const VOICE_CONFIG_VERSION = 'roles-2026-10-30';
 /** Premade ElevenLabs voices, used only when no voice is configured for a role. */
 const DEFAULT_VOICES = { eve: '21m00Tcm4TlvDq8ikWAM', knox: 'JBFqnCBsd6RMkjVDRZzb', lead: 'JBFqnCBsd6RMkjVDRZzb' } as const;
 export const MAX_CHARS = 1500;
@@ -52,7 +52,8 @@ export type VoiceRole = 'lead' | 'knox' | 'eve';
  * Commander steady and authoritative, Analyst conversational, Security Officer firm.
  */
 export const ROLE_SETTINGS: Record<VoiceRole, { stability: number; similarity_boost: number; use_speaker_boost: boolean }> = {
-  lead: { stability: 0.55, similarity_boost: 0.8, use_speaker_boost: true },
+  // Higher stability for the Commander: lower values let Flash v2.5 insert random "um"/"uh" fillers (owner report, 30 Oct).
+  lead: { stability: 0.72, similarity_boost: 0.8, use_speaker_boost: true },
   eve: { stability: 0.38, similarity_boost: 0.78, use_speaker_boost: true },
   knox: { stability: 0.6, similarity_boost: 0.8, use_speaker_boost: true },
 };

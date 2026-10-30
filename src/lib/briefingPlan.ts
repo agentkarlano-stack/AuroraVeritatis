@@ -27,8 +27,8 @@ export type { Analyst, Line, Specialist } from './briefingDialogue';
  * remit. EVE and KNOX remain the internal identities of the two specialists.
  */
 export const ANALYSTS: Record<Analyst, { name: string; address: string; role: string }> = {
-  lead: { name: 'COMMANDER', address: 'Commander', role: 'Leads the briefing' },
-  eve: { name: 'ANALYST', address: 'Analyst', role: 'Explains and interprets' },
+  lead: { name: 'COMMAND', address: 'Commander', role: 'Leads the briefing' },
+  eve: { name: 'RISK ANALYST', address: 'Operator', role: 'Explains and interprets' },
   knox: { name: 'SECURITY OFFICER', address: 'Lieutenant', role: 'Caution and validation' },
 };
 /** One persistent identity colour per presenter (identifies voices only; never severity or territorial actors). */
@@ -200,9 +200,9 @@ export interface PlanInput {
 }
 
 const OPENINGS = [
-  "All right, let's get started. Analyst, what's our current assessment?",
-  "Okay, let's begin. Analyst, what are we looking at?",
-  "Let's get started. Analyst, give me the picture.",
+  "All right, let's get started. Operator, what's our current assessment?",
+  "Okay, let's begin. Operator, what are we looking at?",
+  "Let's get started. Operator, give me the picture.",
 ];
 const CLOSINGS = [
   "Understood. Keep monitoring those developments and update the assessment if anything changes. That's all for now.",

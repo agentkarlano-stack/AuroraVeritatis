@@ -1,11 +1,12 @@
 /**
  * Operations-room ambience for the Operations Briefing, generated in the browser (no recorded assets, so no licence
- * questions): a low filtered room tone with a faint equipment hum, ducked while a presenter speaks, and a soft two-tone
- * comms cue at story handovers. Voices stay in front; nothing here imitates intercepted communications. Created only
- * from the user's click (browsers require it) and never during Comfort Mode or Idle Mode.
+ * questions): steady ventilation (pink noise, band-limited, without the slow swells that read as wind), a faint mains
+ * hum with harmonics, rare quiet equipment ticks, and a soft push-to-talk cue (short squelch and two tones) at story
+ * handovers. Ducked while a presenter speaks; voices stay in front. Nothing here imitates intercepted speech, alarms or
+ * weapons. Created only from the user's click (browsers require it) and never in Comfort Mode or Idle Mode.
  */
 export interface Ambience {
-  /** Lower the bed while someone speaks; raise it gently in gaps (so there is never dead silence). */
+  /** Lower the bed while someone speaks; raise it gently in gaps. */
   duck(speaking: boolean): void;
   /** Short, quiet comms cue for a handover between stories. */
   cue(): void;
@@ -16,8 +17,34 @@ export interface Ambience {
   stop(): void;
 }
 
-const BED = 0.05;
-const BED_DUCKED = 0.022;
+const BED = 0.06;
+const BED_DUCKED = 0.028;
+
+/** Pink noise (Paul Kellet's filter): even energy per octave, the texture of air moving through vents. */
+function pinkNoise(ctx: AudioContext, seconds: number): AudioBuffer {
+  const len = Math.floor(ctx.sampleRate * seconds);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + w * 0.0555179;
+    b1 = 0.99332 * b1 + w * 0.0750759;
+    b2 = 0.969 * b2 + w * 0.153852;
+    b3 = 0.8665 * b3 + w * 0.3104856;
+    b4 = 0.55 * b4 + w * 0.5329522;
+    b5 = -0.7616 * b5 - w * 0.016898;
+    d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+    b6 = w * 0.115926;
+  }
+  // Crossfade the loop seam so the bed never clicks.
+  const fade = Math.floor(ctx.sampleRate * 0.25);
+  for (let i = 0; i < fade; i++) {
+    const t = i / fade;
+    d[i] = d[i]! * t + d[len - fade + i]! * (1 - t);
+  }
+  return buf;
+}
 
 /** Call synchronously inside the click that starts the briefing. Returns null when Web Audio is unavailable. */
 export function startAmbience(): Ambience | null {
@@ -33,37 +60,75 @@ export function startAmbience(): Ambience | null {
   master.gain.value = 0;
   master.connect(ctx.destination);
 
-  // Room tone: two seconds of brown noise, looped, low-passed.
-  const len = ctx.sampleRate * 2;
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  let last = 0;
-  for (let i = 0; i < len; i++) {
-    last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-    data[i] = last * 3.5;
-  }
-  const noise = ctx.createBufferSource();
-  noise.buffer = buf;
-  noise.loop = true;
+  // Ventilation: steady band-limited pink noise (no low rumble, no slow swells).
+  const air = ctx.createBufferSource();
+  air.buffer = pinkNoise(ctx, 4);
+  air.loop = true;
+  air.loopEnd = 4 - 0.25;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 180;
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.value = 380;
-  noise.connect(lp).connect(master);
+  lp.frequency.value = 2_400;
+  air.connect(hp).connect(lp).connect(master);
 
-  // Faint equipment hum.
-  const hum = ctx.createOscillator();
-  hum.frequency.value = 100;
-  const humGain = ctx.createGain();
-  humGain.gain.value = 0.05;
-  hum.connect(humGain).connect(master);
+  // Equipment hum: 50 Hz with two quiet harmonics (a room full of electronics).
+  const hum = ctx.createGain();
+  hum.gain.value = 0.18;
+  hum.connect(master);
+  const oscs = [
+    [50, 0.6],
+    [100, 0.3],
+    [150, 0.12],
+  ].map(([f, g]) => {
+    const o = ctx.createOscillator();
+    o.frequency.value = f!;
+    const og = ctx.createGain();
+    og.gain.value = g!;
+    o.connect(og).connect(hum);
+    o.start();
+    return o;
+  });
 
-  noise.start();
-  hum.start();
-  master.gain.setTargetAtTime(BED, ctx.currentTime, 0.8);
+  air.start();
+  master.gain.setTargetAtTime(BED, ctx.currentTime, 0.6);
 
   let muted = false;
   let level = BED;
+  let stopped = false;
   const apply = () => master.gain.setTargetAtTime(muted ? 0 : level, ctx.currentTime, 0.25);
+
+  /** A short filtered noise burst at time t (squelch or equipment tick). */
+  const burst = (t: number, ms: number, freq: number, q: number, peak: number) => {
+    const src = ctx.createBufferSource();
+    src.buffer = air.buffer;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = freq;
+    bp.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
+    src.connect(bp).connect(g).connect(ctx.destination);
+    src.start(t, Math.random() * 3);
+    src.stop(t + ms / 1000 + 0.05);
+  };
+
+  // Rare, quiet equipment ticks (a relay, a keyboard) at irregular intervals of 9-24 s.
+  let tickTimer = 0;
+  const scheduleTick = () => {
+    tickTimer = window.setTimeout(
+      () => {
+        if (stopped) return;
+        if (!muted && ctx.state === 'running') burst(ctx.currentTime + 0.01, 35, 3_200 + Math.random() * 1_500, 6, 0.012);
+        scheduleTick();
+      },
+      9_000 + Math.random() * 15_000,
+    );
+  };
+  scheduleTick();
 
   return {
     duck(speaking) {
@@ -72,18 +137,17 @@ export function startAmbience(): Ambience | null {
     },
     cue() {
       if (muted) return;
-      const t = ctx.currentTime;
+      const t = ctx.currentTime + 0.02;
+      // Push-to-talk: a short soft squelch, then two quiet tones.
+      burst(t, 110, 1_800, 1.2, 0.02);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.035, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 1500;
-      g.connect(bp).connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, t + 0.12);
+      g.gain.exponentialRampToValueAtTime(0.022, t + 0.14);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+      g.connect(ctx.destination);
       for (const [f, at] of [
-        [1250, 0],
-        [1650, 0.09],
+        [1_250, 0.12],
+        [1_650, 0.2],
       ] as const) {
         const o = ctx.createOscillator();
         o.type = 'sine';
@@ -103,8 +167,13 @@ export function startAmbience(): Ambience | null {
       return muted;
     },
     stop() {
+      stopped = true;
+      window.clearTimeout(tickTimer);
       master.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
-      setTimeout(() => void ctx.close().catch(() => undefined), 1200);
+      setTimeout(() => {
+        oscs.forEach((o) => o.stop());
+        void ctx.close().catch(() => undefined);
+      }, 1200);
     },
   };
 }

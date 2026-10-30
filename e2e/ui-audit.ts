@@ -250,7 +250,8 @@ async function interactions(browser: Browser) {
     check('Situation Report (24 hours) opens the presentation or an honest empty summary', shown > 0 || empty > 0);
     if (shown) {
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(500);
+      // The scene pulls back and fades into Global Radar (about 1.1 s).
+      await page.waitForTimeout(1800);
       check('Esc leaves the briefing', (await page.getByRole('dialog', { name: 'Situation Report' }).count()) === 0);
     }
     await ctx.close();

@@ -118,6 +118,9 @@ export function playBlob(el: HTMLAudioElement, blob: Blob, rate: number, onEnded
 
 export const clipKey = (l: Line) => `${l.speaker}|${l.text}`;
 
+/** Reading time for a caption shown without audio: about 3 words per second, never under 2.4 s. */
+export const readingMs = (text: string) => Math.max(2_400, (text.split(/\s+/).length / 3) * 1000 + 600);
+
 export class VoiceError extends Error {
   constructor(
     message: string,
@@ -212,7 +215,6 @@ export function audioNarrator(el: HTMLAudioElement, clips: Map<string, Promise<s
     async speak(lines, onLine) {
       const gen = ++generation;
       for (let i = 0; i < lines.length && gen === generation; i++) {
-        onLine(i);
         for (const next of lines.slice(i + 1, i + 3)) warm(clipKey(next));
         const p = clips.get(clipKey(lines[i]!));
         let src: string | null = null;
@@ -222,7 +224,13 @@ export function audioNarrator(el: HTMLAudioElement, clips: Map<string, Promise<s
           if (!reported) report(`Natural voice stopped: ${e instanceof Error ? e.message : 'unknown error'} Captions continue.`);
           reported = true;
         }
-        if (!src || gen !== generation) continue;
+        if (gen !== generation) return;
+        // The caption appears when its audio is ready (audio is the clock); a missing clip is shown for reading time.
+        onLine(i);
+        if (!src) {
+          await new Promise((r) => setTimeout(r, readingMs(lines[i]!.text)));
+          continue;
+        }
         await playClip(src, gen);
       }
     },

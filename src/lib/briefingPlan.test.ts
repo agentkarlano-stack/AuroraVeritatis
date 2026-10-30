@@ -92,7 +92,7 @@ describe('briefing plan', () => {
     expect(handovers[0]).toMatch(/^First, Japan\. /);
     expect(p.agenda).toEqual({ speaker: 'eve', text: 'Four developments stand out. Most significant first.' });
     // No announcements: a staff-briefing opening addressed to the Analyst and a short operational close.
-    expect(p.intro.text).toMatch(/Analyst,/);
+    expect(p.intro.text).toMatch(/Operator,/);
     expect(p.intro.text).not.toMatch(/Aurora|Operations Briefing|live preview/i);
     expect(p.outro.text).toMatch(/That's all/);
     expect(p.outro.text).not.toMatch(/transcript|sources/i);
