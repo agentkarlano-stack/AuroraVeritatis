@@ -90,6 +90,24 @@ PLANNED / IMPLEMENTED_UNTESTED / PREVIEW_VERIFIED / PRODUCTION_VERIFIED / BLOCKE
 | D-01 | Intro | PLANNED | Russia reference clip not in LIGHT package |
 | S-01..S-04 | Whole-site rebuild, mobile, data, cutover | PLANNED | slices B and D |
 
+## 31 October two-video audit (77 issues; archived in Knowledge `OWNER-MESSAGES/2026-10-31-two-video-audit/`)
+
+Recorded on production (old UI). Status on the PR #80 preview branch:
+
+| Audit ID | Item | Status |
+|---|---|---|
+| B01/B02 | Informative opening over the globe before the first close-up | IMPLEMENTED_UNTESTED (browser-tested with mock edition) |
+| B03/B04/B12 | Staged country framing, drift, no tiny static globe, direct return | IMPLEMENTED_UNTESTED |
+| B05 | Licensed media / evidence alternative | PLANNED (media rights register) |
+| B06 | Geometry-driven reticle | IMPLEMENTED_UNTESTED (Mapbox) |
+| B07/B10 | Fact-based dialogue, no outlet counts, no repeated formulas | IMPLEMENTED_UNTESTED (unit tests) |
+| B08/B13 | Gapless audio on one clock, trimmed clips, measured gaps | IMPLEMENTED_UNTESTED (mock: 0.0–0.2 s gaps) |
+| B09 | Commander fillers/emotion: stability raised; dialogue-model evaluation | PARTIAL |
+| B11 | Whole-turn upper captions | IMPLEMENTED_UNTESTED |
+| Sound | Recorded room bed/radio/PTT cues | IMPLEMENTED_UNTESTED (files measured; needs listening) |
+| F27 | Mapbox + The News API wired | PREVIEW_VERIFIED (25 The News API articles with summaries; Mapbox tiles ok) |
+| F01–F26 | Intro, Explorer, Dossier, Markets, Quant, Help, Plans, Profile, shell | PLANNED (slices B and D) |
+
 ## Last session handoff
 
 - Completed and verified: intake; archive of the package in the Knowledge repo.
