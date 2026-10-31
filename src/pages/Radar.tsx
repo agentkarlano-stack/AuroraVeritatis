@@ -8,6 +8,7 @@ import { formatLngLat } from '../lib/geo/coords';
 import { CountryPanel, type DossierSection } from '../components/hq/CountryPanel';
 import { Presentation, type ExitReason, type PresentationMode } from '../components/presentation/Presentation';
 import { SaveButton } from '../components/SaveButton';
+import { StoryDossier } from '../components/news/StoryDossier';
 import { ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
 import { getJson, useApi } from '../lib/api';
@@ -180,6 +181,7 @@ export default function Radar() {
   const [mobileTab, setMobileTab] = useState<'feed' | 'details'>('details');
   const [showing, setShowing] = useState<Showing | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [story, setStory] = useState<Story | null>(null);
   const [summary, setSummary] = useState<{ plan: Plan; mode: 'read' | 'play' } | null>(null);
   const { session, config } = useAuth();
   const imagery = config?.imagery ?? null;
@@ -467,7 +469,10 @@ export default function Radar() {
             const first = s.articles[0];
             return (
               <li key={s.id} className="px-3 py-2">
-                <div className="text-xs text-platinum">{s.title}</div>
+                <button className="block w-full text-left text-xs text-platinum hover:text-gold-soft" onClick={() => setStory(s)}>
+                  {s.title}
+                </button>
+                {s.summary && <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-mist">{s.summary}</p>}
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] text-slate-dim">
                   <span className={s.status === 'confirmed' ? 'text-up' : s.status === 'corroborated' ? 'text-info' : 'text-warn'}>{s.status}</span>
                   <span>
@@ -756,6 +761,17 @@ export default function Radar() {
         </div>
         )}
       </div>
+      {story && (
+        <StoryDossier
+          story={story}
+          country={countryIn(story.title) ?? null}
+          onFocusCountry={(iso3) => {
+            setStory(null);
+            openCountry(iso3);
+          }}
+          onClose={() => setStory(null)}
+        />
+      )}
       {showing && (
         <Presentation
           key={showing.plan.version + showing.mode}
