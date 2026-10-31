@@ -192,9 +192,13 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         .flyStages(stages, pad, (i) => {
           if (detailFrom !== null && i === detailFrom) setState((st) => ({ ...st, detail: true, acquire: st.acquire + 1 }));
         })
-        .then(() => scenesRef.current[current.current]?.id === s.id && m.drift?.(14_000));
+        .then(() => {
+          if (scenesRef.current[current.current]?.id !== s.id) return;
+          if (play) ambience?.ack();
+          m.drift?.(14_000);
+        });
     },
-    [pad, detailImagery, mapboxToken],
+    [pad, detailImagery, mapboxToken, play, ambience],
   );
 
   const enterRef = useRef<(i: number) => void>(() => undefined);

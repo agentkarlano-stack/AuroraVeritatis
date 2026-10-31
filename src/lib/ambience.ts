@@ -10,6 +10,8 @@ export interface Ambience {
   duck(speaking: boolean): void;
   /** Short, quiet comms cue for a handover between stories. */
   cue(): void;
+  /** Soft console confirmation when a new location is acquired. */
+  ack(): void;
   pause(): void;
   resume(): void;
   setMuted(muted: boolean): void;
@@ -56,6 +58,7 @@ export function startAmbience(): Ambience | null {
   } catch {
     return null;
   }
+  let stopped = false;
   const master = ctx.createGain();
   master.gain.value = 0;
   master.connect(ctx.destination);
@@ -71,7 +74,8 @@ export function startAmbience(): Ambience | null {
   const lp = ctx.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = 2_400;
-  air.connect(hp).connect(lp).connect(master);
+  const airGain = ctx.createGain();
+  air.connect(hp).connect(lp).connect(airGain).connect(master);
 
   // Equipment hum: 50 Hz with two quiet harmonics (a room full of electronics).
   const hum = ctx.createGain();
@@ -94,9 +98,51 @@ export function startAmbience(): Ambience | null {
   air.start();
   master.gain.setTargetAtTime(BED, ctx.currentTime, 0.6);
 
+  // Recorded sound design (ElevenLabs Sound Effects, generated once, public/media/sfx/): when the files load, the
+  // operations-room bed and radio hiss replace the generated ventilation, and cues use the recorded clicks.
+  const samples = new Map<string, AudioBuffer>();
+  const load = (name: string) =>
+    fetch(`/media/sfx/${name}.mp3`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((ab) => ctx.decodeAudioData(ab))
+      .then((b) => void samples.set(name, b))
+      .catch(() => undefined);
+  void Promise.all(['ops-room', 'radio-hiss', 'ptt-open', 'ptt-close', 'console-ack'].map(load)).then(() => {
+    const room = samples.get('ops-room');
+    if (!room || stopped) return;
+    const loop = (b: AudioBuffer, level: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.gain.setTargetAtTime(level, ctx.currentTime, 1.2);
+      src.connect(g).connect(master);
+      src.start();
+      return src;
+    };
+    // Mix (measured files): room -35 dB RMS -> about -42 dB; hiss -18 dB RMS -> about -46 dB; both ducked under speech.
+    loop(room, 0.45 / BED);
+    const hiss = samples.get('radio-hiss');
+    if (hiss) loop(hiss, 0.04 / BED);
+    // The generated ventilation and hum fade out once the recorded room is playing.
+    airGain.gain.setTargetAtTime(0, ctx.currentTime, 1.5);
+    hum.gain.setTargetAtTime(0, ctx.currentTime, 1.5);
+  });
+  const play = (name: string, level: number, delay = 0) => {
+    const b = samples.get(name);
+    if (!b || muted) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = b;
+    const g = ctx.createGain();
+    g.gain.value = level;
+    src.connect(g).connect(ctx.destination);
+    src.start(ctx.currentTime + delay);
+    return true;
+  };
+
   let muted = false;
   let level = BED;
-  let stopped = false;
   const apply = () => master.gain.setTargetAtTime(muted ? 0 : level, ctx.currentTime, 0.25);
 
   /** A short filtered noise burst at time t (squelch or equipment tick). */
@@ -135,8 +181,12 @@ export function startAmbience(): Ambience | null {
       level = speaking ? BED_DUCKED : BED;
       apply();
     },
+    ack() {
+      play('console-ack', 0.22);
+    },
     cue() {
       if (muted) return;
+      if (play('ptt-open', 0.35)) return;
       const t = ctx.currentTime + 0.02;
       // Push-to-talk: a short soft squelch, then two quiet tones.
       burst(t, 110, 1_800, 1.2, 0.02);
