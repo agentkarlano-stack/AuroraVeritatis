@@ -1,3 +1,4 @@
+import { theNewsApiProbe } from './thenewsapi';
 import { voiceDiagnostics, type VoiceEnv } from './voice';
 
 /**
@@ -51,6 +52,8 @@ export const PATTERNS = {
   openai: /^OPENAI_API_KEY$/,
   elevenlabs: /ELEVEN|^XI_API_KEY$/,
   gnews: /GNEWS/,
+  thenewsapi: /^THE_NEWS_API_KEY$/,
+  mapbox: /^MAPBOX_ACCESS_TOKEN$/,
   aisstream: /AIS_?STREAM/,
   openskyId: /OPEN_?SKY.*(ID|USER(NAME)?)$/,
   openskySecret: /OPEN_?SKY.*(SECRET|PASS(WORD)?)$/,
@@ -82,6 +85,37 @@ async function ok(res: Response, what: string): Promise<Response> {
 }
 
 export const PROBES: Probe[] = [
+  {
+    id: 'thenewsapi',
+    name: 'The News API',
+    pattern: PATTERNS.thenewsapi,
+    licence: 'Basic plan (owner subscribed): headlines, short excerpts and links with attribution; images and article text belong to publishers',
+    licensed: true,
+    live: true,
+    test: async (env, f) => {
+      const r = await theNewsApiProbe({ THE_NEWS_API_KEY: first(env, PATTERNS.thenewsapi) }, f);
+      if (!r.ok) throw new Error(r.error);
+      return { endpoint: '/v1/news/top', returned: r.returned, newest: r.newest, headlinesEndpoint: 'not used (Standard plan and above)', cost: '1 request of 2,500 a day' };
+    },
+  },
+  {
+    id: 'mapbox',
+    name: 'Mapbox',
+    pattern: PATTERNS.mapbox,
+    licence: 'Mapbox GL JS with the owner\'s account: 50,000 web map loads a month included, then billed; attribution required',
+    licensed: true,
+    live: true,
+    test: async (env, f) => {
+      const token = first(env, PATTERNS.mapbox)!.trim();
+      const kind = token.startsWith('pk.') ? 'public (pk.)' : token.startsWith('sk.') ? 'SECRET (sk.): not sent to browsers' : 'unknown';
+      if (!token.startsWith('pk.')) throw new Error(`token type ${kind}; a public pk. token restricted to Aurora's URLs is needed`);
+      // A style request with Aurora's referrer: proves the token and its URL restriction without a billed map load.
+      const res = await f(`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${encodeURIComponent(token)}`, { headers: { Referer: 'https://aurorav.app/' }, signal: T(8000) });
+      if (!res.ok) throw new Error(`Mapbox style answered ${res.status}${res.status === 401 || res.status === 403 ? ' (token invalid or URL restriction excludes aurorav.app)' : ''}`);
+      await res.text();
+      return { tokenType: kind, style: 'satellite-streets-v12 ok', cost: 'free (style request, not a map load)' };
+    },
+  },
   {
     id: 'openai',
     name: 'OpenAI',
