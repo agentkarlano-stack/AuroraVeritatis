@@ -12,6 +12,7 @@ import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
 import { DEFAULT_QUERY, TIMESPANS, cleanQuery, newsSearch, type ExtraSource, type Timespan } from './gdelt';
 import { gnewsEnabled, gnewsSearch, type GnewsEnv } from './gnews';
+import { sfxRoute } from './sfx';
 import { theNewsApiConfigured, theNewsApiSearch, type TheNewsApiEnv } from './thenewsapi';
 import { quoteEmail, validateQuote } from '../shared/businessQuote';
 import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, sendQuoteRequest, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
@@ -185,6 +186,9 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     });
   }
   if (request.method === 'POST' && path === '/api/voice/speak') return voiceSpeak(request, env, { cache: voiceCache });
+  // Briefing sound-design assets: generated once on previews for the repository (worker/sfx.ts), never in production.
+  const sfx = request.method === 'GET' ? path.match(/^\/api\/sfx\/([a-z-]+)$/) : null;
+  if (sfx) return sfxRoute(request, env, url, sfx[1]!);
   if (request.method !== 'GET') return error(405, 'Method not allowed');
   if (path.startsWith('/api/briefing/')) return (await briefingRoute(path, env))!;
 
