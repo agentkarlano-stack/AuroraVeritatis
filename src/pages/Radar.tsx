@@ -28,6 +28,7 @@ import { normalizeIdle, usePrefs } from '../store/prefs';
 import { useEntitlements } from '../store/entitlements';
 
 const GeoMap = lazy(() => import('../components/geo/GeoMap'));
+const MapboxGlobe = lazy(() => import('../components/map/MapboxGlobe'));
 
 const PREF_KEY = 'av-hq';
 const STYLES: [MapStyleId, string][] = [
@@ -655,7 +656,23 @@ export default function Radar() {
     </div>
   );
 
-  const mapView = env.gl ? (
+  const mapbox = config?.mapbox?.token ?? null;
+  const mapView = env.gl && mapbox ? (
+    <Suspense fallback={<div className="grid h-full place-items-center text-sm text-slate-dim">Loading the globe…</div>}>
+      <MapboxGlobe
+        ref={map}
+        token={mapbox}
+        events={signals}
+        selectedEventId={selected?.id ?? null}
+        onView={setCamera}
+        onCountry={(iso3) => openCountry(iso3)}
+        onEvent={selectEvent}
+        padding={{ top: 0, right: panelPx, bottom: 0, left: 0 }}
+        coordinates
+        target={selected ? { lon: selected.lon, lat: selected.lat, label: selected.region || selected.title.slice(0, 40), precise: selected.id.startsWith('usgs-'), kind: selected.id.startsWith('usgs-') ? 'point' : 'area' } : null}
+      />
+    </Suspense>
+  ) : env.gl ? (
     <Suspense fallback={<div className="grid h-full place-items-center text-sm text-slate-dim">Loading the globe…</div>}>
       <GeoMap
         ref={map}
@@ -688,6 +705,7 @@ export default function Radar() {
         )}
         <div className="relative h-[55dvh] min-w-0 shrink-0 lg:h-auto lg:flex-1 lg:shrink">
           {mapView}
+          {!mapbox && (
           <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
             <LayerPanel active={prefs.layers} onChange={(layers) => savePrefs({ layers })} defaults={DEFAULT_LAYERS} exclude={RADAR_EXCLUDE} />
             <div className="flex gap-1" role="group" aria-label="Map style">
@@ -698,6 +716,7 @@ export default function Radar() {
             ))}
             </div>
           </div>
+          )}
           {/* Desktop: dossier or situation panel docked over the right side of the map. */}
           {isDesktop && (
           <section
@@ -747,6 +766,7 @@ export default function Radar() {
           audioNote={showing.audioNote}
           ambience={showing.ambience ?? null}
           detailImagery={imagery}
+          mapboxToken={mapbox}
           fullscreen={showing.fullscreen}
           subtitle={showing.subtitle}
           onExit={endShow}

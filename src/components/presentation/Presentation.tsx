@@ -9,6 +9,7 @@ import { Clock, locate, startOf } from '../../lib/presentation';
 import type { CameraStage, DetailImagery, GeoMapHandle, MapTarget } from '../geo/GeoMap';
 
 const GeoMap = lazy(() => import('../geo/GeoMap'));
+const MapboxGlobe = lazy(() => import('../map/MapboxGlobe'));
 
 export type PresentationMode = 'read' | 'play' | 'tour';
 export type ExitReason = 'done' | 'user';
@@ -25,6 +26,8 @@ interface Props {
   ambience?: Ambience | null;
   /** Licensed high-resolution imagery for close-ups, when configured. */
   detailImagery?: DetailImagery | null;
+  /** Mapbox public token: the Mapbox globe with real satellite imagery at close range (else the MapLibre globe). */
+  mapboxToken?: string | null;
   /** Kept for compatibility; the presentation always fills the viewport and never asks for browser full screen. */
   fullscreen?: boolean;
   /** Edition label (e.g. the edition date), shown briefly at the start. */
@@ -99,7 +102,7 @@ function RoleBadge({ role }: { role: Analyst }) {
  * Commander's last words the camera pulls back and the scene fades into Global Radar. There is no opening card,
  * closing card, transport bar or in-scene replay; Esc (or the discreet close button) leaves early the same way.
  */
-export function Presentation({ plan, mode, events, narrator = null, audioNote = null, ambience = null, detailImagery = null, subtitle, onExit }: Props) {
+export function Presentation({ plan, mode, events, narrator = null, audioNote = null, ambience = null, detailImagery = null, mapboxToken = null, subtitle, onExit }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     narrator?.reportTo(setProblem);
@@ -165,12 +168,12 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         if (s.iso3) m.focusCountry(s.iso3, pad);
         return;
       }
-      const { stages, detailFrom } = pathFor(s, detailImagery ? 12 : 8);
+      const { stages, detailFrom } = pathFor(s, mapboxToken ? 11 : detailImagery ? 12 : 8);
       void m.flyStages(stages, pad, (i) => {
         if (detailFrom !== null && i === detailFrom) setState((st) => ({ ...st, detail: true, acquire: st.acquire + 1 }));
       });
     },
-    [pad, detailImagery],
+    [pad, detailImagery, mapboxToken],
   );
 
   const enterRef = useRef<(i: number) => void>(() => undefined);
@@ -364,10 +367,16 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   );
   const selectedId = scene?.id.startsWith('ev:') ? scene.id.slice(3) : null;
   const live = !state.leaving && (play ? state.spoken : true);
-  const target: MapTarget | null = useMemo(
-    () => (scene && scene.lat != null && scene.lon != null && live ? { lon: scene.lon, lat: scene.lat, label: scene.title.replace(/^M\s?\d+(\.\d)?\s*-\s*/, '').slice(0, 40), precise: scene.kind === 'event' } : null),
-    [scene, live],
-  );
+  const target: MapTarget | null = useMemo(() => {
+    if (!scene || !live) return null;
+    const label = scene.title.replace(/^M\s?\d+(\.\d)?\s*-\s*/, '').slice(0, 40);
+    if (scene.lat != null && scene.lon != null) {
+      const precise = scene.kind === 'event' && scene.id.startsWith('ev:usgs-');
+      return { lon: scene.lon, lat: scene.lat, label, precise, kind: precise ? 'point' : 'area' };
+    }
+    // A story known only at country level: the country outline, never an invented point.
+    return scene.iso3 ? { lon: 0, lat: 0, label, precise: false, kind: 'country', iso3: scene.iso3 } : null;
+  }, [scene, live]);
   // Which line is on screen: the narrator says so when speaking; the silent modes follow reading time.
   let lineIdx = state.line;
   if (!play && scene) {
@@ -394,6 +403,9 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       <div className="absolute inset-0">
         {gl ? (
           <Suspense fallback={null}>
+            {mapboxToken ? (
+              <MapboxGlobe ref={map} token={mapboxToken} events={events} selectedEventId={selectedId} interactive={false} target={target} />
+            ) : (
             <GeoMap
               ref={map}
               state={mapState}
@@ -410,6 +422,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
               onEvent={() => undefined}
               onTileError={() => undefined}
             />
+            )}
           </Suspense>
         ) : (
           <div className="grid h-full place-items-center text-sm text-slate-dim">The globe needs WebGL 2, which this browser does not offer.</div>

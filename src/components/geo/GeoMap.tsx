@@ -1,4 +1,3 @@
-import type { FeatureCollection, Geometry } from "geojson";
 import {
   Map as MlMap,
   Marker,
@@ -14,11 +13,7 @@ import {
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
-import { feature } from "topojson-client";
-import type { GeometryCollection, Topology } from "topojson-specification";
-import world from "world-atlas/countries-50m.json";
 import type { GeoEvent } from "../../../shared/types";
-import { countryByNumeric } from "../../lib/countries";
 import { CATEGORY_COLOR } from "../../lib/events";
 import {
   LAYER_MAP,
@@ -30,6 +25,7 @@ import {
 import type { MapState } from "../../lib/geo/state";
 import { nightPolygon } from "../../lib/geo/terminator";
 import { formatLngLat } from "../../lib/geo/coords";
+import { BORDERS, COUNTRIES, bbox } from "../../lib/geo/worldShapes";
 
 setWorkerUrl(workerUrl);
 
@@ -73,108 +69,7 @@ function tacticalMarker(label: string, precise: boolean): HTMLDivElement {
   return el;
 }
 
-/** Bounding box of a geometry as [west, south, east, north]; uses the largest part for countries spanning the antimeridian. */
-function bbox(g: Geometry): [number, number, number, number] | null {
-  const polys =
-    g.type === "Polygon"
-      ? [g.coordinates]
-      : g.type === "MultiPolygon"
-        ? g.coordinates
-        : [];
-  let best: [number, number, number, number] | null = null;
-  let bestArea = -1;
-  for (const poly of polys) {
-    let w = 180,
-      so = 90,
-      e = -180,
-      n = -90;
-    for (const [x, y] of poly[0] ?? []) {
-      w = Math.min(w, x!);
-      e = Math.max(e, x!);
-      so = Math.min(so, y!);
-      n = Math.max(n, y!);
-    }
-    const area = (e - w) * (n - so);
-    if (area > bestArea) {
-      bestArea = area;
-      best = [w, so, e, n];
-    }
-  }
-  return best;
-}
 
-/**
- * Country outlines as lines without the artificial edges of the data: segments along the antimeridian or the south pole
- * and jumps across the antimeridian (which a flat projection draws as lines across the whole map).
- */
-function borderLines(fc: FeatureCollection<Geometry, Record<string, unknown>>): FeatureCollection<Geometry, Record<string, unknown>> {
-  const artificial = (a: number[], b: number[]) =>
-    Math.abs(a[0]! - b[0]!) > 180 ||
-    (Math.abs(a[0]!) >= 179.999 && Math.abs(b[0]!) >= 179.999) ||
-    (a[1]! <= -89.9 && b[1]! <= -89.9);
-  return {
-    type: "FeatureCollection",
-    features: fc.features.map((f) => {
-      const g = f.geometry;
-      const polys = g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [];
-      const lines: number[][][] = [];
-      for (const ring of polys.flat()) {
-        let cur: number[][] = [];
-        for (let i = 0; i < ring.length; i++) {
-          const pt = ring[i]!;
-          if (i > 0 && artificial(ring[i - 1]!, pt)) {
-            if (cur.length > 1) lines.push(cur);
-            cur = [];
-          }
-          cur.push(pt);
-        }
-        if (cur.length > 1) lines.push(cur);
-      }
-      return { ...f, geometry: { type: "MultiLineString", coordinates: lines } };
-    }),
-  };
-}
-
-const topo = world as unknown as Topology<{
-  countries: GeometryCollection<{ name: string }>;
-}>;
-const POLITICAL = [
-  "#3a3630",
-  "#33393a",
-  "#3b3437",
-  "#36392f",
-  "#3d3a2c",
-  "#30353b",
-];
-/** Countries with ISO3, name and a stable political tint (computed once). */
-const COUNTRIES: FeatureCollection<
-  Geometry,
-  Record<string, string | number | null>
-> = (() => {
-  const fc = feature(topo, topo.objects.countries) as FeatureCollection<
-    Geometry,
-    { name: string }
-  >;
-  return {
-    type: "FeatureCollection",
-    features: fc.features.map((f, i) => {
-      const ref = countryByNumeric((f as { id?: string }).id);
-      return {
-        ...f,
-        id: i,
-        properties: {
-          iso3: ref?.iso3 ?? null,
-          name: ref?.name ?? f.properties.name,
-          tint: POLITICAL[
-            (Number((f as { id?: string }).id) || i) % POLITICAL.length
-          ]!,
-        },
-      };
-    }),
-  };
-})();
-/** Border lines (computed once). */
-const BORDERS = borderLines(COUNTRIES);
 
 /** A licensed imagery provider for close-up views (see `lib/geo/imagery.ts`). */
 export interface DetailImagery {
@@ -190,6 +85,12 @@ export interface MapTarget {
   label: string;
   /** False for approximate locations: the marker shows an area, never a falsely precise point. */
   precise: boolean;
+  /** Geometry class (Mapbox renderer): point, approximate area, country-wide story or sea area. */
+  kind?: 'point' | 'area' | 'country' | 'sea';
+  /** Stated radius of the evidence extent in km (drawn to scale only when given). */
+  radiusKm?: number | null;
+  /** Country of a country-wide story (its outline is highlighted instead of a centre mark). */
+  iso3?: string | null;
 }
 
 interface Props {

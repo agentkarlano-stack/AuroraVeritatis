@@ -275,3 +275,15 @@
 .av-present .maplibregl-ctrl-attrib-button { display: none !important; }
 .av-present .maplibregl-ctrl-attrib-inner { display: block !important; font-size: 9px; line-height: 1.4; color: rgba(241, 240, 236, 0.4); }
 .av-present .maplibregl-ctrl-attrib a { color: inherit; }
+
+/* Narrative reticle (Mapbox renderer): drawn per frame at the target's projected position; shape from lib/geo/reticle. */
+.av-reticle { transition: opacity 400ms ease; will-change: transform; }
+.av-reticle svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.av-r-line { fill: none; stroke: #e7c27a; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.av-r-dash { stroke-dasharray: 5 4; }
+.av-r-dot { fill: #e7c27a; }
+.av-reticle[data-phase="acquiring"] .av-r-line { animation: av-r-in 420ms ease-out; }
+@keyframes av-r-in { from { opacity: 0; } to { opacity: 1; } }
+.av-r-label { position: absolute; left: 0; top: 0; white-space: nowrap; font: 600 10px/1 var(--font-sans, system-ui); letter-spacing: 0.14em; text-transform: uppercase; color: #f1f0ec; text-shadow: 0 1px 4px rgba(0,0,0,0.95); }
+.av-map-passive canvas { cursor: none; }
+@media (prefers-reduced-motion: reduce) { .av-reticle { transition: none; } .av-reticle .av-r-line { animation: none; } }
