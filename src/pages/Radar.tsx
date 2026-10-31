@@ -22,7 +22,7 @@ import { MAX_LAYERS, type LayerState, type MapState, type MapStyleId } from '../
 import { useAuth } from '../auth/AuthProvider';
 import { ANALYSTS, SPEAKER_COLOR, WINDOWS, buildPlan, buildTour, type Plan, type ReportingWindow } from '../lib/briefingPlan';
 import { age } from '../lib/radarLabels';
-import { audioNarrator, browserNarrator, clipKey, prepareClips, unlockAudio, VoiceError, type Narrator } from '../lib/narration';
+import { audioNarrator, browserNarrator, clipKey, prepareClips, unlockAudio, unlockContext, VoiceError, webAudioNarrator, type Narrator } from '../lib/narration';
 import { useIdle } from '../lib/useIdle';
 import { startAmbience, type Ambience } from '../lib/ambience';
 import { normalizeIdle, usePrefs } from '../store/prefs';
@@ -245,7 +245,9 @@ export default function Radar() {
   const startVoiced = async (date?: string) => {
     // Must run synchronously inside the click: later playback (after loading) is then not blocked as autoplay.
     const el = unlockAudio();
+    const actx = unlockContext();
     const amb = startAmbience();
+    const natural = (clips: Map<string, Promise<string>>) => (actx ? webAudioNarrator(actx, clips) : audioNarrator(el!, clips));
     setPreparing(true);
     const r = await getJson<{ edition: Edition | null }>(date ? `/api/briefing/edition/${date}` : '/api/briefing/latest').catch(() => ({ edition: null }));
     const ed = r.edition;
@@ -253,7 +255,7 @@ export default function Radar() {
       setPreparing(false);
       const clips = new Map(ed.audio.map((a) => [a.key, Promise.resolve(a.url)]));
       const cover = `${fmtLocal(ed.coverage_start)} to ${fmtLocal(ed.coverage_end)}`;
-      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · ${cover}` });
+      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: natural(clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · ${cover}` });
       return;
     }
     const until = wallClock();
@@ -273,7 +275,7 @@ export default function Radar() {
       AUDIO_CACHE.set(plan.version, clips);
       try {
         await clips.get(clipKey(plan.intro));
-        narrator = audioNarrator(el, clips);
+        narrator = natural(clips);
       } catch (err) {
         AUDIO_CACHE.delete(plan.version);
         const code = err instanceof VoiceError ? ` [${err.code}]` : '';

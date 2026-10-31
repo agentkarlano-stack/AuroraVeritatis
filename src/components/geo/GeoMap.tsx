@@ -52,6 +52,8 @@ export interface GeoMapHandle {
    * drawn over the map, e.g. `{ right: 480 }` for a side dossier.
    */
   focusCountry: (iso3: string, padding?: number | { top: number; right: number; bottom: number; left: number }) => boolean;
+  /** Slow camera drift (bearing and a slight push-in) after arriving, so a held scene is never a frozen image. */
+  drift?: (durationMs: number) => void;
 }
 
 /** SVG tactical marker (static markup; the label is set as text). States: wide ring, regional lock-on, local reticle. */

@@ -12,7 +12,8 @@
  */
 import type { CoverageStatus, Story } from '../../shared/news';
 import type { GeoEvent, SourceRef } from '../../shared/types';
-import { storyConversation, type Analyst, type Line, type Specialist } from './briefingDialogue';
+import { closingLine, openingLine, storyConversation, topicOf, type Analyst, type Line, type Specialist } from './briefingDialogue';
+import { sourceOf } from '../../shared/news';
 import { countryNameOf, dedupeEvents, type BriefingItem } from './worldBriefing';
 
 export type ReportingWindow = '24h' | '3d' | '7d';
@@ -57,6 +58,10 @@ export interface Scene {
   readMs: number;
   /** Planned duration in the narrated presentation (ms); the narration may run slightly longer. */
   speakMs: number;
+  /** Short spoken description for the Commander's opening ("a magnitude 6.1 earthquake in Japan"). */
+  topic?: string;
+  /** Spoken place (country or named area), if known. */
+  place?: string | null;
 }
 
 export interface Plan {
@@ -143,16 +148,24 @@ function eventScene(s: Storyline): Draft {
     lines: [],
     readMs: readMs(`${e.title} ${explanation}`),
     speakMs: 0,
+    place: placeOf(e),
+    topic: topicOf({ kind: 'event', event: e, related: s.items.length - 1, place: placeOf(e), index: 0 }),
     talk: { kind: 'event', event: e, related: s.items.length - 1, place: placeOf(e) },
   };
 }
 
 const STATUS_WORD: Record<CoverageStatus, string> = { confirmed: 'Confirmed by an official source', corroborated: 'Corroborated', unverified: 'Not yet verified' };
 
+const KIND_RANK: Record<string, number> = { official: 0, wire: 1, broadcaster: 2, newspaper: 3, magazine: 4, other: 5 };
+/** Publisher name for speech: registry name, else the bare domain. */
+export const publisherName = (d: string) => sourceOf(d)?.name ?? d;
+
 function newsScene(st: Story, iso3: string, place: string | null): Draft {
   const n = st.independent.length;
-  const explanation = `${STATUS_WORD[st.status]}: ${n} independent ${n === 1 ? 'publisher' : 'publishers'}.`;
-  const sources: SourceRef[] = st.articles.slice(0, 3).map((a) => ({ name: a.domain, url: a.url, license: '' }));
+  const explanation = st.summary ? st.summary : `${STATUS_WORD[st.status]}: ${n} independent ${n === 1 ? 'publisher' : 'publishers'}.`;
+  const sources: SourceRef[] = st.articles.slice(0, 3).map((a) => ({ name: publisherName(a.domain), url: a.url, license: '' }));
+  const publishers = [...st.independent].sort((a, b) => (KIND_RANK[sourceOf(a)?.kind ?? 'other'] ?? 5) - (KIND_RANK[sourceOf(b)?.kind ?? 'other'] ?? 5));
+  const talk = { kind: 'news' as const, story: { title: st.title, status: st.status, publishers, official: st.official[0] ?? null, summary: st.summary ?? null }, place };
   return {
     id: `news:${st.id}`,
     kind: 'news',
@@ -166,7 +179,9 @@ function newsScene(st: Story, iso3: string, place: string | null): Draft {
     lines: [],
     readMs: readMs(`${st.title} ${explanation}`),
     speakMs: 0,
-    talk: { kind: 'news', story: { title: st.title, status: st.status, independent: n }, place },
+    place,
+    topic: topicOf({ ...talk, index: 0 }),
+    talk,
   };
 }
 
@@ -199,19 +214,6 @@ export interface PlanInput {
   placeName?: (iso3: string) => string | null;
 }
 
-const OPENINGS = [
-  "All right, let's get started. Operator, what's our current assessment?",
-  "Okay, let's begin. Operator, what are we looking at?",
-  "Let's get started. Operator, give me the picture.",
-];
-const CLOSINGS = [
-  "Understood. Keep monitoring those developments and update the assessment if anything changes. That's all for now.",
-  "Good. Stay on those and flag anything that moves. That's all for now.",
-  "Copy that. Keep the picture current and brief me on any change. That's all.",
-];
-const NUMBER = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
-export const agendaText = (n: number) =>
-  n === 1 ? 'One development stands out.' : `${NUMBER[n] ?? n} developments stand out. Most significant first.`;
 /** Stable small number from text (varies the phrasing between editions, identical for the same edition). */
 const seed = (t: string) => [...t].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
@@ -241,15 +243,16 @@ export function buildPlan(inp: PlanInput): Plan {
   }
   const budget = inp.budgetMs ?? BUDGET_MS;
   // Staff-briefing opening: the Commander starts and hands straight to the Analyst (no announcement).
-  const intro: Line = { speaker: 'lead', text: inp.introText ?? OPENINGS[seed(merged.map((d) => d.id).join('|')) % OPENINGS.length]! };
+  // Placeholder for the time budget; framePlan writes the real opening once the stories are known.
+  const intro: Line = { speaker: 'lead', text: `All right, let's get started. ${merged.slice(0, 3).map((d) => d.topic ?? '').join(', ')} Operator, start.` };
   const scenes: Scene[] = [];
   const used = new Set<string>();
   let spent = inp.mode === 'play' ? speakMs([intro]) + 3_000 : 0;
   for (const d of merged) {
     // Compose the conversation in its final position; keep the phrasing only if the story fits.
     const trial = new Set(used);
-    const lines = storyConversation({ ...d.talk, index: scenes.length }, trial);
-    const scene: Scene = { id: d.id, kind: d.kind, title: d.title, explanation: d.explanation, date: d.date, sources: d.sources, lat: d.lat, lon: d.lon, iso3: d.iso3, related: d.related, lead: d.lead, lines, readMs: d.readMs, speakMs: speakMs(lines) };
+    const lines = storyConversation({ ...d.talk, index: scenes.length }, trial, publisherName);
+    const scene: Scene = { id: d.id, kind: d.kind, title: d.title, explanation: d.explanation, date: d.date, sources: d.sources, lat: d.lat, lon: d.lon, iso3: d.iso3, related: d.related, lead: d.lead, lines, readMs: d.readMs, speakMs: speakMs(lines), topic: d.topic, place: d.place };
     const dur = inp.mode === 'play' ? scene.speakMs : scene.readMs;
     // Whole stories only: a story may finish slightly past the budget, but none starts once it is used up.
     if (spent >= budget || spent + dur > budget + OVERRUN_MS) continue;
@@ -257,9 +260,27 @@ export function buildPlan(inp: PlanInput): Plan {
     scenes.push(scene);
     spent += dur;
   }
-  const agenda: Line = { speaker: 'eve', text: agendaText(scenes.length) };
-  const outro: Line = { speaker: 'lead', text: CLOSINGS[seed(scenes.map((x) => x.id).join('|')) % CLOSINGS.length]! };
-  return { window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro, agenda, outro };
+  return framePlan({ window: inp.window, version: hash(scenes.map((s) => s.id + s.date).join('|')), scenes, intro, agenda: { speaker: 'eve', text: '' }, outro: intro });
+}
+
+/**
+ * Opening, closing and the Security Officer guarantee for the stories a plan finally contains (also after an edition
+ * is trimmed to its character budget): the Commander names the actual items, the closing names what to watch, and the
+ * Security Officer speaks at least once with a source-confidence note taken from the record.
+ */
+export function framePlan(plan: Plan): Plan {
+  const v = seed(plan.scenes.map((x) => x.id).join('|'));
+  const scenes = plan.scenes.map((s) => ({ ...s, lines: [...s.lines] }));
+  if (scenes.length && !scenes.some((s) => s.lines.some((l) => l.speaker === 'knox'))) {
+    const target = scenes.find((s) => s.kind === 'news') ?? scenes[0]!;
+    const n = target.kind === 'news' ? target.sources.length : target.related + 1;
+    target.lines.push({ speaker: 'knox', text: target.kind === 'news' ? `Source check: ${n === 1 ? 'one outlet so far' : `${n} outlets carrying it`}, and no official statement in our sources yet.` : 'Source check: this rests on the monitoring agencies\' own data; local reports may follow.' });
+    target.speakMs = speakMs(target.lines);
+  }
+  const intro: Line = { speaker: 'lead', text: openingLine(scenes.map((s) => s.topic ?? s.title), scenes[0]?.place ?? null, v) };
+  const places = [...new Set(scenes.map((s) => s.place).filter((p): p is string => !!p))];
+  const outro: Line = { speaker: 'lead', text: closingLine(places, v) };
+  return { ...plan, scenes, intro, agenda: { speaker: 'eve', text: '' }, outro };
 }
 
 /** Small stable hash (FNV-1a, hex) for content versions. */

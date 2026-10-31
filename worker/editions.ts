@@ -11,7 +11,7 @@
 import type { Story } from '../shared/news';
 import type { GeoEvent } from '../shared/types';
 import { countriesInHeadline, countryName } from '../shared/countryNames';
-import { agendaText, buildPlan, type Line, type Plan } from '../src/lib/briefingPlan';
+import { buildPlan, framePlan, type Line, type Plan } from '../src/lib/briefingPlan';
 import { json } from './http';
 import { speakRole, voiceChain, voiceEnabled, VOICE_CONFIG_VERSION, VOICE_MODEL, type VoiceEnv, type VoiceRole } from './voice';
 
@@ -167,8 +167,8 @@ export function editionPlan(events: GeoEvent[], stories: Story[], w: EditionWind
     mode: 'play',
   });
   while (plan.scenes.length > 1 && spoken(linesOf(plan)) > maxChars) plan.scenes.pop();
-  // The Analyst's agenda must match the stories that remain.
-  return { ...plan, agenda: { speaker: 'eve', text: agendaText(plan.scenes.length) } };
+  // The opening, closing and Security Officer line must match the stories that remain.
+  return framePlan(plan);
 }
 
 export async function runEditionJob(env: EditionsEnv, deps: JobDeps): Promise<JobResult> {

@@ -7,6 +7,7 @@ import type { MapState } from '../../lib/geo/state';
 import { readingMs, type Narrator } from '../../lib/narration';
 import { Clock, locate, startOf } from '../../lib/presentation';
 import type { CameraStage, DetailImagery, GeoMapHandle, MapTarget } from '../geo/GeoMap';
+import { countryCentre } from '../../lib/geo/worldShapes';
 
 const GeoMap = lazy(() => import('../geo/GeoMap'));
 const MapboxGlobe = lazy(() => import('../map/MapboxGlobe'));
@@ -56,11 +57,12 @@ function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
   if (mode !== 'play' || !plan.scenes.length) return plan.scenes;
   const said = (l: Line) => !!l.text.trim();
   const scenes = plan.scenes.map((s) => ({ ...s }));
-  const first = scenes[0]!;
   const last = scenes[scenes.length - 1]!;
-  first.lines = [plan.intro, plan.agenda].filter(said).concat(first.lines);
   last.lines = last.lines.concat([plan.outro].filter(said));
-  return scenes;
+  // The Commander's opening is spoken over the distant globe; the camera approaches the first story only after it.
+  const first = scenes[0]!;
+  const opening: Scene = { ...first, id: 'opening', kind: 'event', title: '', explanation: '', sources: [], lines: [plan.intro, plan.agenda].filter(said), lat: first.lat, lon: first.lon, iso3: first.iso3, related: 0, speakMs: 4_000, readMs: 4_000 };
+  return [opening, ...scenes];
 }
 
 /** Camera path for a scene: Earth → region → country → local, never closer than the location precision allows. */
@@ -111,6 +113,10 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   const play = mode === 'play';
   const tour = mode === 'tour';
   const scenes = useMemo(() => scenesFor(plan, mode), [plan, mode]);
+  const scenesRef = useRef(scenes);
+  useEffect(() => {
+    scenesRef.current = scenes;
+  }, [scenes]);
   // Silent modes (Situation Report, Comfort Mode) show the conversation as captions, timed by reading length.
   const lineTimes = useMemo(() => scenes.map((s) => s.lines.map((l) => readingMs(l.text))), [scenes]);
   const timeline = useMemo(
@@ -164,14 +170,29 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       const m = map.current;
       if (!m) return;
       setState((st) => (st.detail ? { ...st, detail: false } : st));
+      if (s.id === 'opening') {
+        // Strategic overview, turned towards the first story, while the Commander names the items.
+        const c = s.lat != null && s.lon != null ? [s.lon, s.lat] : s.iso3 ? countryCentre(s.iso3) : null;
+        void m.flyStages([{ lon: c?.[0] ?? 12, lat: Math.max(-35, Math.min(35, c?.[1] ?? 20)), zoom: 1.35, duration: 1_600 }], pad);
+        return;
+      }
       if (s.lat == null || s.lon == null) {
-        if (s.iso3) m.focusCountry(s.iso3, pad);
+        // Country-level story: region context, then the whole country framed, then a slow drift (never a fake point).
+        const c = s.iso3 ? countryCentre(s.iso3) : null;
+        if (!c || !s.iso3) return;
+        void m.flyStages([{ lon: c[0], lat: c[1], zoom: 2.6, duration: 1_500 }], pad).then(() => {
+          if (scenesRef.current[current.current]?.id !== s.id) return;
+          m.focusCountry(s.iso3!, pad);
+          window.setTimeout(() => scenesRef.current[current.current]?.id === s.id && m.drift?.(14_000), 1_500);
+        });
         return;
       }
       const { stages, detailFrom } = pathFor(s, mapboxToken ? 11 : detailImagery ? 12 : 8);
-      void m.flyStages(stages, pad, (i) => {
-        if (detailFrom !== null && i === detailFrom) setState((st) => ({ ...st, detail: true, acquire: st.acquire + 1 }));
-      });
+      void m
+        .flyStages(stages, pad, (i) => {
+          if (detailFrom !== null && i === detailFrom) setState((st) => ({ ...st, detail: true, acquire: st.acquire + 1 }));
+        })
+        .then(() => scenesRef.current[current.current]?.id === s.id && m.drift?.(14_000));
     },
     [pad, detailImagery, mapboxToken],
   );
@@ -368,7 +389,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   const selectedId = scene?.id.startsWith('ev:') ? scene.id.slice(3) : null;
   const live = !state.leaving && (play ? state.spoken : true);
   const target: MapTarget | null = useMemo(() => {
-    if (!scene || !live) return null;
+    if (!scene || !live || scene.id === 'opening') return null;
     const label = scene.title.replace(/^M\s?\d+(\.\d)?\s*-\s*/, '').slice(0, 40);
     if (scene.lat != null && scene.lon != null) {
       const precise = scene.kind === 'event' && scene.id.startsWith('ev:usgs-');
@@ -465,7 +486,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       )}
 
       {/* Where the camera is: place and time, shown when a story begins and then faded out. */}
-      {scene && live && !tour && (
+      {scene && live && !tour && scene.title && (
         <div key={`place-${scene.id}`} className={`av-fade-label pointer-events-none absolute z-10 text-xs text-mist [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] ${desktop ? 'bottom-5 right-6 text-right' : 'bottom-5 right-4 text-right'}`}>
           <div className="text-platinum/90">{scene.title}</div>
           <div className="num text-[11px] text-slate-dim">{fmtDate(scene.date)}</div>

@@ -247,3 +247,164 @@ export function audioNarrator(el: HTMLAudioElement, clips: Map<string, Promise<s
   };
   return n;
 }
+
+/**
+ * Creates (or resumes) the Web Audio context inside the user's click, so later scheduled playback is allowed.
+ * Returns null where Web Audio is unavailable (the element-based narrator is used then).
+ */
+export function unlockContext(): AudioContext | null {
+  const AC = typeof window !== 'undefined' ? (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) : undefined;
+  if (!AC) return null;
+  try {
+    const ctx = new AC();
+    void ctx.resume().catch(() => undefined);
+    return ctx;
+  } catch {
+    return null;
+  }
+}
+
+/** Speech region of a decoded clip: leading/trailing silence removed (with a short margin) and loudness evened out. */
+export function speechBounds(data: Float32Array, sampleRate: number, threshold = 0.012): { start: number; end: number; gain: number } {
+  let a = 0;
+  let b = data.length - 1;
+  while (a < data.length && Math.abs(data[a]!) < threshold) a++;
+  while (b > a && Math.abs(data[b]!) < threshold) b--;
+  if (a >= b) return { start: 0, end: data.length / sampleRate, gain: 1 };
+  const margin = Math.round(0.035 * sampleRate);
+  a = Math.max(0, a - margin);
+  b = Math.min(data.length - 1, b + Math.round(0.06 * sampleRate));
+  let sum = 0;
+  let peak = 0;
+  for (let i = a; i <= b; i++) {
+    const v = data[i]!;
+    sum += v * v;
+    if (Math.abs(v) > peak) peak = Math.abs(v);
+  }
+  const rms = Math.sqrt(sum / (b - a + 1));
+  // Even out the three voices around -20 dBFS, never above 0.95 peak.
+  const gain = rms > 0 ? Math.min(2, Math.max(0.5, 0.1 / rms), 0.95 / Math.max(peak, 1e-6)) : 1;
+  return { start: a / sampleRate, end: (b + 1) / sampleRate, gain };
+}
+
+/** Pause between turns of one story and between stories (seconds): conversational, never dead air. */
+export const TURN_GAP = 0.16;
+export const STORY_GAP = 0.35;
+
+/**
+ * Gapless narrator on the Web Audio clock (two-video audit B08/B13): every clip is fetched and decoded ahead, its
+ * silent head and tail trimmed, its loudness evened out, and it is scheduled back to back with a short conversational
+ * gap and 8 ms fades (no clicks, no clipped consonants). Captions change when a clip actually starts, measured on the
+ * same clock, so pausing (context suspend) keeps voice, captions and scene in step. Decode failures are reported once
+ * and the line stays on screen for its reading time.
+ */
+export function webAudioNarrator(ctx: AudioContext, clips: Map<string, Promise<string>>): Narrator {
+  let generation = 0;
+  let reported = false;
+  let report: (message: string) => void = () => undefined;
+  let nextAt = 0;
+  const playing = new Set<AudioBufferSourceNode>();
+  const decoded = new Map<string, Promise<{ buf: AudioBuffer; start: number; end: number; gain: number } | null>>();
+  const decode = (key: string) => {
+    let d = decoded.get(key);
+    if (!d) {
+      d = (clips.get(key) ?? Promise.reject(new Error('missing clip')))
+        .then((url) => fetch(url))
+        .then((r) => {
+          if (!r.ok) throw new Error(`audio ${r.status}`);
+          return r.arrayBuffer();
+        })
+        .then((ab) => ctx.decodeAudioData(ab))
+        .then((buf) => ({ buf, ...speechBounds(buf.getChannelData(0), buf.sampleRate) }))
+        .catch((e: unknown) => {
+          if (!reported) report(`Natural voice stopped: ${e instanceof Error ? e.message : 'unknown error'} Captions continue.`);
+          reported = true;
+          return null;
+        });
+      decoded.set(key, d);
+    }
+    return d;
+  };
+  // Decode everything ahead, two at a time, in briefing order.
+  const keys = [...clips.keys()];
+  let k = 0;
+  const pump = async () => {
+    while (k < keys.length) await decode(keys[k++]!);
+  };
+  void pump();
+  void pump();
+
+  /** Waits on the audio clock (frozen while the context is suspended), checking the generation. */
+  const until = (t: number, gen: number) =>
+    new Promise<boolean>((resolve) => {
+      const tick = () => {
+        if (gen !== generation) return resolve(false);
+        if (ctx.currentTime >= t) return resolve(true);
+        setTimeout(tick, Math.min(50, Math.max(5, (t - ctx.currentTime) * 1000)));
+      };
+      tick();
+    });
+
+  return {
+    kind: 'natural',
+    async speak(lines, onLine) {
+      const gen = ++generation;
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => undefined);
+        if (ctx.state === 'suspended') report('SOUND_BLOCKED');
+      }
+      // A new scene starts after the previous one's last clip plus the story gap.
+      let at = Math.max(ctx.currentTime + 0.03, nextAt ? nextAt - TURN_GAP + STORY_GAP : 0);
+      let lastEnd = at;
+      for (let i = 0; i < lines.length; i++) {
+        const clip = await decode(clipKey(lines[i]!));
+        if (gen !== generation) return;
+        if (!clip) {
+          // Not playable: show the line for its reading time on the same clock.
+          at = Math.max(at, ctx.currentTime + 0.03);
+          if (!(await until(at, gen))) return;
+          onLine(i);
+          at += readingMs(lines[i]!.text) / 1000 + TURN_GAP;
+          lastEnd = at;
+          continue;
+        }
+        at = Math.max(at, ctx.currentTime + 0.03);
+        const dur = clip.end - clip.start;
+        const src = ctx.createBufferSource();
+        src.buffer = clip.buf;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, at);
+        g.gain.linearRampToValueAtTime(clip.gain, at + 0.008);
+        g.gain.setValueAtTime(clip.gain, at + Math.max(0.01, dur - 0.012));
+        g.gain.linearRampToValueAtTime(0, at + dur);
+        src.connect(g).connect(ctx.destination);
+        src.start(at, clip.start, dur);
+        playing.add(src);
+        src.onended = () => playing.delete(src);
+        const startAt = at;
+        void until(startAt, gen).then((ok) => ok && onLine(i));
+        lastEnd = at + dur;
+        at = lastEnd + TURN_GAP;
+      }
+      nextAt = at;
+      await until(lastEnd, gen);
+    },
+    pause: () => void ctx.suspend().catch(() => undefined),
+    resume: () => void ctx.resume().catch(() => undefined),
+    cancel: () => {
+      generation++;
+      nextAt = 0;
+      for (const s of playing) {
+        try {
+          s.stop();
+        } catch {
+          /* already stopped */
+        }
+      }
+      playing.clear();
+    },
+    reportTo: (handler) => {
+      report = handler;
+    },
+  };
+}

@@ -288,6 +288,11 @@ export default function MapboxGlobe({ ref, token, events, selectedEventId = null
       );
       return true;
     },
+    drift: (durationMs: number) => {
+      const map = mapRef.current;
+      if (!map || reduced()) return;
+      map.easeTo({ bearing: map.getBearing() + 9, zoom: map.getZoom() + 0.35, pitch: Math.min(35, map.getPitch() + 12), duration: durationMs, easing: (t) => t });
+    },
     exportPng: async () => null,
   }));
 

@@ -107,3 +107,10 @@ export const COUNTRIES: FeatureCollection<
 })();
 /** Border lines (computed once). */
 export const BORDERS = borderLines(COUNTRIES);
+
+/** Centre of a country's main landmass bounding box as [lon, lat], or null when unknown. */
+export function countryCentre(iso3: string): [number, number] | null {
+  const f = COUNTRIES.features.find((x) => x.properties.iso3 === iso3);
+  const b = f ? bbox(f.geometry) : null;
+  return b ? [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2] : null;
+}
