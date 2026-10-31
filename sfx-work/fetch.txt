@@ -1,0 +1,6 @@
+https://pr-80-auroraveritatis.agentkarlano.workers.dev
+ops-room
+radio-hiss
+ptt-open
+ptt-close
+console-ack
