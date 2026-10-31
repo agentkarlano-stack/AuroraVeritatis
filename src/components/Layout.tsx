@@ -10,6 +10,7 @@ const loadPalette = () => import('./CommandPalette');
 const CommandPalette = lazy(() => loadPalette().then((m) => ({ default: m.CommandPalette })));
 import { NewsletterSignup } from './NewsletterSignup';
 import { Wordmark } from './Logo';
+import { SystemStatus } from './SystemStatus';
 
 const NAV = [
   { to: '/', label: 'Global Radar' },
@@ -85,9 +86,12 @@ export function Layout() {
       </a>
       <header className="sticky top-0 z-40 border-b border-line bg-ink-950/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-4">
-          <Link to="/" aria-label="Aurora Veritatis home" className="shrink-0">
-            <Wordmark />
-          </Link>
+          <div className="flex shrink-0 items-center gap-3">
+            <Link to="/" aria-label="Aurora Veritatis home" className="shrink-0">
+              <Wordmark />
+            </Link>
+            <SystemStatus />
+          </div>
           <nav className="hidden items-center gap-1 xl:flex" aria-label="Main">
             {NAV.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.to === '/'} className={navCls}>

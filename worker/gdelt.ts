@@ -83,23 +83,33 @@ async function gdelt(query: string, timespan: Timespan): Promise<NewsArticle[]> 
  * Merges GDELT, UN News and (when licensed for display) GNews. Duplicate URLs are kept once; story grouping and
  * statuses are the same for every source.
  */
-export async function newsSearch(query: string, timespan: Timespan, extra?: { name: string; search: () => Promise<NewsArticle[]> }): Promise<NewsResult> {
-  const [g, un, x] = await Promise.allSettled([gdelt(query, timespan), fetchText(UN_NEWS_RSS, 10_000).then(parseUnNews), extra ? extra.search() : Promise.resolve([])]);
-  if (g.status === 'rejected' && un.status === 'rejected' && (!extra || x.status === 'rejected')) throw new Error(`GDELT: ${(g.reason as Error).message}; UN News: ${(un.reason as Error).message}`);
+export interface ExtraSource {
+  name: string;
+  search: () => Promise<NewsArticle[]>;
+}
+
+export async function newsSearch(query: string, timespan: Timespan, extra: ExtraSource | ExtraSource[] = []): Promise<NewsResult> {
+  const extras = Array.isArray(extra) ? extra : [extra];
+  const [g, un, ...xs] = await Promise.allSettled([gdelt(query, timespan), fetchText(UN_NEWS_RSS, 10_000).then(parseUnNews), ...extras.map((e) => e.search())]);
+  if (g.status === 'rejected' && un.status === 'rejected' && xs.every((x) => x.status === 'rejected'))
+    throw new Error(`GDELT: ${(g.reason as Error).message}; UN News: ${(un.reason as Error).message}`);
   const seen = new Set<string>();
-  const articles = [...(g.status === 'fulfilled' ? g.value : []), ...(un.status === 'fulfilled' ? filterUn(un.value, query, timespan) : []), ...(x.status === 'fulfilled' ? x.value : [])].filter((a) =>
-    seen.has(a.url) ? false : (seen.add(a.url), true),
-  );
-  const notes = [g.status === 'rejected' ? 'GDELT did not respond' : '', extra && x.status === 'rejected' ? `${extra.name} did not respond` : ''].filter(Boolean);
+  const articles = [
+    ...xs.flatMap((x) => (x.status === 'fulfilled' ? x.value : [])),
+    ...(g.status === 'fulfilled' ? g.value : []),
+    ...(un.status === 'fulfilled' ? filterUn(un.value, query, timespan) : []),
+  ].filter((a) => (seen.has(a.url) ? false : (seen.add(a.url), true)));
+  const notes = [g.status === 'rejected' ? 'GDELT did not respond' : '', ...xs.map((x, i) => (x.status === 'rejected' ? `${extras[i]!.name} did not respond` : ''))].filter(Boolean);
+  const names = ['GDELT Project (DOC 2.0 API)', 'UN News', ...extras.map((e) => e.name)];
   return {
     query,
     timespan,
     articles: articles.length,
     stories: groupStories(articles).slice(0, 40),
     source: {
-      name: `GDELT Project (DOC 2.0 API), UN News${extra ? ` and ${extra.name}` : ''}`,
+      name: names.join(', '),
       url: 'https://www.gdeltproject.org/',
-      license: 'Free use with attribution; headlines and links only',
+      license: 'Headlines, short provider excerpts and links only; article text and images belong to their publishers',
     },
     fetchedAt: new Date().toISOString(),
     ...(notes.length ? { partial: `${notes.join('; ')}; showing the other sources.` } : {}),

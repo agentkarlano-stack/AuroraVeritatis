@@ -89,10 +89,16 @@ describe('briefing plan', () => {
     expect(by('lead')).toBeGreaterThan(0);
     const handovers = p.scenes.map((sc) => sc.lines[0]!.text);
     expect(new Set(handovers).size).toBe(handovers.length);
-    expect(handovers[0]).toMatch(/^First, Japan\. /);
-    expect(p.agenda).toEqual({ speaker: 'eve', text: 'Four developments stand out. Most significant first.' });
-    // No announcements: a staff-briefing opening addressed to the Analyst and a short operational close.
-    expect(p.intro.text).toMatch(/Analyst,/);
+    // The opening names the actual items of the period and tasks the Analyst with the first one (no agenda line).
+    expect(p.intro.text).toMatch(/Four items from the last twenty-four hours: /);
+    expect(p.intro.text).toMatch(/affecting Japan.*magnitude 5.5 earthquake in Chile/);
+    expect(p.intro.text).toMatch(/Operator, start with Japan\.$/);
+    expect(p.agenda.text).toBe('');
+    // News is reported as attributed facts, never as a count of outlets.
+    expect(all.map((l) => l.text).join(' ')).not.toMatch(/independent outlets?|Reports from \d/);
+    // The Security Officer speaks at least once in every edition.
+    expect(all.some((l) => l.speaker === 'knox')).toBe(true);
+    expect(p.outro.text).toMatch(/Keep watching Japan/);
     expect(p.intro.text).not.toMatch(/Aurora|Operations Briefing|live preview/i);
     expect(p.outro.text).toMatch(/That's all/);
     expect(p.outro.text).not.toMatch(/transcript|sources/i);

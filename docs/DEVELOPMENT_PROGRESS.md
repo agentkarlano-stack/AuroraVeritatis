@@ -20,6 +20,26 @@ older branch) are closed as superseded. PR #3 was opened from an older commit; r
 (deploy fix, limits/intro/auth/timeline, Impact Radar + rebrand, references) on top as a fast-forward.
 
 ## Completed
+- **2026-10-31 (rebuild slice A, PR #80, preview only):** 31 October package read and archived. The News API Basic
+  adapter (`worker/thenewsapi.ts`, `/v1/news/all`, never `/headlines`) merged into `/api/news` with excerpts; Mapbox pk.
+  token in `/api/config` (sk. withheld); health probes: preview shows thenewsapi LIVE and mapbox LIVE. Mapbox GL JS
+  globe (`components/map/MapboxGlobe.tsx`) on Radar and briefings: globe projection, grayscale strategic base fading
+  to satellite at city zoom, country hover/click, cursor coordinates, geometry-driven reticle (`lib/geo/reticle.ts`).
+  Preview browser check: renderer mapbox, style loaded, 1 map load. Story cards show excerpts; full-viewport story view
+  (`components/news/StoryDossier.tsx`). Ledger: `docs/REBUILD-LEDGER-2026-10-30.md`.
+- **2026-10-30 (30 October master plan intake + briefing rebuild step 1):** all ten parts of the owner's 28-chapter
+  plan read; ledger in `docs/REBUILD-LEDGER-2026-10-30.md`, package archived in the Knowledge repo. Briefing now follows
+  13-NEW/13F/13H/14-NEW: no opening or closing card, no in-scene Replay, no post-roll summary; after the last line the
+  camera pulls back and the scene fades into Global Radar (Esc/close the same, shorter); each turn shown whole in an
+  upper column when its audio starts (audio is the clock; a failed clip stays for its reading time); edition/place
+  labels fade; "Initializing briefing" only while the map or first clip loads; no public preview (launcher shows the
+  latest published edition with coverage, or "No edition has been published yet"; admins keep a labelled preview);
+  "Sources and transcript" outside the scene. Ambience rebuilt as steady ventilation + mains hum + rare ticks +
+  push-to-talk cue (no wind). Commander stability 0.72 against "um" fillers (cache version roles-2026-10-30). Display
+  names COMMAND / RISK ANALYST / SECURITY OFFICER, address "Operator". System Loading → System Active beside the logo
+  from real readiness (first page rendered + configuration settled; Limited/Offline states). Acquisition effect 380 ms.
+  Browser checks (mocked published edition with audio, desktop and 390 px): all pass; with 1.5 s test clips the
+  caption changed at most every 1.74 s, i.e. under 0.25 s between consecutive clips.
 - **2026-10-29 (briefing & Comfort Mode corrections):** staff-briefing opening/close (no announcements); Security Officer
   = ELEVENLABS_VOICE_CHARLIE (KNOX reserve); no player HUD or browser full-screen request (viewport overlay, discreet
   close, Esc, end card with Replay Briefing / Close); single "last 24 hours" period + clean 30-day archive list; Comfort

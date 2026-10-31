@@ -21,9 +21,9 @@ const SECTIONS: { id: string; title: string; body: React.ReactNode }[] = [
     title: 'Operations Briefing',
     body: (
       <>
-        <p>One shared narrated edition a day covering the preceding 24 hours: the Commander leads, the Analyst explains each development and the Security Officer adds operational and security notes. The voices are generated presentation roles; the lines are built only from the cited sources.</p>
-        <p>The briefing fills the screen and plays without controls. Keyboard: Space pauses or resumes, ← and → move between stories, Esc closes. At the end you can replay it or close it; the summary with sources and the full transcript then appears in Radar.</p>
-        <p>Before the day's edition is published, Play shows a preview built from the current feeds, labelled as a preview. Signed-in users hear the presenter voices; guests hear their browser's own voice.</p>
+        <p>One shared narrated edition a day covering the preceding 24 hours: COMMAND leads, the RISK ANALYST explains each development and the SECURITY OFFICER adds source-confidence and security notes. The voices are generated presentation roles; the lines are built only from the cited sources.</p>
+        <p>The briefing fills the browser window and plays without controls. Each speaker's words appear in full at the top while they are spoken. When the last line has been said, the view pulls back and Global Radar returns as you left it. Esc or the close button leaves earlier the same way; Space pauses or resumes. To hear it again, use Start Briefing or the archive; Sources and transcript opens the stories, links and full text.</p>
+        <p>Only published editions are played. If none has been published yet, the launcher says so; the written Situation Report is always available.</p>
       </>
     ),
   },

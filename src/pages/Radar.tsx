@@ -8,6 +8,7 @@ import { formatLngLat } from '../lib/geo/coords';
 import { CountryPanel, type DossierSection } from '../components/hq/CountryPanel';
 import { Presentation, type ExitReason, type PresentationMode } from '../components/presentation/Presentation';
 import { SaveButton } from '../components/SaveButton';
+import { StoryDossier } from '../components/news/StoryDossier';
 import { ProvenanceBadge } from '../components/ui';
 import { WorldMap } from '../components/WorldMap';
 import { getJson, useApi } from '../lib/api';
@@ -21,12 +22,14 @@ import { MAX_LAYERS, type LayerState, type MapState, type MapStyleId } from '../
 import { useAuth } from '../auth/AuthProvider';
 import { ANALYSTS, SPEAKER_COLOR, WINDOWS, buildPlan, buildTour, type Plan, type ReportingWindow } from '../lib/briefingPlan';
 import { age } from '../lib/radarLabels';
-import { audioNarrator, browserNarrator, clipKey, prepareClips, unlockAudio, VoiceError, type Narrator } from '../lib/narration';
+import { audioNarrator, browserNarrator, clipKey, prepareClips, unlockAudio, unlockContext, VoiceError, webAudioNarrator, type Narrator } from '../lib/narration';
 import { useIdle } from '../lib/useIdle';
 import { startAmbience, type Ambience } from '../lib/ambience';
 import { normalizeIdle, usePrefs } from '../store/prefs';
+import { useEntitlements } from '../store/entitlements';
 
 const GeoMap = lazy(() => import('../components/geo/GeoMap'));
+const MapboxGlobe = lazy(() => import('../components/map/MapboxGlobe'));
 
 const PREF_KEY = 'av-hq';
 const STYLES: [MapStyleId, string][] = [
@@ -178,11 +181,13 @@ export default function Radar() {
   const [mobileTab, setMobileTab] = useState<'feed' | 'details'>('details');
   const [showing, setShowing] = useState<Showing | null>(null);
   const [preparing, setPreparing] = useState(false);
+  const [story, setStory] = useState<Story | null>(null);
   const [summary, setSummary] = useState<{ plan: Plan; mode: 'read' | 'play' } | null>(null);
   const { session, config } = useAuth();
   const imagery = config?.imagery ?? null;
   const idle = normalizeIdle(usePrefs((s) => s.idle));
-  const status = useApi<{ latest: { edition_date: string; published_at: string } | null }>('/api/briefing/status');
+  const isAdmin = useEntitlements((s) => s.isAdmin);
+  const status = useApi<{ latest: { edition_date: string; published_at: string; coverage_start: string; coverage_end: string } | null }>('/api/briefing/status');
   const latest = status.status === 'ready' ? status.data.latest : null;
   const archiveRes = useApi<{ editions: { date: string; revision: number; stories: string[] }[] }>('/api/briefing/archive');
   const archive = archiveRes.status === 'ready' ? archiveRes.data.editions : [];
@@ -233,13 +238,16 @@ export default function Radar() {
     setShowing({ mode: 'read', plan, fullscreen: true, narrator: null, audioNote: null, subtitle: 'Last 24 hours' });
   };
   /**
-   * Operations Briefing: the latest shared edition (or an archived one), played from its stored audio with no new
-   * synthesis. Before the first edition is published, a clearly labelled live preview is built from the current feeds.
+   * Operations Briefing: the latest shared edition (or an archived one), played from the start from its stored audio
+   * with no new synthesis. There is no public preview: without a published edition the launcher says so. Admins can
+   * run an unpublished preview from the current feeds to check the voices (labelled as such).
    */
   const startVoiced = async (date?: string) => {
     // Must run synchronously inside the click: later playback (after loading) is then not blocked as autoplay.
     const el = unlockAudio();
+    const actx = unlockContext();
     const amb = startAmbience();
+    const natural = (clips: Map<string, Promise<string>>) => (actx ? webAudioNarrator(actx, clips) : audioNarrator(el!, clips));
     setPreparing(true);
     const r = await getJson<{ edition: Edition | null }>(date ? `/api/briefing/edition/${date}` : '/api/briefing/latest').catch(() => ({ edition: null }));
     const ed = r.edition;
@@ -247,18 +255,18 @@ export default function Radar() {
       setPreparing(false);
       const clips = new Map(ed.audio.map((a) => [a.key, Promise.resolve(a.url)]));
       const cover = `${fmtLocal(ed.coverage_start)} to ${fmtLocal(ed.coverage_end)}`;
-      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: audioNarrator(el, clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · ${cover}` });
+      setShowing({ mode: 'play', plan: ed.plan, fullscreen: true, narrator: natural(clips), audioNote: null, ambience: amb, subtitle: `Edition ${ed.edition_date}${ed.revision > 1 ? ` (revision ${ed.revision})` : ''} · ${cover}` });
       return;
     }
     const until = wallClock();
     const plan = buildPlan({ window: '24h', now: until, until, events: signals, stories: storiesNow, countryOf, placeName, mode: 'play' });
-    if (!plan.scenes.length) {
+    if (!isAdmin || !plan.scenes.length) {
       amb?.stop();
       setPreparing(false);
-      setSummary({ plan, mode: 'play' });
+      if (isAdmin) setSummary({ plan, mode: 'play' });
       return;
     }
-    // Live preview (no shared edition yet): natural voices for signed-in users, cached per line; otherwise the browser.
+    // Admin preview (no shared edition yet): natural voices for signed-in users, cached per line; otherwise the browser.
     let narrator: Narrator | null = null;
     let audioNote: string | null = null;
     const lines = [plan.intro, plan.agenda, ...plan.scenes.flatMap((s) => s.lines), plan.outro];
@@ -267,7 +275,7 @@ export default function Radar() {
       AUDIO_CACHE.set(plan.version, clips);
       try {
         await clips.get(clipKey(plan.intro));
-        narrator = audioNarrator(el, clips);
+        narrator = natural(clips);
       } catch (err) {
         AUDIO_CACHE.delete(plan.version);
         const code = err instanceof VoiceError ? ` [${err.code}]` : '';
@@ -279,7 +287,7 @@ export default function Radar() {
       narrator = browserNarrator();
       if (!narrator) audioNote = 'This browser cannot speak text aloud, so the briefing runs with captions only.';
     }
-    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, ambience: amb, subtitle: 'Preview · not a published edition' });
+    setShowing({ mode: 'play', plan, fullscreen: true, narrator, audioNote, ambience: amb, subtitle: 'Admin preview · not a published edition' });
   };
   const startTour = useCallback(
     (fullscreen: boolean) => {
@@ -288,10 +296,13 @@ export default function Radar() {
     },
     [signals, storiesNow, countryOf],
   );
-  const endShow = (reason: ExitReason) => {
-    if (showing && reason === 'done' && showing.mode !== 'tour') setSummary({ plan: showing.plan, mode: showing.mode });
-    setShowing(null);
+  /** The latest edition's stories, sources and full transcript, outside the cinematic scene. */
+  const showTranscript = async () => {
+    const r = await getJson<{ edition: Edition | null }>('/api/briefing/latest').catch(() => ({ edition: null }));
+    if (r.edition) setSummary({ plan: r.edition.plan, mode: 'play' });
   };
+  // Back to Global Radar as it was: no post-roll summary (replay is in the launcher and the archive).
+  const endShow = (_reason: ExitReason) => setShowing(null);
   // Comfort Mode: after a period of inactivity (profile switch), a passive tour; never while presenting or preparing.
   useIdle(idle.radar && !showing && !preparing, () => startTour(false));
 
@@ -460,7 +471,10 @@ export default function Radar() {
             const first = s.articles[0];
             return (
               <li key={s.id} className="px-3 py-2">
-                <div className="text-xs text-platinum">{s.title}</div>
+                <button className="block w-full text-left text-xs text-platinum hover:text-gold-soft" onClick={() => setStory(s)}>
+                  {s.title}
+                </button>
+                {s.summary && <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-mist">{s.summary}</p>}
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] text-slate-dim">
                   <span className={s.status === 'confirmed' ? 'text-up' : s.status === 'corroborated' ? 'text-info' : 'text-warn'}>{s.status}</span>
                   <span>
@@ -493,11 +507,25 @@ export default function Radar() {
       <div>
         <div className="flex items-baseline justify-between gap-2">
           <span className="eyebrow">Operations Briefing</span>
-          <span className="text-[11px] text-slate-dim">{latest ? `Edition ${latest.edition_date}` : 'Preview'}</span>
+          {latest && <span className="num text-[11px] text-slate-dim">{latest.edition_date}</span>}
         </div>
-        <button className="btn-primary mt-1.5 w-full justify-center text-xs" onClick={() => void startVoiced()} disabled={preparing}>
-          <Headphones className="h-3.5 w-3.5" aria-hidden /> {preparing ? 'Loading…' : 'Play Operations Briefing'}
-        </button>
+        {latest ? (
+          <p className="mt-1 text-[11px] text-slate-dim">
+            Covers {fmtLocal(latest.coverage_start)} to {fmtLocal(latest.coverage_end)}
+          </p>
+        ) : (
+          status.status !== 'loading' && <p className="mt-1 text-[11px] text-slate-dim">No edition has been published yet.</p>
+        )}
+        {(latest || isAdmin) && (
+          <button className="btn-primary mt-1.5 w-full justify-center text-xs" onClick={() => void startVoiced()} disabled={preparing}>
+            <Headphones className="h-3.5 w-3.5" aria-hidden /> {preparing ? 'Loading…' : latest ? 'Start Briefing' : 'Admin preview'}
+          </button>
+        )}
+        {latest && (
+          <button className="mt-1 min-h-8 text-[11px] text-mist hover:text-gold-soft" onClick={() => void showTranscript()}>
+            Sources and transcript
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <button className="btn-ghost justify-center text-xs" onClick={() => void startWritten('24h')} disabled={preparing} aria-label="Situation Report: last 24 hours">
@@ -545,7 +573,7 @@ export default function Radar() {
         </button>
       </div>
       {summary.plan.scenes.length === 0 ? (
-        <p className="text-sm text-mist">No significant, located developments in this period yet. Try a longer period.</p>
+        <p className="text-sm text-mist">No significant, located developments in the last 24 hours.</p>
       ) : (
         <ol className="space-y-3">
           {summary.plan.scenes.map((s, i) => (
@@ -569,16 +597,13 @@ export default function Radar() {
       {summary.mode === 'play' && summary.plan.scenes.length > 0 && (
         <details className="rounded-md border border-line p-3 text-xs">
           <summary className="cursor-pointer text-gold">Full transcript</summary>
-          <p className="mt-2 text-mist">
-            <span style={{ color: SPEAKER_COLOR.lead }}>{ANALYSTS.lead.name}:</span> {summary.plan.intro.text}
-          </p>
-          {summary.plan.scenes.flatMap((sc) =>
-            sc.lines.map((l, j) => (
-              <p key={`${sc.id}-${j}`} className="mt-1 text-mist">
+          {[summary.plan.intro, summary.plan.agenda, ...summary.plan.scenes.flatMap((sc) => sc.lines), summary.plan.outro]
+            .filter((l) => l.text.trim())
+            .map((l, j) => (
+              <p key={j} className={`${j ? 'mt-1' : 'mt-2'} text-mist`}>
                 <span style={{ color: SPEAKER_COLOR[l.speaker] }}>{ANALYSTS[l.speaker].name}:</span> {l.text}
               </p>
-            )),
-          )}
+            ))}
         </details>
       )}
       <p className="text-[10px] text-slate-dim">Content version {summary.plan.version}. Multiple reports of one event are merged and are not counted as independent confirmation.</p>
@@ -638,7 +663,23 @@ export default function Radar() {
     </div>
   );
 
-  const mapView = env.gl ? (
+  const mapbox = config?.mapbox?.token ?? null;
+  const mapView = env.gl && mapbox ? (
+    <Suspense fallback={<div className="grid h-full place-items-center text-sm text-slate-dim">Loading the globe…</div>}>
+      <MapboxGlobe
+        ref={map}
+        token={mapbox}
+        events={signals}
+        selectedEventId={selected?.id ?? null}
+        onView={setCamera}
+        onCountry={(iso3) => openCountry(iso3)}
+        onEvent={selectEvent}
+        padding={{ top: 0, right: panelPx, bottom: 0, left: 0 }}
+        coordinates
+        target={selected ? { lon: selected.lon, lat: selected.lat, label: selected.region || selected.title.slice(0, 40), precise: selected.id.startsWith('usgs-'), kind: selected.id.startsWith('usgs-') ? 'point' : 'area' } : null}
+      />
+    </Suspense>
+  ) : env.gl ? (
     <Suspense fallback={<div className="grid h-full place-items-center text-sm text-slate-dim">Loading the globe…</div>}>
       <GeoMap
         ref={map}
@@ -671,6 +712,7 @@ export default function Radar() {
         )}
         <div className="relative h-[55dvh] min-w-0 shrink-0 lg:h-auto lg:flex-1 lg:shrink">
           {mapView}
+          {!mapbox && (
           <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
             <LayerPanel active={prefs.layers} onChange={(layers) => savePrefs({ layers })} defaults={DEFAULT_LAYERS} exclude={RADAR_EXCLUDE} />
             <div className="flex gap-1" role="group" aria-label="Map style">
@@ -681,6 +723,7 @@ export default function Radar() {
             ))}
             </div>
           </div>
+          )}
           {/* Desktop: dossier or situation panel docked over the right side of the map. */}
           {isDesktop && (
           <section
@@ -720,6 +763,17 @@ export default function Radar() {
         </div>
         )}
       </div>
+      {story && (
+        <StoryDossier
+          story={story}
+          country={countryIn(story.title) ?? null}
+          onFocusCountry={(iso3) => {
+            setStory(null);
+            openCountry(iso3);
+          }}
+          onClose={() => setStory(null)}
+        />
+      )}
       {showing && (
         <Presentation
           key={showing.plan.version + showing.mode}
@@ -730,6 +784,7 @@ export default function Radar() {
           audioNote={showing.audioNote}
           ambience={showing.ambience ?? null}
           detailImagery={imagery}
+          mapboxToken={mapbox}
           fullscreen={showing.fullscreen}
           subtitle={showing.subtitle}
           onExit={endShow}

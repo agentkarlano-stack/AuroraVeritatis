@@ -107,40 +107,58 @@ function gdacsTurns(e: GeoEvent, updates: number): Turn[] {
   return t;
 }
 
-const ECON = /\b(oil|gas|lng|energy|electricity|prices?|inflation|tariffs?|trade|exports?|imports?|markets?|currenc\w*|rates?|bank|debt|budget)\b/i;
+/** Publisher display name for a domain (registry name, else the bare domain). */
+export type NameOf = (domain: string) => string;
 
-function storyTurns(title: string, status: CoverageStatus, independent: number): Turn[] {
-  const pubs = `${independent} independent ${independent === 1 ? 'outlet' : 'outlets'}`;
+function storyTurns(st: NewsTalk, nameOf: NameOf): Turn[] {
+  const pubs = st.publishers.map(nameOf);
+  const two = pubs.slice(0, 2).join(' and ');
   const t: Turn[] = [];
-  if (ECON.test(title))
+  if (st.summary)
     t.push({
-      ask: ['Any market angle?', 'Could this move prices?'],
-      answer: "Not established. A headline alone doesn't show a market effect; the benchmarks are in the Market view if you want to check.",
+      ask: ['What do we know beyond the headline?', "What's actually happened?", 'Give me the detail.', 'Go on.'],
+      answer: `${firstSentence(st.summary)}`,
     });
   t.push(
-    status === 'confirmed'
-      ? { ask: ['Who confirmed it?', 'Is that official?'], answer: `An official source published it, and ${pubs} carry it too.` }
-      : { ask: ['How solid is that?', 'Can we rely on it?'], answer: `${pubs[0]!.toUpperCase()}${pubs.slice(1)} report it, but there's no official confirmation yet.` },
+    st.status === 'confirmed'
+      ? { ask: ['Is that official?', 'Who has confirmed it?'], answer: `It's on the record: ${st.official ? nameOf(st.official) : 'an official source'} has published it.` }
+      : st.status === 'corroborated'
+        ? { ask: ['How firm is that?', 'Is anyone else carrying it?'], answer: `${two} are both reporting it, each with their own sourcing.` }
+        : { ask: ['How firm is that?', 'Who else has it?'], answer: `So far only ${pubs[0] ?? 'one outlet'} has it. We treat it as a lead, not a fact.` },
   );
   return t;
 }
 
-/** The Security Officer's short interjection: caution, validation or operational relevance (or none). */
+const firstSentence = (s: string) => {
+  const one = (s.match(/^.*?[.!?](\s|$)/)?.[0] ?? s).trim();
+  return one.length > 230 ? `${one.slice(0, 227).replace(/\s+\S*$/, '')}…` : one;
+};
+
+/** The Security Officer's short interjection: source confidence or operational caution, from the record only. */
 function securityLine(kind: 'quake' | 'gdacs' | 'news', facts: { tsunami?: boolean; severity: number; status?: CoverageStatus; related: number }, used: Set<string>): string | null {
   if (kind === 'quake' && facts.tsunami) return pick(['Coastal warnings come from the regional tsunami centre. Follow those, not social media.', 'Flag for coastal areas: the official tsunami centre issues the warnings.'], used);
   if (kind === 'gdacs' && facts.severity >= 5) return pick(['For context, red is the level at which GDACS flags a likely need for international assistance.', 'Red means GDACS sees a possible need for outside assistance. Worth watching.'], used);
-  if (kind === 'news' && facts.status !== 'confirmed') return pick(['Until there is official confirmation, I would treat the details as provisional.', 'Noting it, but unconfirmed. Details may still change.'], used);
-  if (kind === 'news') return pick(['Officially confirmed, so this one is solid.', 'Confirmed at source. No caveats from my side.'], used);
+  if (kind === 'news' && facts.status === 'unverified') return pick(['Until there is official confirmation, I would treat the details as provisional.', 'Single-source for now. Details may still change.'], used);
   if (facts.related > 0) return pick(['Several reports in one area. We are tracking them as one storyline, not separate incidents.'], used);
   if (facts.severity >= 4) return pick(['No damage reports in our sources yet, so treat casualty claims online with caution.', 'Nothing in our sources on damage yet. Worth a check later today.'], used);
   return null;
+}
+
+export interface NewsTalk {
+  title: string;
+  status: CoverageStatus;
+  /** Independent publisher domains, most established first. */
+  publishers: string[];
+  official?: string | null;
+  /** Provider excerpt of the lead article (attributed to its publisher when spoken). */
+  summary?: string | null;
 }
 
 export interface StoryInput {
   kind: 'event' | 'news';
   event?: GeoEvent;
   related?: number;
-  story?: { title: string; status: CoverageStatus; independent: number };
+  story?: NewsTalk;
   /** Spoken place for the Commander's handover (country or region), if known. */
   place: string | null;
   index: number;
@@ -151,23 +169,22 @@ export interface StoryInput {
  * (Security Officer interjection). The handover is spoken while the camera travels, so there is no silence between
  * stories.
  */
-export function storyConversation(s: StoryInput, used: Set<string>): Line[] {
+export function storyConversation(s: StoryInput, used: Set<string>, nameOf: NameOf = (d) => d): Line[] {
   const place = s.place;
-  const ack = s.index === 0 ? '' : pick(['Noted. ', 'Understood. ', 'Good. ', 'Right. ', ''], used);
-  // The first story follows the Commander's question directly: the Analyst opens it, no handover needed.
+  const ack = s.index === 0 ? '' : pick(['Understood. ', 'Right. ', 'Copy. ', '', ''], used);
+  // The Commander's opening already names the first story: the Analyst starts it directly.
   const handover =
     s.index === 0
       ? null
       : place
-        ? `${ack}${pick([`Next, ${place}.`, `What about ${place}?`, `${place} now.`, `Go on, ${place}.`, `And ${place}?`], used)}`
-        : `${ack}${pick(['What else?', 'Next.', 'Go on.'], used)}`;
+        ? `${ack}${pick([`Moving to ${place}.`, `${place}, Operator.`, `Shift to ${place}.`, `What about ${place}?`, `And ${place}?`], used)}`
+        : `${ack}${pick(['What else?', 'Next item.', 'Go on.'], used)}`;
   const lines: Line[] = handover ? [{ speaker: 'lead', text: handover }] : [];
-  const lead0 = s.index === 0 ? (place ? `First, ${place}. ` : 'First, ') : '';
   if (s.kind === 'event' && s.event) {
     const e = s.event;
     const isQuake = e.id.startsWith('usgs-');
     const updates = Number(e.summary.match(/(\d+) GDACS updates/)?.[1] ?? 1);
-    lines.push({ speaker: 'eve', text: `${lead0}${s.index === 0 && !place ? eventHeadline(e).charAt(0).toLowerCase() + eventHeadline(e).slice(1) : eventHeadline(e)}` });
+    lines.push({ speaker: 'eve', text: eventHeadline(e) });
     const turns = isQuake ? quakeTurns(e, s.related ?? 0) : gdacsTurns(e, updates);
     const turn = turns.find((t) => t.ask.some((a) => !used.has(a))) ?? turns[0];
     if (turn) lines.push({ speaker: 'lead', text: pick(turn.ask, used) }, { speaker: 'eve', text: turn.answer });
@@ -175,12 +192,53 @@ export function storyConversation(s: StoryInput, used: Set<string>): Line[] {
     if (sec) lines.push({ speaker: 'knox', text: sec });
   } else if (s.story) {
     const st = s.story;
-    lines.push({ speaker: 'eve', text: `${lead0}${s.index === 0 && !place ? 'reports' : 'Reports'} from ${st.independent} independent ${st.independent === 1 ? 'outlet' : 'outlets'}: ${st.title.replace(/[.\s]+$/, '')}.` });
-    const turns = storyTurns(st.title, st.status, st.independent);
-    const turn = turns.find((t) => t.ask.some((a) => !used.has(a))) ?? turns[0]!;
-    lines.push({ speaker: 'lead', text: pick(turn.ask, used) }, { speaker: 'eve', text: turn.answer });
+    const by = st.publishers[0] ? nameOf(st.publishers[0]) : null;
+    const head = st.title.replace(/[.\s]+$/, '');
+    lines.push({ speaker: 'eve', text: by ? pick([`${by} reports: ${head}.`, `${head}. That's from ${by}.`], used) : `${head}.` });
+    // Detail first, then confidence: at most two questions, never the same formula twice in an edition.
+    for (const turn of storyTurns(st, nameOf).slice(0, 2)) {
+      const ask = turn.ask.find((a) => !used.has(a));
+      if (!ask) continue;
+      used.add(ask);
+      lines.push({ speaker: 'lead', text: ask }, { speaker: 'eve', text: turn.answer });
+    }
     const sec = securityLine('news', { severity: 3, status: st.status, related: 0 }, used);
     if (sec) lines.push({ speaker: 'knox', text: sec });
   }
   return lines;
+}
+
+/** Short spoken description of a story for the Commander's opening ("a magnitude 6.1 earthquake in Japan"). */
+export function topicOf(s: StoryInput): string {
+  if (s.kind === 'event' && s.event) {
+    const e = s.event;
+    const m = e.title.match(/^M\s?(\d+(?:\.\d+)?)/);
+    if (e.id.startsWith('usgs-') && m) return `a magnitude ${m[1]} earthquake${s.place ? ` in ${s.place}` : ''}`;
+    const name = speakName(e.title).replace(/^(Green|Orange|Red)\s+/i, '');
+    return `${name.charAt(0).toLowerCase()}${name.slice(1)}${s.place && !name.includes(s.place) ? ` affecting ${s.place}` : ''}`;
+  }
+  const t = s.story?.title ?? '';
+  const where = s.place ?? 'one region';
+  if (/\b(strikes?|attacks?|clash\w*|fighting|missiles?|drones?|shelling|troops|offensive|killed|militants?|war)\b/i.test(t)) return `security reporting from ${where}`;
+  if (/\b(talks|summit|ceasefire|truce|minister|election\w*|vote|sanctions?|treaty|diplomat\w*|president|parliament)\b/i.test(t)) return `political developments in ${where}`;
+  if (/\b(econom\w*|inflation|tariffs?|trade|oil|gas|markets?|currency|bank|debt|prices?)\b/i.test(t)) return `economic news from ${where}`;
+  return `a developing story in ${where}`;
+}
+
+const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+const join = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
+
+/** Commander's opening: the actual items of the period, then a direct tasking of the Analyst. */
+export function openingLine(topics: string[], firstPlace: string | null, variant: number): string {
+  const lead = ["All right, let's get started.", "Let's begin.", 'Okay, listen up.'][variant % 3]!;
+  if (!topics.length) return `${lead} Quiet period. Operator, anything I should know?`;
+  const n = NUMBER_WORDS[topics.length] ?? String(topics.length);
+  const items = `${n} ${topics.length === 1 ? 'item' : 'items'} from the last twenty-four hours: ${join(topics)}.`;
+  return `${lead} ${items} Operator, ${firstPlace ? `start with ${firstPlace}` : 'take the first one'}.`;
+}
+
+/** Commander's closing: names what to keep watching. */
+export function closingLine(places: string[], variant: number): string {
+  const watch = places.length ? `Keep watching ${join(places.slice(0, 2))}` : 'Keep monitoring';
+  return [`Understood. ${watch}, and update the assessment if anything moves. That's all for now.`, `Good. ${watch}; flag any change straight away. That's all.`, `Copy that. ${watch} and brief me on any change. That's all for now.`][variant % 3]!;
 }

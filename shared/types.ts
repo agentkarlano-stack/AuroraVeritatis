@@ -12,6 +12,11 @@ export interface PublicConfig {
    * Esri World Imagery when the owner has configured an ArcGIS Location Platform key (a referrer-restricted browser key).
    */
   imagery?: { tiles: string; attribution: string; maxZoom: number } | null;
+  /**
+   * Mapbox GL JS public token (`pk.`, URL-restricted in the Mapbox account), or null. A secret `sk.` token is never
+   * sent: the Worker only passes on a value that starts with `pk.`.
+   */
+  mapbox?: { token: string } | null;
 }
 
 export interface IndicatorValue {

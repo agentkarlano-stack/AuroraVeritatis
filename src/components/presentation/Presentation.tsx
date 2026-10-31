@@ -1,15 +1,16 @@
-import { RotateCcw, Volume2, X } from 'lucide-react';
+import { Volume2, X } from 'lucide-react';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoEvent } from '../../../shared/types';
 import type { Ambience } from '../../lib/ambience';
 import { ANALYSTS, SPEAKER_COLOR, type Analyst, type Line, type Plan, type Scene } from '../../lib/briefingPlan';
 import type { MapState } from '../../lib/geo/state';
-import type { Narrator } from '../../lib/narration';
+import { readingMs, type Narrator } from '../../lib/narration';
 import { Clock, locate, startOf } from '../../lib/presentation';
 import type { CameraStage, DetailImagery, GeoMapHandle, MapTarget } from '../geo/GeoMap';
-import { Monogram } from '../Logo';
+import { countryCentre } from '../../lib/geo/worldShapes';
 
 const GeoMap = lazy(() => import('../geo/GeoMap'));
+const MapboxGlobe = lazy(() => import('../map/MapboxGlobe'));
 
 export type PresentationMode = 'read' | 'play' | 'tour';
 export type ExitReason = 'done' | 'user';
@@ -26,9 +27,11 @@ interface Props {
   ambience?: Ambience | null;
   /** Licensed high-resolution imagery for close-ups, when configured. */
   detailImagery?: DetailImagery | null;
+  /** Mapbox public token: the Mapbox globe with real satellite imagery at close range (else the MapLibre globe). */
+  mapboxToken?: string | null;
   /** Kept for compatibility; the presentation always fills the viewport and never asks for browser full screen. */
   fullscreen?: boolean;
-  /** Edition label (e.g. the edition date, or "Preview"). */
+  /** Edition label (e.g. the edition date), shown briefly at the start. */
   subtitle?: string;
   onExit: (reason: ExitReason) => void;
 }
@@ -41,18 +44,25 @@ const webgl2 = () => {
   }
 };
 const fmtDate = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-const OPEN_MS = 1800;
-/** Reading time for a caption line in the silent modes: about 3 words per second, never under 2.4 s. */
-const readLineMs = (text: string) => Math.max(2_400, (text.split(/\s+/).length / 3) * 1000 + 600);
 const CAMERA_LEAD_MS = 1_200;
+/** Camera pull-back before the presentation fades back into Global Radar. */
+const RETURN_MS = { done: 1_900, user: 800 } as const;
+const FADE_MS = 650;
 
-/** Narrated briefings open over the whole globe and close back on it. */
+/**
+ * Narrated briefings have no separate opening or closing scene: the Commander's opening question is spoken while the
+ * camera travels to the first story, and the closing words are said over the last one.
+ */
 function scenesFor(plan: Plan, mode: PresentationMode): Scene[] {
-  if (mode !== 'play') return plan.scenes;
-  const base = { kind: 'event' as const, date: plan.scenes[0]?.date ?? new Date(0).toISOString(), sources: [], related: 0, lead: 'lead' as Analyst, readMs: 3_000 };
-  const intro: Scene = { ...base, id: 'intro', title: 'Operations Briefing', explanation: `${plan.scenes.length} ${plan.scenes.length === 1 ? 'item' : 'items'} from public sources.`, lines: [plan.intro, plan.agenda], speakMs: 4_000 };
-  const outro: Scene = { ...base, id: 'outro', title: 'End of briefing', explanation: '', lines: [plan.outro], speakMs: 2_500 };
-  return [intro, ...plan.scenes, outro];
+  if (mode !== 'play' || !plan.scenes.length) return plan.scenes;
+  const said = (l: Line) => !!l.text.trim();
+  const scenes = plan.scenes.map((s) => ({ ...s }));
+  const last = scenes[scenes.length - 1]!;
+  last.lines = last.lines.concat([plan.outro].filter(said));
+  // The Commander's opening is spoken over the distant globe; the camera approaches the first story only after it.
+  const first = scenes[0]!;
+  const opening: Scene = { ...first, id: 'opening', kind: 'event', title: '', explanation: '', sources: [], lines: [plan.intro, plan.agenda].filter(said), lat: first.lat, lon: first.lon, iso3: first.iso3, related: 0, speakMs: 4_000, readMs: 4_000 };
+  return [opening, ...scenes];
 }
 
 /** Camera path for a scene: Earth → region → country → local, never closer than the location precision allows. */
@@ -87,14 +97,14 @@ function RoleBadge({ role }: { role: Analyst }) {
 }
 
 /**
- * Full-screen briefing on the intelligence globe, shared by the Situation Report (`read`), the Operations Briefing
+ * Full-viewport briefing on the intelligence globe, shared by the Situation Report (`read`), the Operations Briefing
  * (`play`) and Comfort Mode (`tour`). The plan is frozen by the caller; nothing here regenerates or reorders it.
- * The narrated briefing is driven by the speech itself: the next story starts as soon as the previous one has been
- * spoken (no dead air), the camera dives through several zoom levels while the Commander hands over, and close-ups switch
- * from the grayscale map to natural-colour imagery with a short acquisition effect. Controls stay hidden until the
- * pointer moves; there is no player frame.
+ * The narrated briefing is driven by the speech itself (audio is the clock): each turn is shown whole in an upper
+ * column when its audio starts, the next story begins as soon as the previous one has been spoken, and after the
+ * Commander's last words the camera pulls back and the scene fades into Global Radar. There is no opening card,
+ * closing card, transport bar or in-scene replay; Esc (or the discreet close button) leaves early the same way.
  */
-export function Presentation({ plan, mode, events, narrator = null, audioNote = null, ambience = null, detailImagery = null, subtitle, onExit }: Props) {
+export function Presentation({ plan, mode, events, narrator = null, audioNote = null, ambience = null, detailImagery = null, mapboxToken = null, subtitle, onExit }: Props) {
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
     narrator?.reportTo(setProblem);
@@ -103,39 +113,55 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
   const play = mode === 'play';
   const tour = mode === 'tour';
   const scenes = useMemo(() => scenesFor(plan, mode), [plan, mode]);
+  const scenesRef = useRef(scenes);
+  useEffect(() => {
+    scenesRef.current = scenes;
+  }, [scenes]);
   // Silent modes (Situation Report, Comfort Mode) show the conversation as captions, timed by reading length.
-  const lineTimes = useMemo(() => scenes.map((s) => s.lines.map((l) => readLineMs(l.text))), [scenes]);
+  const lineTimes = useMemo(() => scenes.map((s) => s.lines.map((l) => readingMs(l.text))), [scenes]);
   const timeline = useMemo(
     () => ({ durations: scenes.map((s, i) => (play ? s.speakMs : CAMERA_LEAD_MS + (lineTimes[i]!.reduce((a, b) => a + b, 0) || s.readMs))) }),
     [scenes, play, lineTimes],
   );
   const [clock] = useState(() => new Clock());
   const [gl] = useState(webgl2);
-  const [state, setState] = useState({ index: 0, offset: 0, line: 0, lineAt: 0, paused: false, phase: (tour ? 'live' : 'opening') as 'opening' | 'live' | 'closing', detail: false, acquire: 0, spoken: 0, tick: 0, run: 0 });
-  const root = useRef<HTMLDivElement>(null);
+  const [state, setState] = useState({ index: 0, offset: 0, line: 0, spoken: false, mapReady: false, leaving: false, paused: false, detail: false, acquire: 0 });
   const map = useRef<GeoMapHandle>(null);
   const current = useRef(-1);
   const userPaused = useRef(false);
   const pendingSpeech = useRef(false);
-  const exited = useRef(false);
-  /** The closing card is up: the reading clock stops driving scenes until a replay. */
-  const closing = useRef(false);
+  const leaving = useRef(false);
+  const handedBack = useRef(false);
   const [desktop] = useState(() => window.matchMedia?.('(min-width: 1024px)').matches ?? true);
-  const pad = useMemo(() => (desktop ? { top: 70, bottom: 150, left: 60, right: 470 } : { top: 60, bottom: 300, left: 24, right: 24 }), [desktop]);
+  // The upper caption column is kept clear: the focus is framed in the space below it.
+  const pad = useMemo(() => (desktop ? { top: 210, bottom: 60, left: 60, right: 60 } : { top: 230, bottom: 50, left: 20, right: 20 }), [desktop]);
 
   const onExitRef = useRef(onExit);
   useEffect(() => {
     onExitRef.current = onExit;
   }, [onExit]);
+  const handBack = useCallback((reason: ExitReason) => {
+    if (handedBack.current) return;
+    handedBack.current = true;
+    onExitRef.current(reason);
+  }, []);
+  /** Pull back to the strategic view, fade, then hand back to the page underneath (which kept its own state). */
   const exit = useCallback(
     (reason: ExitReason) => {
-      if (exited.current || closing.current) return;
-      exited.current = true;
+      if (leaving.current) {
+        if (reason === 'user') handBack(reason);
+        return;
+      }
+      leaving.current = true;
       narrator?.cancel();
       ambience?.stop();
-      onExitRef.current(reason);
+      clock.pause();
+      void map.current?.flyStages([{ lon: 12, lat: 24, zoom: 1.3, duration: RETURN_MS[reason] }], pad);
+      setState((st) => ({ ...st, detail: false }));
+      window.setTimeout(() => setState((st) => ({ ...st, leaving: true })), RETURN_MS[reason] - FADE_MS / 2);
+      window.setTimeout(() => handBack(reason), RETURN_MS[reason] + FADE_MS / 2);
     },
-    [narrator, ambience],
+    [narrator, ambience, clock, pad, handBack],
   );
 
   /** Camera choreography for a scene; switches to colour imagery when the close stages begin. */
@@ -144,20 +170,35 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       const m = map.current;
       if (!m) return;
       setState((st) => (st.detail ? { ...st, detail: false } : st));
-      if (s.id === 'intro' || s.id === 'outro') {
-        void m.flyStages([{ lon: 12, lat: 24, zoom: s.id === 'intro' ? 1.5 : 1.15, duration: 2200 }], pad);
+      if (s.id === 'opening') {
+        // Strategic overview, turned towards the first story, while the Commander names the items.
+        const c = s.lat != null && s.lon != null ? [s.lon, s.lat] : s.iso3 ? countryCentre(s.iso3) : null;
+        void m.flyStages([{ lon: c?.[0] ?? 12, lat: Math.max(-35, Math.min(35, c?.[1] ?? 20)), zoom: 1.35, duration: 1_600 }], pad);
         return;
       }
       if (s.lat == null || s.lon == null) {
-        if (s.iso3) m.focusCountry(s.iso3, pad);
+        // Country-level story: region context, then the whole country framed, then a slow drift (never a fake point).
+        const c = s.iso3 ? countryCentre(s.iso3) : null;
+        if (!c || !s.iso3) return;
+        void m.flyStages([{ lon: c[0], lat: c[1], zoom: 2.6, duration: 1_500 }], pad).then(() => {
+          if (scenesRef.current[current.current]?.id !== s.id) return;
+          m.focusCountry(s.iso3!, pad);
+          window.setTimeout(() => scenesRef.current[current.current]?.id === s.id && m.drift?.(14_000), 1_500);
+        });
         return;
       }
-      const { stages, detailFrom } = pathFor(s, detailImagery ? 12 : 8);
-      void m.flyStages(stages, pad, (i) => {
-        if (detailFrom !== null && i === detailFrom) setState((st) => ({ ...st, detail: true, acquire: st.acquire + 1 }));
-      });
+      const { stages, detailFrom } = pathFor(s, mapboxToken ? 11 : detailImagery ? 12 : 8);
+      void m
+        .flyStages(stages, pad, (i) => {
+          if (detailFrom !== null && i === detailFrom) setState((st) => ({ ...st, detail: true, acquire: st.acquire + 1 }));
+        })
+        .then(() => {
+          if (scenesRef.current[current.current]?.id !== s.id) return;
+          if (play) ambience?.ack();
+          m.drift?.(14_000);
+        });
     },
-    [pad, detailImagery],
+    [pad, detailImagery, mapboxToken, play, ambience],
   );
 
   const enterRef = useRef<(i: number) => void>(() => undefined);
@@ -166,9 +207,15 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       if (!play) return;
       if (!narrator) {
         // Captions only: advance by reading time.
+        const total = s.lines.reduce((n, l) => n + readingMs(l.text), 0);
+        setState((st) => ({ ...st, spoken: true }));
+        s.lines.forEach((_, li) => {
+          const at = s.lines.slice(0, li).reduce((n, l) => n + readingMs(l.text), 0);
+          window.setTimeout(() => current.current === i && setState((st) => ({ ...st, line: li })), at);
+        });
         window.setTimeout(() => {
           if (current.current === i && !userPaused.current) enterRef.current(i + 1);
-        }, s.speakMs);
+        }, total);
         return;
       }
       if (userPaused.current) {
@@ -177,15 +224,14 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       }
       pendingSpeech.current = false;
       const id = s.id;
-      const before = scenes.slice(0, i).reduce((n, x) => n + x.lines.length, 0);
       void narrator
         .speak(s.lines, (li) => {
           if (scenes[current.current]?.id !== id) return;
           ambience?.duck(true);
-          setState((st) => ({ ...st, line: li, lineAt: performance.now(), spoken: before + li }));
+          setState((st) => ({ ...st, line: li, spoken: true }));
         })
         .finally(() => {
-          if (scenes[current.current]?.id !== id || exited.current) return;
+          if (scenes[current.current]?.id !== id || leaving.current) return;
           ambience?.duck(false);
           // Speech-driven: the next story starts at once, so there is no silence between events.
           if (!userPaused.current) enterRef.current(i + 1);
@@ -194,17 +240,13 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     [play, narrator, scenes, ambience],
   );
 
-  /** Shows scene `i` from its start: camera, card, captions and narration. Past the last scene: the closing card. */
+  /** Shows scene `i` from its start: camera, captions and narration. Past the last scene: back to the page. */
   const enter = useCallback(
     (i: number) => {
+      if (leaving.current) return;
       if (i >= scenes.length) {
         if (tour) return enterRef.current(0);
-        closing.current = true;
-        clock.pause();
-        narrator?.cancel();
-        ambience?.duck(false);
-        setState((st) => ({ ...st, phase: 'closing', detail: false }));
-        void map.current?.flyStages([{ lon: 12, lat: 24, zoom: 1.2, duration: 2200 }], pad);
+        exit('done');
         return;
       }
       const s = scenes[i]!;
@@ -214,16 +256,14 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       frame(s);
       clock.seek(startOf(timeline, i));
       if (!userPaused.current) clock.play();
-      setState((st) => ({ ...st, index: i, offset: 0, line: 0, lineAt: performance.now() }));
+      setState((st) => ({ ...st, index: i, offset: 0, line: 0 }));
       speak(s, i);
     },
-    [scenes, tour, play, narrator, ambience, frame, clock, timeline, speak, pad],
+    [scenes, tour, play, narrator, ambience, frame, clock, timeline, speak, exit],
   );
   useEffect(() => {
     enterRef.current = enter;
   }, [enter]);
-
-  const seek = useCallback((i: number) => enter(Math.max(0, Math.min(scenes.length - 1, i))), [enter, scenes.length]);
 
   const togglePause = useCallback(() => {
     if (userPaused.current) {
@@ -244,26 +284,15 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     }
   }, [clock, narrator, ambience, scenes, speak]);
 
-  // Opening card, then the first scene. Reading modes start at once and follow the clock.
+  // Starts at once: narration (or the reading clock) begins immediately; the camera joins when the map has loaded.
   useEffect(() => {
-    const t = window.setTimeout(
-      () => {
-        setState((st) => ({ ...st, phase: 'live' }));
-        enterRef.current(0);
-      },
-      tour ? 0 : OPEN_MS,
-    );
+    const t = window.setTimeout(() => enterRef.current(0), 0);
     let raf = 0;
     let last = 0;
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
-      if (now - last < 90) return;
+      if (now - last < 90 || play || leaving.current) return;
       last = now;
-      if (play) {
-        setState((st) => ({ ...st, offset: clock.now() - startOf(timeline, st.index), tick: now }));
-        return;
-      }
-      if (exited.current) return;
       const at = locate(timeline, clock.now());
       if (current.current < 0) return;
       if (at.done) {
@@ -279,7 +308,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       cancelAnimationFrame(raf);
       narrator?.cancel();
     };
-  }, [clock, timeline, scenes.length, play, tour, narrator]);
+  }, [clock, timeline, scenes.length, play, narrator]);
 
   // The map loads lazily: frame the current scene once it is there.
   useEffect(() => {
@@ -289,9 +318,12 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       if (map.current) {
         const s = scenes[Math.max(0, current.current)];
         if (s && current.current >= 0) frame(s);
-        else void map.current.flyStages([{ lon: 12, lat: 24, zoom: 0.9, duration: 10 }]);
+        setState((st) => ({ ...st, mapReady: true }));
         clearInterval(t);
-      } else if (tries > 40) clearInterval(t);
+      } else if (tries > 40) {
+        setState((st) => ({ ...st, mapReady: true }));
+        clearInterval(t);
+      }
     }, 200);
     return () => clearInterval(t);
   }, [scenes, frame]);
@@ -305,17 +337,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     };
   }, []);
 
-  /** Starts the whole presentation again from the opening (the plan and stored audio are reused). */
-  const replay = useCallback(() => {
-    closing.current = false;
-    setState((st) => ({ ...st, phase: 'opening', run: st.run + 1, index: 0, offset: 0, line: 0, spoken: 0 }));
-    window.setTimeout(() => {
-      setState((st) => ({ ...st, phase: 'live' }));
-      enterRef.current(0);
-    }, OPEN_MS);
-  }, []);
-
-  // Keyboard: Esc exits; Space pauses; arrows move between stories. In Comfort Mode any key exits.
+  // Keyboard: Esc leaves; Space pauses (an accessibility control, not a visible transport). In Comfort Mode any key exits.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (tour) {
@@ -324,16 +346,15 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
         exit('user');
         return;
       }
-      if (e.key === 'Escape') exit(state.phase === 'closing' ? 'done' : 'user');
+      if (e.key === 'Escape') exit('user');
       else if (e.key === ' ') {
         e.preventDefault();
         togglePause();
-      } else if (e.key === 'ArrowRight') seek(current.current + 1);
-      else if (e.key === 'ArrowLeft') seek(current.current - 1);
+      }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [tour, exit, togglePause, seek, state.phase]);
+  }, [tour, exit, togglePause]);
 
   // Comfort Mode: any click or tap exits and is consumed, so it never activates what is underneath.
   useEffect(() => {
@@ -345,7 +366,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     const onDown = (e: Event) => {
       swallow(e);
       window.addEventListener('click', swallow, true);
-      setTimeout(() => window.removeEventListener('click', swallow, true), 600);
+      setTimeout(() => window.removeEventListener('click', swallow, true), 1200);
       exit('user');
     };
     window.addEventListener('pointerdown', onDown, true);
@@ -370,33 +391,36 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
     [scene?.iso3],
   );
   const selectedId = scene?.id.startsWith('ev:') ? scene.id.slice(3) : null;
-  const target: MapTarget | null = useMemo(
-    () => (scene && scene.lat != null && scene.lon != null && state.phase === 'live' ? { lon: scene.lon, lat: scene.lat, label: scene.title.replace(/^M\s?\d+(\.\d)?\s*-\s*/, '').slice(0, 40), precise: scene.kind === 'event' } : null),
-    [scene, state.phase],
-  );
+  const live = !state.leaving && (play ? state.spoken : true);
+  const target: MapTarget | null = useMemo(() => {
+    if (!scene || !live || scene.id === 'opening') return null;
+    const label = scene.title.replace(/^M\s?\d+(\.\d)?\s*-\s*/, '').slice(0, 40);
+    if (scene.lat != null && scene.lon != null) {
+      const precise = scene.kind === 'event' && scene.id.startsWith('ev:usgs-');
+      return { lon: scene.lon, lat: scene.lat, label, precise, kind: precise ? 'point' : 'area' };
+    }
+    // A story known only at country level: the country outline, never an invented point.
+    return scene.iso3 ? { lon: 0, lat: 0, label, precise: false, kind: 'country', iso3: scene.iso3 } : null;
+  }, [scene, live]);
   // Which line is on screen: the narrator says so when speaking; the silent modes follow reading time.
   let lineIdx = state.line;
-  let sinceLine = state.tick - state.lineAt;
   if (!play && scene) {
     let t = state.offset - CAMERA_LEAD_MS;
     lineIdx = -1;
     for (const [i, d] of (lineTimes[state.index] ?? []).entries()) {
       if (t < 0) break;
       lineIdx = i;
-      sinceLine = t;
       t -= d;
     }
   }
-  const line: Line | undefined = lineIdx >= 0 ? scene?.lines[Math.min(lineIdx, scene.lines.length - 1)] : undefined;
-  // Captions reveal word by word, slightly ahead of the voice (about 3.4 words per second) so they are easy to read.
-  const words = line ? line.text.split(' ') : [];
-  const shown = Math.min(words.length, 3 + Math.floor(sinceLine / 290));
+  const line: Line | undefined = live && lineIdx >= 0 ? scene?.lines[Math.min(lineIdx, scene.lines.length - 1)] : undefined;
   const label = tour ? 'Comfort Mode' : play ? 'Operations Briefing' : 'Situation Report';
+  const loading = !state.leaving && (!state.mapReady || (play && !state.spoken));
 
   return (
     <div
-      ref={root}
-      className={`av-present fixed inset-0 z-[100] overflow-hidden bg-ink-950 text-platinum ${state.paused ? "av-paused" : ""}`}
+      className={`av-present fixed inset-0 z-[100] overflow-hidden bg-ink-950 text-platinum transition-opacity ${state.leaving ? 'pointer-events-none opacity-0' : 'opacity-100'} ${state.paused ? 'av-paused' : ''}`}
+      style={{ transitionDuration: `${FADE_MS}ms` }}
       role="dialog"
       aria-modal="true"
       aria-label={tour ? 'Comfort Mode. Press any key or click to exit.' : label}
@@ -404,6 +428,9 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       <div className="absolute inset-0">
         {gl ? (
           <Suspense fallback={null}>
+            {mapboxToken ? (
+              <MapboxGlobe ref={map} token={mapboxToken} events={events} selectedEventId={selectedId} interactive={false} target={target} />
+            ) : (
             <GeoMap
               ref={map}
               state={mapState}
@@ -420,6 +447,7 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
               onEvent={() => undefined}
               onTileError={() => undefined}
             />
+            )}
           </Suspense>
         ) : (
           <div className="grid h-full place-items-center text-sm text-slate-dim">The globe needs WebGL 2, which this browser does not offer.</div>
@@ -428,41 +456,44 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
       <div className="av-vignette pointer-events-none absolute inset-0" aria-hidden />
       {state.acquire > 0 && <div key={state.acquire} className="av-acquire" aria-hidden />}
 
-      {/* Edition label only; no explanatory captions on the presentation. */}
-      {!tour && (
-        <div className="pointer-events-none absolute left-5 top-4 z-10 text-[11px] text-mist">
+      {/* Real readiness only: shown while the map or the first audio is still loading, never as a timed intro. */}
+      {loading && (
+        <div className="pointer-events-none absolute inset-x-0 top-[38%] z-20 flex flex-col items-center gap-2 text-center" role="status">
+          <span className="av-load-dot h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />
+          <span className="text-[11px] uppercase tracking-[0.3em] text-mist">Initializing {tour ? 'Comfort Mode' : 'briefing'}</span>
+        </div>
+      )}
+
+      {/* The edition or mode label appears briefly at the start, then fades. */}
+      {!tour && !loading && (
+        <div className="av-fade-label pointer-events-none absolute bottom-5 left-5 z-10 text-[11px] text-mist">
           <div className="eyebrow !text-[10px]">{label}</div>
           {subtitle && <div className="mt-0.5">{subtitle}</div>}
         </div>
       )}
 
-      {/* Story card: what and when (sources stay in the transcript and the evidence views). */}
-      {scene && state.phase === 'live' && scene.id !== 'intro' && scene.id !== 'outro' && !tour && (
-        <section
-          key={`${state.run}-${scene.id}`}
-          className={`av-session absolute z-10 border-l-2 border-gold/70 bg-ink-950/75 p-4 backdrop-blur ${desktop ? 'right-6 top-20 w-[380px]' : 'inset-x-3 top-16'}`}
+      {/* The current turn, shown whole in a stable upper column (readable before or as it is spoken). */}
+      {line && (
+        <div
+          key={`${scene?.id}-${lineIdx}`}
+          className={`av-turn pointer-events-none absolute z-10 ${desktop ? 'left-10 top-12 w-[min(680px,calc(100%-160px))]' : 'inset-x-4 top-14'}`}
           aria-live="polite"
         >
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-dim">{fmtDate(scene.date)}</div>
-          <h2 className="mt-1.5 text-lg font-semibold leading-snug">{scene.title}</h2>
-          {scene.explanation && <p className="mt-1.5 text-sm leading-relaxed text-mist">{scene.explanation}</p>}
-        </section>
-      )}
-
-      {/* The conversation: spoken in the Operations Briefing, shown as timed captions in the silent modes. */}
-      {line && state.phase === 'live' && (
-        <div
-          key={`${state.run}-${scene?.id}-${lineIdx}`}
-          className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 ${tour ? 'bottom-[18%] w-[min(820px,calc(100%-48px))]' : desktop ? 'bottom-14 w-[min(760px,calc(100%-560px))]' : 'bottom-10 w-[calc(100%-24px)]'}`}
-        >
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: SPEAKER_COLOR[line.speaker] }}>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: SPEAKER_COLOR[line.speaker] }}>
             <RoleBadge role={line.speaker} />
             {ANALYSTS[line.speaker].name}
           </div>
-          <p className={`mt-1 leading-relaxed text-platinum [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] ${tour ? 'text-xl' : 'text-[17px]'}`}>
-            {words.slice(0, shown).join(' ')}
-            <span className="opacity-0">{shown < words.length ? ` ${words.slice(shown).join(' ')}` : ''}</span>
+          <p className={`mt-1.5 border-l-2 pl-3 leading-snug text-platinum [text-shadow:0_1px_8px_rgba(0,0,0,0.95)] ${tour || desktop ? 'text-[22px]' : 'text-lg'}`} style={{ borderColor: SPEAKER_COLOR[line.speaker] }}>
+            {line.text}
           </p>
+        </div>
+      )}
+
+      {/* Where the camera is: place and time, shown when a story begins and then faded out. */}
+      {scene && live && !tour && scene.title && (
+        <div key={`place-${scene.id}`} className={`av-fade-label pointer-events-none absolute z-10 text-xs text-mist [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] ${desktop ? 'bottom-5 right-6 text-right' : 'bottom-5 right-4 text-right'}`}>
+          <div className="text-platinum/90">{scene.title}</div>
+          <div className="num text-[11px] text-slate-dim">{fmtDate(scene.date)}</div>
         </div>
       )}
 
@@ -479,32 +510,11 @@ export function Presentation({ plan, mode, events, narrator = null, audioNote = 
           <Volume2 className="h-4 w-4" aria-hidden /> Enable sound
         </button>
       ) : (
-        play && note && state.phase === 'live' && <p className="absolute bottom-4 left-5 z-20 text-[11px] text-slate-dim">{note}</p>
-      )}
-
-      {/* Session open and close: the briefing starts like a session, not a video. */}
-      {state.phase !== 'live' && (
-        <div className="absolute inset-0 z-30 grid place-items-center bg-ink-950/70 backdrop-blur-sm">
-          <div key={`${state.run}-${state.phase}`} className="av-session flex flex-col items-center gap-4 text-center">
-            <Monogram className="h-14 w-auto" />
-            <div className="eyebrow">{state.phase === 'opening' ? label : 'Briefing complete'}</div>
-            {subtitle && <div className="text-xs text-mist">{subtitle}</div>}
-            {state.phase === 'closing' && (
-              <div className="mt-2 flex gap-2">
-                <button className="btn-ghost text-xs" onClick={replay}>
-                  <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Replay Briefing
-                </button>
-                <button className="btn-primary text-xs" onClick={() => exit('done')} autoFocus>
-                  Close
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        play && note && !state.leaving && <p className="absolute bottom-12 left-5 z-20 max-w-md text-[11px] text-slate-dim">{note}</p>
       )}
 
       {/* One discreet, accessible way out (Esc does the same). */}
-      {!tour && state.phase !== 'closing' && (
+      {!tour && !state.leaving && (
         <button className="absolute right-3 top-3 z-30 grid h-11 w-11 place-items-center rounded-full text-mist/60 hover:bg-ink-900/60 hover:text-platinum" onClick={() => exit('user')} aria-label="Close briefing">
           <X className="h-5 w-5" aria-hidden />
         </button>

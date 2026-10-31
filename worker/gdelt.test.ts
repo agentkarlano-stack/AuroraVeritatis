@@ -23,7 +23,7 @@ describe('GDELT news', () => {
     expect(String(spy.mock.calls[0]![0])).toMatch(/api\.gdeltproject\.org\/api\/v2\/doc\/doc\?query=Japan%20sourcelang%3Aenglish&mode=ArtList/);
     expect(r.articles).toBe(2);
     expect(r.stories[0]).toMatchObject({ status: 'corroborated', first: '2026-10-24T10:00:00Z' });
-    expect(r.source.license).toMatch(/headlines and links only/);
+    expect(r.source.license).toMatch(/links only/);
   });
 });
 
@@ -47,8 +47,10 @@ describe('UN News', () => {
     expect(filterUn(items, 'Brazil', '24h', now)).toHaveLength(0);
   });
   it('falls back to UN News when GDELT fails, and says so', async () => {
+    vi.useFakeTimers({ now: Date.parse('2026-10-25T12:00:00Z'), toFake: ['Date'] });
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (u) => (String(u).includes('gdeltproject') ? new Response('slow down', { status: 429 }) : new Response(RSS)));
     const r = await newsSearch('Japan', '7d');
+    vi.useRealTimers();
     expect(r.partial).toMatch(/GDELT did not respond/);
     expect(r.stories[0]).toMatchObject({ status: 'confirmed', official: ['news.un.org'] });
   });

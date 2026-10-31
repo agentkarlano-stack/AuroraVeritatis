@@ -10,14 +10,24 @@ import { RateLimiter } from './ratelimit';
 import { disasters } from './gdacs';
 import { withRouteMeta } from './meta';
 import { earthquakes } from './usgs';
-import { TIMESPANS, cleanQuery, newsSearch, type Timespan } from './gdelt';
+import { DEFAULT_QUERY, TIMESPANS, cleanQuery, newsSearch, type ExtraSource, type Timespan } from './gdelt';
 import { gnewsEnabled, gnewsSearch, type GnewsEnv } from './gnews';
+import { sfxRoute } from './sfx';
+import { theNewsApiConfigured, theNewsApiSearch, type TheNewsApiEnv } from './thenewsapi';
 import { quoteEmail, validateQuote } from '../shared/businessQuote';
 import { BrevoError, allowQuote, allowRequest, brevoDiagnostics, brevoStatus, eraseForAurora, normalizeEmail, sendConfirmation, sendQuoteRequest, startDoubleOptIn, subscriptionsReady, unsubscribe, verifyLink, type BrevoEnv } from './brevo';
 import { TD_INTERVALS, TwelveDataError, diagnostics as marketDiagnostics, displayLicensed, isConfigured as marketConfigured, symbolSearch, timeSeries, validExchange, validSymbol, type TdInterval, type TwelveDataEnv } from './twelvedata';
 import { ISO3_RE, compareYear, countryProfile, currencyProfile, indicatorSeries, latestValues } from './worldbank';
 
-export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, EditionsEnv {
+/** Paid news adapters added to GDELT + UN News: The News API (primary, Basic plan) and GNews (only when licensed). */
+function newsExtras(env: Env, q: string, t: Timespan): ExtraSource[] {
+  const out: ExtraSource[] = [];
+  if (theNewsApiConfigured(env)) out.push({ name: 'The News API', search: () => theNewsApiSearch(env, q, t, DEFAULT_QUERY) });
+  if (gnewsEnabled(env)) out.push({ name: 'GNews', search: () => gnewsSearch(env, q, t) });
+  return out;
+}
+
+export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, TheNewsApiEnv, EditionsEnv {
   ASSETS: Fetcher;
   /** Cloudflare version metadata binding (wrangler.jsonc); absent in tests and local tools. */
   CF_VERSION_METADATA?: { id: string; tag?: string; timestamp?: string };
@@ -28,6 +38,8 @@ export interface Env extends TwelveDataEnv, BrevoEnv, AiGatewayEnv, GnewsEnv, Ed
   POSTHOG_HOST?: string;
   /** ArcGIS Location Platform API key (browser key, referrer-restricted) for close-up satellite imagery; optional. */
   ARCGIS_BASEMAP_KEY?: string;
+  /** Mapbox public access token (`pk.`), restricted to Aurora's URLs in the Mapbox account. */
+  MAPBOX_ACCESS_TOKEN?: string;
   /** Inbox for business quote requests (defaults to the support address). */
   BUSINESS_QUOTE_TO?: string;
 }
@@ -59,7 +71,14 @@ function publicConfig(env: Env, url: URL): PublicConfig {
           maxZoom: 18,
         }
       : null,
+    mapbox: mapboxPublicToken(env) ? { token: mapboxPublicToken(env)! } : null,
   };
+}
+
+/** Only a public `pk.` token may reach the browser; anything else (e.g. a secret `sk.` token) is withheld. */
+export function mapboxPublicToken(env: Env): string | null {
+  const t = env.MAPBOX_ACCESS_TOKEN?.trim();
+  return t && /^pk\.[A-Za-z0-9._-]+$/.test(t) ? t : null;
 }
 
 /** Serve from the Cloudflare edge cache when possible; populate it on successful responses. */
@@ -167,6 +186,9 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     });
   }
   if (request.method === 'POST' && path === '/api/voice/speak') return voiceSpeak(request, env, { cache: voiceCache });
+  // Briefing sound-design assets: generated once on previews for the repository (worker/sfx.ts), never in production.
+  const sfx = request.method === 'GET' ? path.match(/^\/api\/sfx\/([a-z-]+)$/) : null;
+  if (sfx) return sfxRoute(request, env, url, sfx[1]!);
   if (request.method !== 'GET') return error(405, 'Method not allowed');
   if (path.startsWith('/api/briefing/')) return (await briefingRoute(path, env))!;
 
@@ -203,7 +225,7 @@ export async function handleApi(request: Request, env: Env, ctx: ExecutionContex
     const t = (TIMESPANS as readonly string[]).includes(url.searchParams.get('t') ?? '') ? (url.searchParams.get('t') as Timespan) : '24h';
     return cached(request, ctx, async () => {
       try {
-        return json(await newsSearch(q, t, gnewsEnabled(env) ? { name: 'GNews', search: () => gnewsSearch(env, q, t) } : undefined), { maxAge: 1800 });
+        return json(await newsSearch(q, t, newsExtras(env, q, t)), { maxAge: 1800 });
       } catch (e) {
         return error(502, 'News source unavailable', (e as Error).message);
       }
@@ -489,7 +511,7 @@ export default {
     ctx.waitUntil(
       runEditionJob(env, {
         events: async () => [...(await earthquakes().catch(() => [])), ...(await disasters().catch(() => []))],
-        stories: async () => (await newsSearch(cleanQuery(null)!, '24h')).stories,
+        stories: async () => (await newsSearch(cleanQuery(null)!, '24h', newsExtras(env, cleanQuery(null)!, '24h'))).stories,
       }).then((r) => console.log('Edition job', r.action, r.detail ?? '')),
     );
   },

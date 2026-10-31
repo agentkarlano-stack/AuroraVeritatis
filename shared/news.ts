@@ -13,6 +13,12 @@ export interface NewsArticle {
   seen: string;
   language: string;
   sourceCountry: string;
+  /** Short excerpt supplied by the provider (description or snippet), never the article text. */
+  summary?: string;
+  /** Which adapter supplied the record (gdelt, un, thenewsapi, gnews). */
+  provider?: string;
+  /** Provider's own article id, for tracing. */
+  providerId?: string;
 }
 
 export type SourceKind = 'official' | 'wire' | 'broadcaster' | 'newspaper' | 'magazine' | 'other';
@@ -99,6 +105,8 @@ export interface Story {
   status: CoverageStatus;
   first: string;
   last: string;
+  /** Provider excerpt of the lead article, when one was supplied (attributed to that article's publisher). */
+  summary?: string;
 }
 
 const STOP = new Set('a an and are as at be by for from has have in is it its of on or said says that the this to was were will with after over into amid new us uk eu'.split(' '));
@@ -160,7 +168,8 @@ export function groupStories(articles: NewsArticle[], threshold = 0.4): Story[] 
       const official = [...byDomain.keys()].filter((d) => sourceOf(d)?.kind === 'official');
       const status: CoverageStatus = official.length ? 'confirmed' : independent.length >= 2 ? 'corroborated' : 'unverified';
       const seen = g.arts.map((a) => a.seen).sort();
-      return { id: `s${i}`, title: g.arts[0]!.title, articles: [...byDomain.values()], independent, syndicated, official, status, first: seen[0]!, last: seen.at(-1)! };
+      const withSummary = g.arts.find((a) => a.summary);
+      return { id: `s${i}`, title: g.arts[0]!.title, articles: [...byDomain.values()], independent, syndicated, official, status, first: seen[0]!, last: seen.at(-1)!, ...(withSummary ? { summary: withSummary.summary } : {}) };
     })
     .sort((a, b) => b.independent.length - a.independent.length || b.last.localeCompare(a.last));
 }

@@ -11,7 +11,7 @@
 import type { Story } from '../shared/news';
 import type { GeoEvent } from '../shared/types';
 import { countriesInHeadline, countryName } from '../shared/countryNames';
-import { agendaText, buildPlan, type Line, type Plan } from '../src/lib/briefingPlan';
+import { buildPlan, framePlan, type Line, type Plan } from '../src/lib/briefingPlan';
 import { json } from './http';
 import { speakRole, voiceChain, voiceEnabled, VOICE_CONFIG_VERSION, VOICE_MODEL, type VoiceEnv, type VoiceRole } from './voice';
 
@@ -167,8 +167,8 @@ export function editionPlan(events: GeoEvent[], stories: Story[], w: EditionWind
     mode: 'play',
   });
   while (plan.scenes.length > 1 && spoken(linesOf(plan)) > maxChars) plan.scenes.pop();
-  // The Analyst's agenda must match the stories that remain.
-  return { ...plan, agenda: { speaker: 'eve', text: agendaText(plan.scenes.length) } };
+  // The opening, closing and Security Officer line must match the stories that remain.
+  return framePlan(plan);
 }
 
 export async function runEditionJob(env: EditionsEnv, deps: JobDeps): Promise<JobResult> {
@@ -301,7 +301,7 @@ export async function briefingRoute(path: string, env: EditionsEnv, f: F = fetch
     }
     if (path === '/api/briefing/status') {
       const [s] = await rest<Schedule[]>(f, env, 'briefing_schedule?id=eq.1&select=publish_local,active,verified,evidence,retention_days', { service: false });
-      const latest = await rest<{ edition_date: string; published_at: string }[]>(f, env, 'briefing_editions?select=edition_date,published_at&order=edition_date.desc&limit=1', { service: false });
+      const latest = await rest<{ edition_date: string; published_at: string; coverage_start: string; coverage_end: string }[]>(f, env, 'briefing_editions?select=edition_date,published_at,coverage_start,coverage_end&order=edition_date.desc&limit=1', { service: false });
       return json({ generator: !!env.SUPABASE_SERVICE_ROLE_KEY, schedule: s ?? null, latest: latest[0] ?? null }, { maxAge: 60 });
     }
     const a = path.match(/^\/api\/briefing\/audio\/(.+)$/);

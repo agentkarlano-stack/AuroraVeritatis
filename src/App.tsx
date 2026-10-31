@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
+import { markRouteReady } from './store/readiness';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { PrefsSync } from './auth/PrefsSync';
@@ -101,5 +102,16 @@ export function App() {
 }
 
 function Lazy({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<AppLoading />}>{children}</Suspense>;
+  return (
+    <Suspense fallback={<AppLoading />}>
+      {children}
+      <RouteReady />
+    </Suspense>
+  );
+}
+
+/** Commits together with the page inside the same Suspense boundary, so it marks real readiness. */
+function RouteReady() {
+  useEffect(() => markRouteReady(), []);
+  return null;
 }

@@ -75,6 +75,12 @@ jobs:
         run: |
           for i in $(seq 1 12); do curl -sf -o /dev/null "${{ steps.upload.outputs.url }}/api/health" && break; sleep 5; done
           scripts/smoke.sh "${{ steps.upload.outputs.url }}"
+      - name: Check the Mapbox globe in a real browser (informational)
+        if: env.HAS_TOKEN == 'true' && steps.upload.outputs.url != ''
+        continue-on-error: true
+        run: node e2e/map-check.ts
+        env:
+          BASE_URL: ${{ steps.upload.outputs.url }}
       - name: Check NASA GIBS map layers (informational)
         if: env.HAS_TOKEN == 'true'
         run: node scripts/check-gibs.mjs
