@@ -18,14 +18,18 @@ await page.addInitScript(() => {
 });
 const errors: string[] = [];
 const mapbox = { ok: 0, failed: new Map<number, number>(), tiles: 0 };
+const otherFailures: string[] = [];
 page.on('pageerror', (e) => errors.push(e.message.slice(0, 160)));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text().replace(/access_token=[^&\s]+/g, 'access_token=[redacted]').slice(0, 160)));
 page.on('response', (r) => {
   const u = r.url();
-  if (!/mapbox\.com/.test(u)) return;
+  if (!/mapbox\.com/.test(u)) {
+    if (r.status() >= 400) otherFailures.push(`${r.status()} ${new URL(u).pathname}`);
+    return;
+  }
   if (r.ok()) {
     mapbox.ok++;
-    if (/tiles/.test(u)) mapbox.tiles++;
+    if (/\/v4\/|tiles|\.pbf|\.webp|\.png|\.jpg/.test(u)) mapbox.tiles++;
   } else mapbox.failed.set(r.status(), (mapbox.failed.get(r.status()) ?? 0) + 1);
 });
 await page.goto(`${base}/`, { waitUntil: 'domcontentloaded' });
@@ -47,9 +51,14 @@ if (loaded) {
     await page.waitForTimeout(1500);
   }
 }
+const news = await page.evaluate(async () => {
+  const r = await fetch('/api/news?t=24h').then((x) => x.json()).catch(() => null) as { stories?: { articles: { provider?: string }[]; summary?: string }[]; source?: { name: string } } | null;
+  const arts = (r?.stories ?? []).flatMap((s) => s.articles);
+  return { stories: r?.stories?.length ?? 0, fromTheNewsApi: arts.filter((a) => a.provider === 'thenewsapi').length, withSummary: (r?.stories ?? []).filter((s) => s.summary).length, sources: r?.source?.name ?? '' };
+});
 const loads = await page.evaluate(() => Number(sessionStorage.getItem('av-mapbox-loads') ?? 0));
 const failed = [...mapbox.failed].map(([s, n]) => `${s}×${n}`).join(', ') || 'none';
 await page.screenshot({ path: 'map-check.png' });
-const msg = `renderer=${provider}; styleLoaded=${loaded}; mapLoadsThisSession=${loads}; mapboxResponsesOk=${mapbox.ok} (tiles ${mapbox.tiles}); mapboxFailures=${failed}; pageErrors=${errors.length}${errors.length ? ` [${errors.slice(0, 3).join(' | ')}]` : ''}`;
+const msg = `renderer=${provider}; styleLoaded=${loaded}; mapLoadsThisSession=${loads}; mapboxResponsesOk=${mapbox.ok} (tiles ${mapbox.tiles}); mapboxFailures=${failed}; pageErrors=${errors.length}; failedRequests=${otherFailures.slice(0, 4).join(', ') || 'none'}; news: stories=${news.stories}, articlesFromTheNewsApi=${news.fromTheNewsApi}, storiesWithSummary=${news.withSummary}, sources=${news.sources}`;
 console.log(`::notice title=Map check::${msg}`);
 await browser.close();

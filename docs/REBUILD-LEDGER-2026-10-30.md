@@ -65,6 +65,31 @@ Statuses: `working and verified`, `partial`, `missing`, `in progress`, `blocked`
 | AV-SAT-03 | 8A | Licensed city colour imagery | blocked: `ARCGIS_BASEMAP_KEY` (optional); Blue Marble fallback labelled |
 | System Active status | 24B, 14-NEW 6 | Real-readiness status beside the logo | missing |
 
+## 31 October package (FINAL REBUILD, Mapbox + The News API)
+
+Archived in Knowledge `OWNER-MESSAGES/2026-10-31-final-rebuild-mapbox-thenewsapi/`. Owner directive: rebuild the whole
+site from the foundation; Mapbox GL JS is the globe/satellite engine; The News API Basic is the primary paid news
+source (`THE_NEWS_API_KEY`, `MAPBOX_ACCESS_TOKEN` configured in Cloudflare); no production cutover without owner
+approval of the preview. Canonical specs 01–18 override older notes. Statuses below use canonical 08:
+PLANNED / IMPLEMENTED_UNTESTED / PREVIEW_VERIFIED / PRODUCTION_VERIFIED / BLOCKED.
+
+| ID (canonical 18) | Requirement | Status | Evidence |
+|---|---|---|---|
+| P-01 | Both Cloudflare variables bound | PREVIEW_VERIFIED | PR #80 preview "Providers": thenewsapi LIVE auth ok, mapbox LIVE auth ok (31 Oct) |
+| N-01 | Basic endpoint, no /headlines | PREVIEW_VERIFIED | health probe `/v1/news/top` ok; adapter test asserts no /headlines |
+| N-02 | Pipeline to cards | IMPLEMENTED_UNTESTED | `/api/news` merges The News API; map check now reports provider counts; durable DB ingestion pending (needs service-role key + migration) |
+| N-03 | No key in browser/logs | IMPLEMENTED_UNTESTED | errors never contain the URL (test); key only server-side |
+| N-04 | Media rights | IMPLEMENTED_UNTESTED | `image_url` withheld; no media until a rights register exists |
+| N-06 | Durable shared quota | BLOCKED | per-isolate budget + edge cache only; durable ledger needs Supabase table (owner SQL) |
+| M-01 | Live Mapbox globe | PREVIEW_VERIFIED | map check: renderer=mapbox, styleLoaded=true |
+| M-02 | pk. only in browser | PREVIEW_VERIFIED | config withholds non-pk tokens (test); health reports token type |
+| M-03 | Precise focus + matching reticle | IMPLEMENTED_UNTESTED | lib/geo/reticle.ts (tested), point/area/country/sea forms |
+| M-04 | Single map instance | PREVIEW_VERIFIED (Radar) | mapLoadsThisSession=1 after zoom/pan/click; briefing still opens a second instance |
+| U-01 | Story lifecycle | IMPLEMENTED_UNTESTED | StoryDossier full-viewport view, Esc/close, show on map (local browser test both widths) |
+| V-01/V-02 | COD audio, media | PLANNED | slice C |
+| D-01 | Intro | PLANNED | Russia reference clip not in LIGHT package |
+| S-01..S-04 | Whole-site rebuild, mobile, data, cutover | PLANNED | slices B and D |
+
 ## Last session handoff
 
 - Completed and verified: intake; archive of the package in the Knowledge repo.
