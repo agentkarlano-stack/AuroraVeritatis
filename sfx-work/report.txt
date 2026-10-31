@@ -1,0 +1,5 @@
+ops-room 200 bytes=529806 duration=22.047347s mean_volume: -35.4 dB max_volume: -23.6 dB 
+radio-hiss 200 bytes=289688 duration=12.042449s mean_volume: -18.1 dB max_volume: -3.4 dB 
+ptt-open 200 bytes=20732 duration=0.835918s mean_volume: -19.7 dB max_volume: -0.2 dB 
+ptt-close 200 bytes=18224 duration=0.731429s mean_volume: -16.9 dB max_volume: -0.1 dB 
+console-ack 200 bytes=20732 duration=0.835918s mean_volume: -24.8 dB max_volume: -11.3 dB 
